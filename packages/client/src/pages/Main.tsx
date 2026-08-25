@@ -26,7 +26,7 @@ import RightContentRouter from './main/components/RightContentRouter';
 import { hasUnreadAnnouncements, getNewestUnreadAnnouncement } from './main/components/AnnouncementPanel';
 import MainOverlays from './main/components/MainOverlays';
 import { cn } from '../utils/cn';
-import { companyUsers, filterDepartments } from '../utils/orgTree';
+import { companyUsers } from '../utils/orgTree';
 import { APP_MAX_WIDTH, APP_WINDOW_HEIGHT } from '../layout/constants';
 import { presenceFromList, type OnlinePresenceMap } from '../utils/presence';
 
@@ -270,20 +270,38 @@ export default function Main() {
   });
   const orgTree = useMemo(() => {
     const tree = orgTreeRaw ?? [];
-    const keepUser = (u: OrgUser) => {
-      const nameMatch = !q || u.name?.toLowerCase().includes(q);
+    const keepUser = (u: OrgUser, deptPath = '') => {
+      const nameMatch = !q || u.name?.toLowerCase().includes(q) || deptPath.toLowerCase().includes(q);
       const onlineMatch = !showOnlineOnly || onlineUserIds.has(String(u.id));
       return Boolean(nameMatch && onlineMatch);
     };
+    const filterDeptsWithPath = (
+      departments: OrgCompany['departments'],
+      pathPrefix = '',
+    ): OrgCompany['departments'] => {
+      return (departments ?? [])
+        .map((dept) => {
+          const path = pathPrefix ? `${pathPrefix} > ${dept.name}` : dept.name;
+          const children = filterDeptsWithPath(dept.children ?? [], path);
+          const users = (dept.users ?? []).filter((u) => keepUser(u, path));
+          // 부서명 자체가 검색어와 맞으면 해당 부서 인원(온라인 필터만) 유지
+          const deptNameHit = !!q && dept.name.toLowerCase().includes(q);
+          const keptUsers = deptNameHit
+            ? (dept.users ?? []).filter((u) => !showOnlineOnly || onlineUserIds.has(String(u.id)))
+            : users;
+          return { ...dept, users: keptUsers, children };
+        })
+        .filter((dept) => dept.users.length > 0 || dept.children.length > 0);
+    };
     const filtered = tree.map((company) => ({
       ...company,
-      // 하위 부서에 남는 사람이 있으면 상위 부서도 유지된다
-      departments: filterDepartments(company.departments ?? [], keepUser),
+      departments: filterDeptsWithPath(company.departments ?? []),
     })).filter((company) => (company.departments?.length ?? 0) > 0);
     return filtered
       .map((c) => ({ ...c, departments: [...c.departments].sort((a, b) => (orgStarred.has(b.id) ? 1 : 0) - (orgStarred.has(a.id) ? 1 : 0)) }))
       .sort((a, b) => (orgStarred.has(b.id) ? 1 : 0) - (orgStarred.has(a.id) ? 1 : 0));
   }, [orgTreeRaw, q, showOnlineOnly, onlineUserIds, orgStarred]);
+
 
   const orgGroups = useMemo(() => {
     return (orgGroupsRaw ?? [])

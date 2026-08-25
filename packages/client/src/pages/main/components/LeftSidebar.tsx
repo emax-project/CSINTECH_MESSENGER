@@ -84,7 +84,7 @@ function LeftSidebar({
           activePanel === 'none' && (isDark ? 'bg-slate-700 ring-1 ring-brand/40' : 'bg-slate-100 ring-1 ring-brand/30'),
         )}
         style={macDrag ? electronNoDragStyle : undefined}
-        title="조직도"
+        title="연락처"
       >
         <EmaxLogo variant={isDark ? 'light' : 'accent'} size="md" />
       </button>

@@ -34,6 +34,60 @@ export function allOrgUsers(orgTree: OrgCompany[]): OrgUser[] {
   return (orgTree ?? []).flatMap(companyUsers);
 }
 
+/** 사람 목록용: 부서·회사 메타가 붙은 사용자. */
+export type OrgPerson = OrgUser & {
+  companyId: string;
+  companyName: string;
+  departmentId: string;
+  departmentName: string;
+  departmentPath: string;
+};
+
+/** 조직도를 사람 단위로 편다(같은 사람이 여러 부서면 각각 한 줄). */
+export function listOrgPeople(orgTree: OrgCompany[]): OrgPerson[] {
+  const out: OrgPerson[] = [];
+  for (const company of orgTree ?? []) {
+    const walk = (list: OrgDepartment[], pathPrefix: string) => {
+      for (const dept of list ?? []) {
+        const path = pathPrefix ? `${pathPrefix} > ${dept.name}` : dept.name;
+        for (const u of dept.users ?? []) {
+          out.push({
+            ...u,
+            companyId: company.id,
+            companyName: company.name,
+            departmentId: dept.id,
+            departmentName: dept.name,
+            departmentPath: path,
+          });
+        }
+        walk(dept.children ?? [], path);
+      }
+    };
+    walk(company.departments ?? [], '');
+  }
+  return out;
+}
+
+/** 필터 칩용 부서 목록(평면, 경로 포함). */
+export function listOrgDeptFilters(orgTree: OrgCompany[]): Array<{
+  id: string;
+  label: string;
+  companyId: string;
+}> {
+  const out: Array<{ id: string; label: string; companyId: string }> = [];
+  for (const company of orgTree ?? []) {
+    const walk = (list: OrgDepartment[], pathPrefix: string) => {
+      for (const dept of list ?? []) {
+        const path = pathPrefix ? `${pathPrefix} > ${dept.name}` : dept.name;
+        out.push({ id: dept.id, label: path, companyId: company.id });
+        walk(dept.children ?? [], path);
+      }
+    };
+    walk(company.departments ?? [], '');
+  }
+  return out;
+}
+
 /**
  * 부서 트리를 검색·필터 조건으로 거른다.
  * 자기 인원이 조건에 맞지 않아도 하위 부서에 남는 사람이 있으면 유지한다.

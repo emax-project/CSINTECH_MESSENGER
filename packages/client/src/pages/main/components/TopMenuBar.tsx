@@ -52,8 +52,8 @@ function TopMenuBar({
             type="button"
             style={btnStyle(false)}
             onClick={onOpenSidebar}
-            title="조직도"
-            aria-label="조직도 열기"
+            title="연락처"
+            aria-label="연락처 열기"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="3" y1="6" x2="21" y2="6" />
