@@ -142,8 +142,10 @@ type RightContentRouterProps = {
     alwaysOnTop?: boolean;
     onToggleAlwaysOnTop?: () => void;
     downloadPath?: string | null;
+    askSaveAs?: boolean;
     onPickDownloadPath?: () => void;
     onClearDownloadPath?: () => void;
+    onToggleAskSaveAs?: () => void;
     statusOptions: { id: string; label: string }[];
     renderStatusIcon: (status: string, size?: number) => JSX.Element | null;
     handleSetStatus: (msg: string) => void | Promise<void>;
@@ -153,6 +155,7 @@ type RightContentRouterProps = {
     onTestNotification: () => void;
     onRequestNotificationPermission: () => void | Promise<void>;
     onLogout: () => void;
+    onQuit?: () => void;
     user: { id: string; name?: string | null; avatarUrl?: string | null } | null | undefined;
   };
 };
@@ -327,8 +330,10 @@ function RightContentRouter({
             alwaysOnTop={settingsProps.alwaysOnTop}
             onToggleAlwaysOnTop={settingsProps.onToggleAlwaysOnTop}
             downloadPath={settingsProps.downloadPath}
+            askSaveAs={settingsProps.askSaveAs}
             onPickDownloadPath={settingsProps.onPickDownloadPath}
             onClearDownloadPath={settingsProps.onClearDownloadPath}
+            onToggleAskSaveAs={settingsProps.onToggleAskSaveAs}
             statusOptions={settingsProps.statusOptions}
             renderStatusIcon={settingsProps.renderStatusIcon}
             handleSetStatus={settingsProps.handleSetStatus}
@@ -338,6 +343,7 @@ function RightContentRouter({
             onTestNotification={settingsProps.onTestNotification}
             onRequestNotificationPermission={settingsProps.onRequestNotificationPermission}
             onLogout={settingsProps.onLogout}
+            onQuit={settingsProps.onQuit}
           />
         </Suspense>
       )}

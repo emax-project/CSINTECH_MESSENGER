@@ -157,8 +157,10 @@ type SettingsPanelProps = {
   alwaysOnTop?: boolean;
   onToggleAlwaysOnTop?: () => void;
   downloadPath?: string | null;
+  askSaveAs?: boolean;
   onPickDownloadPath?: () => void;
   onClearDownloadPath?: () => void;
+  onToggleAskSaveAs?: () => void;
   statusOptions: StatusOption[];
   renderStatusIcon: (status: string, size?: number) => ReactNode;
   handleSetStatus: (msg: string) => Promise<void> | void;
@@ -168,6 +170,7 @@ type SettingsPanelProps = {
   onTestNotification: () => void;
   onRequestNotificationPermission: () => Promise<void> | void;
   onLogout: () => void;
+  onQuit?: () => void;
 };
 
 function SettingsPanel({
@@ -203,8 +206,10 @@ function SettingsPanel({
   alwaysOnTop = false,
   onToggleAlwaysOnTop,
   downloadPath = null,
+  askSaveAs = false,
   onPickDownloadPath,
   onClearDownloadPath,
+  onToggleAskSaveAs,
   statusOptions,
   renderStatusIcon,
   handleSetStatus,
@@ -214,6 +219,7 @@ function SettingsPanel({
   onTestNotification,
   onRequestNotificationPermission,
   onLogout,
+  onQuit,
 }: SettingsPanelProps) {
   const wrap = panelWrapStyle(760);
   return (
@@ -390,7 +396,7 @@ function SettingsPanel({
 
         {hasElectron && onToggleAlwaysOnTop && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 10, padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc' }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: isDark ? '#e2e8f0' : '#0f172a' }}>항상 위에 고정</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: isDark ? '#e2e8f0' : '#0f172a' }}>화면 위치 고정</span>
             <button type="button" onClick={onToggleAlwaysOnTop} style={{ width: 48, height: 28, borderRadius: 14, border: 'none', background: alwaysOnTop ? '#171717' : (isDark ? '#475569' : '#e2e8f0'), cursor: 'pointer', position: 'relative' as const, padding: 0, flexShrink: 0 }}>
               <span style={{ position: 'absolute' as const, top: 3, left: alwaysOnTop ? 23 : 3, width: 22, height: 22, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
             </button>
@@ -425,6 +431,13 @@ function SettingsPanel({
                 <button type="button" className={cn('px-3 py-1.5 rounded-lg text-[12px] font-bold cursor-pointer border', isDark ? 'border-slate-600 bg-slate-800 text-slate-200' : 'border-slate-200 bg-white text-slate-700')} onClick={onClearDownloadPath}>초기화</button>
               )}
             </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: isDark ? '#e2e8f0' : '#0f172a' }}>다른 이름으로 저장</span>
+              <button type="button" onClick={onToggleAskSaveAs} style={{ width: 48, height: 28, borderRadius: 14, border: 'none', background: askSaveAs ? '#171717' : (isDark ? '#475569' : '#e2e8f0'), cursor: 'pointer', position: 'relative' as const, padding: 0, flexShrink: 0 }} aria-pressed={askSaveAs}>
+                <span style={{ position: 'absolute' as const, top: 3, left: askSaveAs ? 23 : 3, width: 22, height: 22, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+              </button>
+            </div>
+            <div style={{ fontSize: 12, color: isDark ? '#94a3b8' : '#64748b' }}>켜면 파일을 받을 때마다 저장 위치를 고릅니다.</div>
           </div>
         )}
 
@@ -548,6 +561,9 @@ function SettingsPanel({
         {hasElectron && <button type="button" className={cn('w-full px-4 py-3 border-none rounded-[10px] text-sm font-semibold cursor-pointer', isDark ? 'bg-slate-700 text-slate-200' : 'bg-slate-100 text-slate-800')} onClick={onTestNotification}>알림 테스트</button>}
         {!hasElectron && <button type="button" className={cn('w-full px-4 py-3 border-none rounded-[10px] text-sm font-semibold cursor-pointer', isDark ? 'bg-slate-700 text-slate-200' : 'bg-slate-100 text-slate-800')} onClick={() => void onRequestNotificationPermission()}>알림 권한 요청</button>}
         <button type="button" className={cn('w-full px-4 py-3 border-none rounded-[10px] text-sm font-semibold cursor-pointer text-[#c62828]', isDark ? 'bg-slate-700' : 'bg-slate-100')} onClick={onLogout}>로그아웃</button>
+        {onQuit && (
+          <button type="button" className={cn('w-full px-4 py-3 border-none rounded-[10px] text-sm font-semibold cursor-pointer', isDark ? 'bg-slate-700 text-slate-200' : 'bg-slate-100 text-slate-800')} onClick={onQuit}>프로그램 종료</button>
+        )}
       </div>
     </div>
   );
