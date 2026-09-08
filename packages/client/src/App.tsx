@@ -9,7 +9,6 @@ import { cn } from './utils/cn';
 import { isMacElectron } from './utils/electronChrome';
 
 const Login = lazy(() => import('./pages/Login'));
-const Register = lazy(() => import('./pages/Register'));
 const Main = lazy(() => import('./pages/Main'));
 const ChatWindow = lazy(() => import('./pages/ChatWindow'));
 const KanbanPage = lazy(() => import('./pages/KanbanPage'));
@@ -198,7 +197,7 @@ export default function App() {
           <ElectronRouteBootstrap />
           <Routes>
         <Route path="/login" element={<MobileShell><Login /></MobileShell>} />
-        <Route path="/register" element={<MobileShell><Register /></MobileShell>} />
+        <Route path="/register" element={<Navigate to="/login" replace />} />
         <Route
           path="/"
           element={

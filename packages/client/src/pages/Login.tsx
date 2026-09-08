@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { authApi, getBaseUrl, setBaseUrl } from '../api';
 import { useAuthStore } from '../store';
-import TitleBar from '../components/TitleBar';
+import TitleBar, { MacInsetChromeTools } from '../components/TitleBar';
 import { AuthCard } from '../components/AuthCard';
 import UITextInput from '../components/ui/UITextInput';
-import { APP_MAX_WIDTH, APP_WINDOW_HEIGHT } from '../layout/constants';
+import { APP_MAX_WIDTH } from '../layout/constants';
+import { applyWindowPinClass, isMacElectron } from '../utils/electronChrome';
 
+const LOGIN_WINDOW_HEIGHT = 720;
 const REMEMBER_EMAIL_KEY = 'emax_remember_email';
 const SAVED_EMAIL_KEY = 'emax_saved_email';
 
@@ -42,12 +44,19 @@ export default function Login() {
   const [rememberEmail, setRememberEmail] = useState(remembered.remember);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [pinned, setPinned] = useState(false);
   const [serverUrl, setServerUrl] = useState(() => getBaseUrl() || (typeof window !== 'undefined' && !window.electronAPI ? '' : 'http://121.143.3.163:3030'));
   const setAuth = useAuthStore((s) => s.setAuth);
   const navigate = useNavigate();
 
   useEffect(() => {
-    window.electronAPI?.windowResize?.(APP_MAX_WIDTH, APP_WINDOW_HEIGHT);
+    void window.electronAPI?.setWindowUiMode?.('login', APP_MAX_WIDTH, LOGIN_WINDOW_HEIGHT);
+    void window.electronAPI?.getAlwaysOnTop?.().then((r) => {
+      const on = !!r?.alwaysOnTop;
+      setPinned(on);
+      applyWindowPinClass(on);
+    });
   }, []);
   useEffect(() => {
     const base = getBaseUrl();
@@ -85,23 +94,37 @@ export default function Login() {
     }
   };
 
+  const handleTogglePin = async () => {
+    const next = !pinned;
+    const r = await window.electronAPI?.setAlwaysOnTop?.(next);
+    const on = !!(r?.alwaysOnTop ?? next);
+    setPinned(on);
+    applyWindowPinClass(on);
+  };
+
   const isElectron = !!window.electronAPI;
+  const isMac = isMacElectron();
+  const chromeTools = {
+    showPin: true,
+    pinned,
+    onTogglePin: () => { void handleTogglePin(); },
+    showSettings: true,
+    onSettings: () => setShowSettings((v) => !v),
+  };
 
   return (
-    <div className="w-full h-full min-h-0 flex flex-col bg-black">
-      {isElectron && <TitleBar title="CSIN-Tech" isDark />}
+    <div className="w-full h-full min-h-0 flex flex-col bg-white">
+      {isElectron && isMac && <MacInsetChromeTools {...chromeTools} />}
+      {isElectron && !isMac && (
+        <TitleBar
+          title="CSIN-Tech"
+          showLogo
+          showMaximize={false}
+          {...chromeTools}
+        />
+      )}
       <div className="flex-1 flex items-center justify-center p-4 overflow-y-auto">
-        <AuthCard
-          title="로그인"
-          subtext={
-            <>
-              계정이 없으신가요?{' '}
-              <Link to="/register" className="text-brand font-semibold no-underline hover:underline">
-                회원가입
-              </Link>
-            </>
-          }
-        >
+        <AuthCard title="로그인">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
             <div className="relative">
               <UITextInput
@@ -142,22 +165,24 @@ export default function Login() {
               />
               <span className="text-[13px] text-[#64748b]">아이디 저장</span>
             </label>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[13px] font-medium text-[#64748b]">서버 주소</label>
-              <UITextInput
-                type="url"
-                placeholder="비우면 현재 사이트 주소 사용 (예: http://121.143.3.163:3030)"
-                value={serverUrl}
-                onChange={(e) => setServerUrl(e.target.value)}
-                onBlur={() => {
-                  if (serverUrl.trim()) setBaseUrl(serverUrl.trim());
-                  else if (!window.electronAPI) {
-                    try { localStorage.removeItem('emax_api_url'); } catch { /* ignore */ }
-                  }
-                }}
-                className="!px-4 !py-3 !rounded-xl !border !border-[#e2e8f0] !bg-[#f8fafc] !text-black placeholder:!text-[#94a3b8]"
-              />
-            </div>
+            {(showSettings || error) && (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[13px] font-medium text-[#64748b]">서버 주소</label>
+                <UITextInput
+                  type="url"
+                  placeholder="비우면 현재 사이트 주소 사용 (예: http://121.143.3.163:3030)"
+                  value={serverUrl}
+                  onChange={(e) => setServerUrl(e.target.value)}
+                  onBlur={() => {
+                    if (serverUrl.trim()) setBaseUrl(serverUrl.trim());
+                    else if (!window.electronAPI) {
+                      try { localStorage.removeItem('emax_api_url'); } catch { /* ignore */ }
+                    }
+                  }}
+                  className="!px-4 !py-3 !rounded-xl !border !border-[#e2e8f0] !bg-[#f8fafc] !text-black placeholder:!text-[#94a3b8]"
+                />
+              </div>
+            )}
             {error && (
               <p className="px-3 py-2 rounded-xl text-[13px] text-red-600 bg-red-50/80">
                 {error}
