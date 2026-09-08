@@ -231,6 +231,126 @@ usersRouter.get('/:id', async (req, res) => {
   }
 });
 
+function toAffiliationItem(row, activeDepartmentId) {
+  const dept = row.department;
+  return {
+    departmentId: dept.id,
+    departmentName: dept.name,
+    companyId: dept.company.id,
+    companyName: dept.company.name,
+    label: `${dept.company.name} · ${dept.name}`,
+    active: String(dept.id) === String(activeDepartmentId || ''),
+  };
+}
+
+async function listUserAffiliations(userId) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      departmentId: true,
+      department: { include: { company: true } },
+      affiliations: {
+        include: { department: { include: { company: true } } },
+        orderBy: { createdAt: 'asc' },
+      },
+    },
+  });
+  if (!user) return null;
+
+  if (user.departmentId) {
+    await prisma.userAffiliation.upsert({
+      where: { userId_departmentId: { userId, departmentId: user.departmentId } },
+      create: { userId, departmentId: user.departmentId },
+      update: {},
+    });
+  }
+
+  const affiliations = user.affiliations.length > 0
+    ? user.affiliations
+    : await prisma.userAffiliation.findMany({
+        where: { userId },
+        include: { department: { include: { company: true } } },
+        orderBy: { createdAt: 'asc' },
+      });
+
+  const rows = affiliations.length > 0 || !user.department
+    ? affiliations
+    : [{ department: user.department }];
+
+  if (user.departmentId && !rows.some((r) => r.department.id === user.departmentId) && user.department) {
+    rows.unshift({ department: user.department });
+  }
+
+  const seen = new Set();
+  const items = [];
+  for (const row of rows) {
+    if (!row?.department?.id || seen.has(row.department.id)) continue;
+    seen.add(row.department.id);
+    items.push(toAffiliationItem(row, user.departmentId));
+  }
+  return { departmentId: user.departmentId, affiliations: items };
+}
+
+usersRouter.get('/me/affiliations', async (req, res) => {
+  try {
+    const data = await listUserAffiliations(req.userId);
+    if (!data) return res.status(404).json({ error: 'User not found' });
+    return res.json(data);
+  } catch (err) {
+    console.error('[users/me/affiliations GET]', err);
+    return res.status(500).json({ error: 'Failed to fetch affiliations' });
+  }
+});
+
+usersRouter.put('/me/affiliation', async (req, res) => {
+  try {
+    const departmentId = typeof req.body?.departmentId === 'string' ? req.body.departmentId.trim() : '';
+    if (!departmentId) return res.status(400).json({ error: 'departmentId required' });
+
+    const allowed = await prisma.userAffiliation.findUnique({
+      where: { userId_departmentId: { userId: req.userId, departmentId } },
+    });
+    const me = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { departmentId: true },
+    });
+    if (!allowed && me?.departmentId !== departmentId) {
+      return res.status(403).json({ error: 'NOT_AN_AFFILIATION' });
+    }
+
+    const dept = await prisma.department.findUnique({
+      where: { id: departmentId },
+      include: { company: true },
+    });
+    if (!dept) return res.status(404).json({ error: 'Department not found' });
+
+    await prisma.$transaction([
+      prisma.userAffiliation.upsert({
+        where: { userId_departmentId: { userId: req.userId, departmentId } },
+        create: { userId: req.userId, departmentId },
+        update: {},
+      }),
+      prisma.user.update({
+        where: { id: req.userId },
+        data: { departmentId },
+      }),
+    ]);
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('user_status_changed', { userId: req.userId, departmentId });
+    }
+    return res.json({
+      ok: true,
+      departmentId,
+      label: `${dept.company.name} · ${dept.name}`,
+    });
+  } catch (err) {
+    console.error('[users/me/affiliation PUT]', err);
+    return res.status(500).json({ error: 'Failed to switch affiliation' });
+  }
+});
+
 // Delete my avatar
 usersRouter.delete('/me/avatar', async (req, res) => {
   try {

@@ -175,6 +175,15 @@ export const api = {
 
 export type User = { id: string; email: string; name: string; phone?: string | null; extension?: string | null; jobTitle?: string | null; createdAt?: string; isAdmin?: boolean; statusMessage?: string | null; statusNote?: string | null; avatarUrl?: string; mustChangePassword?: boolean };
 
+export type UserAffiliation = {
+  departmentId: string;
+  departmentName: string;
+  companyId: string;
+  companyName: string;
+  label: string;
+  active: boolean;
+};
+
 export type PasswordPolicy = {
   ldapEnabled: boolean;
   minLength: number;
@@ -408,6 +417,10 @@ export const usersApi = {
     }>,
   updateStatus: (statusMessage: string) =>
     api.put('/users/status', { statusMessage }) as Promise<{ ok: boolean }>,
+  affiliations: () =>
+    api.get('/users/me/affiliations') as Promise<{ departmentId: string | null; affiliations: UserAffiliation[] }>,
+  setAffiliation: (departmentId: string) =>
+    api.put('/users/me/affiliation', { departmentId }) as Promise<{ ok: boolean; departmentId: string; label: string }>,
   uploadAvatar: (file: File) => {
     const formData = new FormData();
     formData.append('avatar', file);
@@ -651,10 +664,10 @@ export const filesApi = {
     }
     if (window.electronAPI?.saveFileToDownloadPath && window.electronAPI.getDownloadPath) {
       const pref = await window.electronAPI.getDownloadPath();
-      if (pref?.path) {
+      if (pref?.askSaveAs || pref?.path) {
         const buf = await blob.arrayBuffer();
         const saved = await window.electronAPI.saveFileToDownloadPath(buf, downloadName);
-        if (saved?.ok) return;
+        if (saved?.ok || saved?.error === 'CANCELED') return;
       }
     }
     const url = URL.createObjectURL(blob);

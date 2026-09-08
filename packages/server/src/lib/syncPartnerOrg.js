@@ -252,6 +252,17 @@ export async function syncPartnerOrg(opts = {}) {
       stats.usersUpdated += 1;
       userByEmail.set(e.email, { ...user, ...data });
     }
+    if (departmentId) {
+      try {
+        await prisma.userAffiliation.upsert({
+          where: { userId_departmentId: { userId: user.id, departmentId } },
+          create: { userId: user.id, departmentId },
+          update: {},
+        });
+      } catch (err) {
+        console.warn('[syncPartnerOrg] affiliation upsert skipped:', err?.message || err);
+      }
+    }
   }
 
   return { ok: true, companyId: company.id, ...stats };

@@ -59,15 +59,35 @@ orgRouter.get('/tree', async (req, res) => {
       return { ...u, avatarUrl: u.avatarUrl ? `/users/${u.id}/avatar${ver}` : null };
     };
 
-    /** 평면으로 읽어온 부서를 parentId 기준으로 중첩시킨다. */
+    let extraAffiliations = [];
+    try {
+      extraAffiliations = await prisma.userAffiliation.findMany({
+        include: {
+          user: {
+            select: { id: true, name: true, email: true, phone: true, extension: true, jobTitle: true, statusMessage: true, statusNote: true, avatarUrl: true, updatedAt: true },
+          },
+        },
+      });
+    } catch (err) {
+      console.warn('[org/tree] affiliations unavailable:', err?.message || err);
+    }
+    const extrasByDept = new Map();
+    for (const row of extraAffiliations) {
+      const list = extrasByDept.get(row.departmentId) || [];
+      list.push(row.user);
+      extrasByDept.set(row.departmentId, list);
+    }
+
     const nest = (departments) => {
       const nodes = new Map();
       departments.forEach((d) => {
+        const seen = new Set(d.users.map((u) => String(u.id)));
+        const extras = (extrasByDept.get(d.id) || []).filter((u) => !seen.has(String(u.id)));
         nodes.set(d.id, {
           id: d.id,
           name: d.name,
           parentId: d.parentId ?? null,
-          users: d.users.map(toUserWithAvatarPath),
+          users: [...d.users, ...extras].map(toUserWithAvatarPath).sort((a, b) => a.name.localeCompare(b.name)),
           children: [],
         });
       });
