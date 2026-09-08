@@ -1,21 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" fill="none">
-  <defs>
-    <mask id="cutout">
-      <rect width="1000" height="1000" fill="white"/>
-      <path d="M354.617 806.801C487.538 726.763 465.141 744.139 595.578 635C482.744 757.497 503.296 743.005 354.617 806.801Z" fill="black"/>
-    </mask>
-    <linearGradient id="paint0_linear" x1="802.166" y1="233.167" x2="468.91" y2="566.423" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#95B6FF"/>
-      <stop offset="1" stop-color="#8FB2FF"/>
-    </linearGradient>
-    <linearGradient id="paint1_linear" x1="215.656" y1="222.068" x2="747.344" y2="754.932" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#A8C3FF"/>
-      <stop offset="1" stop-color="#74A0FF"/>
-    </linearGradient>
-  </defs>
-  <g mask="url(#cutout)">
-    <path d="M659.468 566.011C575.547 666.025 364.795 853.816 272.67 776.514C180.545 699.212 324.079 485.514 408 385.5C491.921 285.486 456.338 336.235 548.463 413.537C405.433 509.292 743.39 465.997 659.468 566.011Z" fill="#7CA5FF"/>
-    <path d="M390.883 408.117C484.249 314.752 712.254 143.255 795.67 226.67C879.085 310.085 723.865 518.635 630.5 612C537.135 705.365 568.759 650.996 485.344 567.581C636.853 482.684 297.518 501.482 390.883 408.117Z" fill="url(#paint0_linear)"/>
-    <path d="M387.107 644.587C292.57 549.841 120.282 317.231 208.764 228.944C297.247 140.657 520.075 276.471 614.612 371.217C709.149 465.963 828.936 673.521 740.453 761.808C651.971 850.096 481.644 739.333 387.107 644.587Z" fill="url(#paint1_linear)"/>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <g transform="translate(50 50)">
+    <rect x="-38" y="-18" width="36" height="36" rx="7" transform="rotate(45)" stroke="#0071CE" stroke-width="9" fill="none"/>
+    <rect x="2" y="-18" width="36" height="36" rx="7" transform="rotate(45)" stroke="#FF6D0F" stroke-width="9" fill="none"/>
   </g>
 </svg>

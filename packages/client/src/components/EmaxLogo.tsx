@@ -22,8 +22,8 @@ const SIZE_MAP: Record<EmaxLogoSize, number> = {
 const TAGLINE_SCALE = 0.21;
 const TAGLINE_TRACKING_EM = 0.42;
 
-/** Frame 1.svg: abstract blue symbol */
-const LOGO_SRC = `${import.meta.env.BASE_URL}emax-logo.svg`;
+/** CSIN Tech 심볼 (파랑·주황 체인) */
+const LOGO_SRC = `${import.meta.env.BASE_URL}emax-logo.png`;
 
 export function EmaxLogo({
   variant = 'dark',

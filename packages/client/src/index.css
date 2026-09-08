@@ -2,9 +2,9 @@
 @config "../tailwind.config.cjs";
 
 :root {
-  --color-brand: #74A0FF;
-  --color-brand-light: #7CA5FF;
-  --color-brand-dark: #5B8DEF;
+  --color-brand: #0071CE;
+  --color-brand-light: #2B8DE0;
+  --color-brand-dark: #000F9F;
   --color-chart-primary: #5B8DEF;
   --color-chart-secondary: #7CA5FF;
   --ui-radius-sm: 6px;
@@ -34,6 +34,10 @@ html, body {
   height: 100%;
   height: 100dvh;
   overflow: hidden;
+}
+.brand-title {
+  font-family: 'Montserrat', 'Noto Sans KR', -apple-system, sans-serif;
+  letter-spacing: -0.03em;
 }
 /* Electron: overflow:hidden 이 -webkit-app-region: drag 를 무력화함 */
 body.electron-app {
@@ -144,6 +148,9 @@ body.electron-app.electron-mac .electron-mac-window {
   -webkit-app-region: drag !important;
 }
 .electron-no-drag {
+  -webkit-app-region: no-drag !important;
+}
+body.electron-pinned .electron-drag {
   -webkit-app-region: no-drag !important;
 }
 

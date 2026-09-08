@@ -27,7 +27,7 @@ async function applyRoundedCorners(inputBuffer, size) {
 }
 
 async function main() {
-  const inputPath = fs.existsSync(logoPath) ? logoPath : logoPngPath;
+  const inputPath = fs.existsSync(logoPngPath) ? logoPngPath : logoPath;
   if (!fs.existsSync(inputPath)) {
     console.error('Logo not found. Expected:', logoPath, 'or', logoPngPath);
     process.exit(1);
