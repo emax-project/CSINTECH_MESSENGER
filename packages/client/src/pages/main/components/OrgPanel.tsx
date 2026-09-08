@@ -268,7 +268,11 @@ function OrgPanel({
         </PanelNoDragWrap>
       </PanelToolbarRow>
 
-      <div className={cn('flex-1 min-h-0 overflow-y-auto overflow-x-hidden', isDark ? 'bg-slate-900' : 'bg-white')}>
+      <div className={cn(
+        'flex-1 min-h-0',
+        tab === 'org' && orgViewMode === 'split' ? 'overflow-hidden flex flex-col' : 'overflow-y-auto overflow-x-hidden',
+        isDark ? 'bg-slate-900' : 'bg-white',
+      )}>
         <OrgTree
           isDark={isDark}
           view={tab}

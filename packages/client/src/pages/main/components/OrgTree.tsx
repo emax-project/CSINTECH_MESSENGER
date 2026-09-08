@@ -1,4 +1,4 @@
-import { memo, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import type { MouseEvent } from 'react';
 import type { OrgCompany, OrgDepartment, OrgGroup, OrgUser } from '../../../api';
 import type { OnlinePresenceMap } from '../../../utils/presence';
@@ -282,6 +282,39 @@ function OrgTree({
 }: OrgTreeProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [selectedDeptId, setSelectedDeptId] = useState<string | null>(null);
+  const [splitRatio, setSplitRatio] = useState(() => {
+    try {
+      const n = Number(localStorage.getItem('emax_org_split_ratio'));
+      return Number.isFinite(n) && n > 0.2 && n < 0.8 ? n : 0.45;
+    } catch {
+      return 0.45;
+    }
+  });
+  const splitRootRef = useRef<HTMLDivElement | null>(null);
+  const draggingSplit = useRef(false);
+  const splitRatioRef = useRef(splitRatio);
+  splitRatioRef.current = splitRatio;
+
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      if (!draggingSplit.current || !splitRootRef.current) return;
+      const rect = splitRootRef.current.getBoundingClientRect();
+      if (rect.height < 40) return;
+      const next = (e.clientY - rect.top) / rect.height;
+      setSplitRatio(Math.min(0.75, Math.max(0.25, next)));
+    };
+    const onUp = () => {
+      if (!draggingSplit.current) return;
+      draggingSplit.current = false;
+      try { localStorage.setItem('emax_org_split_ratio', String(splitRatioRef.current)); } catch { /* ignore */ }
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+  }, []);
 
   const toggleSelect = (userId: string) => {
     setSelectedIds((prev) => {
@@ -523,6 +556,14 @@ function OrgTree({
             'flex items-center gap-1.5 px-1 py-0.5 rounded',
             isSelectedDept && viewMode === 'split' && (isDark ? 'bg-brand-dark/20' : 'bg-brand-dark/[0.08]'),
           )}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const users = departmentUsers(dept);
+            if (users.length === 0) return;
+            toggleSelectMany(users.map((u) => u.id), true);
+            onUserContextMenu(e, users[0], { selectedUsers: users });
+          }}
         >
           <ExpandBox isDark={isDark} open={deptOpen} onClick={() => onToggleTree(deptKey)} />
           <input
@@ -591,8 +632,14 @@ function OrgTree({
   const splitUsers = selectedDept ? (selectedDept.users ?? []) : [];
 
   return (
-    <div className={cn('px-2.5 py-1', viewMode === 'split' && 'flex flex-col gap-2')}>
-      <div className={viewMode === 'split' ? 'max-h-[45%] overflow-y-auto' : undefined}>
+    <div
+      ref={viewMode === 'split' ? splitRootRef : undefined}
+      className={cn('px-2.5 py-1', viewMode === 'split' && 'flex h-full min-h-0 flex-col')}
+    >
+      <div
+        className={viewMode === 'split' ? 'min-h-[80px] overflow-y-auto' : undefined}
+        style={viewMode === 'split' ? { height: `${Math.round(splitRatio * 1000) / 10}%` } : undefined}
+      >
       {orgTree.map((company) => {
         const companyKey = `company-${company.id}`;
         const companyOpen = treeOpen[companyKey] !== false;
@@ -642,8 +689,22 @@ function OrgTree({
       })}
       </div>
       {viewMode === 'split' && (
+        <>
+          <div
+            role="separator"
+            aria-orientation="horizontal"
+            aria-label="조직도 영역 크기 조절"
+            className={cn(
+              'mx-1 my-0.5 h-1.5 shrink-0 cursor-row-resize rounded-full',
+              isDark ? 'bg-slate-600 hover:bg-brand' : 'bg-slate-200 hover:bg-brand',
+            )}
+            onPointerDown={(e) => {
+              e.preventDefault();
+              draggingSplit.current = true;
+            }}
+          />
         <div className={cn(
-          'min-h-[120px] flex-1 overflow-y-auto rounded-lg border px-2 py-2',
+          'min-h-[80px] flex-1 overflow-y-auto rounded-lg border px-2 py-2',
           isDark ? 'border-slate-700 bg-slate-900/60' : 'border-slate-200 bg-slate-50',
         )}>
           <div className={cn('mb-1.5 px-1 text-[12px] font-bold', isDark ? 'text-slate-300' : 'text-slate-600')}>
@@ -664,6 +725,7 @@ function OrgTree({
             ))}
           </ul>
         </div>
+        </>
       )}
     </div>
   );
