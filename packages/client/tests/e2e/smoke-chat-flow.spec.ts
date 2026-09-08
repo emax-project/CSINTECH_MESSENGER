@@ -11,8 +11,8 @@ test.describe('smoke chat flow', () => {
 
     await page.goto('/login');
 
-    await page.getByPlaceholder('name@company.com').fill(EMAIL!);
-    await page.getByPlaceholder('비밀번호 입력').fill(PASSWORD!);
+    await page.getByPlaceholder(/아이디 또는 이메일/).fill(EMAIL!);
+    await page.getByPlaceholder('비밀번호', { exact: true }).fill(PASSWORD!);
     await page.getByRole('button', { name: '로그인' }).click();
 
     await page.waitForURL((url) => !url.pathname.endsWith('/login'), { timeout: 10_000 }).catch(async () => {
@@ -22,6 +22,13 @@ test.describe('smoke chat flow', () => {
       }
       throw new Error('E2E login did not navigate away from /login within timeout.');
     });
+
+    await page.getByText('조직도').first().waitFor({ timeout: 15_000 });
+    const noticeConfirm = page.getByRole('button', { name: '확인' });
+    if (await noticeConfirm.isVisible().catch(() => false)) {
+      await noticeConfirm.click();
+    }
+    await page.getByTitle('대화').click();
 
     const roomItem = page.getByText(ROOM_NAME!, { exact: true });
     if (await roomItem.isVisible().catch(() => false)) {
