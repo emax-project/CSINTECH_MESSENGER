@@ -3,11 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Socket } from 'socket.io-client';
 import { useAuthStore, useThemeStore, useToastStore } from '../store';
-import { roomsApi, orgApi, announcementApi, eventsApi, usersApi, mentionsApi, memosApi, foldersApi, orgGroupsApi, authApi, type Room, type OrgCompany, type OrgUser, type OrgGroup, type Event, type Folder } from '../api';
+import { roomsApi, orgApi, announcementApi, eventsApi, usersApi, mentionsApi, memosApi, foldersApi, orgGroupsApi, authApi, type Room, type OrgCompany, type OrgUser, type OrgGroup, type Event, type Folder, type UserAffiliation } from '../api';
 import MemoComposeModal from '../components/MemoComposeModal';
 import ToastProvider from '../components/ui/ToastProvider';
-import TitleBar from '../components/TitleBar';
-import { isWinElectron } from '../utils/electronChrome';
+import TitleBar, { MacInsetChromeTools } from '../components/TitleBar';
+import AppLockOverlay from '../components/AppLockOverlay';
+import { applyWindowPinClass, isMacElectron, isWinElectron } from '../utils/electronChrome';
 import {
   normalizeTimeRange,
   startOfMonth,
@@ -27,15 +28,17 @@ import { hasUnreadAnnouncements, getNewestUnreadAnnouncement } from './main/comp
 import MainOverlays from './main/components/MainOverlays';
 import PasswordChangeModal from './main/components/PasswordChangeModal';
 import { cn } from '../utils/cn';
-import { companyUsers, filterDepartments, allOrgUsers } from '../utils/orgTree';
+import { companyUsers, filterDepartments, allOrgUsers, flattenDepartments } from '../utils/orgTree';
 import { APP_MAX_WIDTH, APP_WINDOW_HEIGHT } from '../layout/constants';
 import { presenceFromList, type OnlinePresenceMap } from '../utils/presence';
+import { openChatRoomWindow } from '../utils/chatPopout';
 
 const STATUS_OPTIONS = [
   { id: '온라인', label: '온라인' },
   { id: '자리 비움', label: '자리 비움' },
   { id: '다른 용무 중', label: '다른 용무 중' },
   { id: '회의 중', label: '회의 중' },
+  { id: '외출', label: '외출' },
   { id: '외근 중', label: '외근 중' },
 ];
 
@@ -85,7 +88,7 @@ function StatusIcon({ status, size = 16 }: { status: string; size?: number }) {
     );
   }
   // 외근/외근 중: 빨간 자동차
-  if (status === '외근 중' || status === '외근') {
+  if (status === '외근 중' || status === '외근' || status === '외출') {
     return (
       <svg width={size} height={size} viewBox="0 0 16 16" style={{ display: 'block', flexShrink: 0 }}>
         <circle cx="8" cy="8" r="7" fill="#ef4444" />
@@ -123,7 +126,8 @@ export default function Main() {
 
   // Electron: 메인 화면에서는 모바일 규격 창 크기를 일관되게 유지한다.
   useEffect(() => {
-    if (!token || !window.electronAPI?.windowResize) return;
+    if (!token || !window.electronAPI) return;
+    void window.electronAPI.setWindowUiMode?.('main');
     const resize = () => window.electronAPI!.windowResize(APP_MAX_WIDTH, APP_WINDOW_HEIGHT);
     resize();
     const t = setTimeout(resize, 300);
@@ -166,11 +170,13 @@ export default function Main() {
   const [extensionInput, setExtensionInput] = useState('');
   const [orgViewMode, setOrgViewMode] = useState<'combined' | 'split'>(() => {
     try {
-      return localStorage.getItem('emax_org_view_mode') === 'split' ? 'split' : 'combined';
+      return localStorage.getItem('emax_org_view_mode') === 'combined' ? 'combined' : 'split';
     } catch {
-      return 'combined';
+      return 'split';
     }
   });
+  const [screenLocked, setScreenLocked] = useState(false);
+  const [askSaveAs, setAskSaveAs] = useState(false);
   const autoAwayRef = useRef(false);
   const [roomSearchQuery, setRoomSearchQuery] = useState('');
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
@@ -318,6 +324,11 @@ export default function Main() {
   const totalUnreadCount = topicUnreadCount + chatUnreadCount;
 
   const { data: orgTreeRaw = [], isLoading: orgLoading, isError: orgError, refetch: refetchOrg } = useQuery<OrgCompany[]>({ queryKey: ['org', 'tree'], queryFn: orgApi.tree });
+  const { data: affiliationData } = useQuery<{ departmentId: string | null; affiliations: UserAffiliation[] }>({
+    queryKey: ['users', 'affiliations'],
+    queryFn: usersApi.affiliations,
+    enabled: !!myId,
+  });
   const { data: orgGroupsRaw = [] } = useQuery<OrgGroup[]>({
     queryKey: ['org-groups'],
     queryFn: orgGroupsApi.list,
@@ -475,6 +486,20 @@ export default function Main() {
     }
   }, [orgTreeRaw, myId]);
 
+  const currentDeptLabel = useMemo(() => {
+    const active = affiliationData?.affiliations?.find((a) => a.active);
+    if (active?.label) return active.label;
+    if (!myId) return '';
+    for (const company of orgTreeRaw ?? []) {
+      for (const dept of flattenDepartments(company.departments ?? [])) {
+        if ((dept.users ?? []).some((u) => String(u.id) === String(myId))) {
+          return `${company.name} · ${dept.name}`;
+        }
+      }
+    }
+    return '';
+  }, [affiliationData, orgTreeRaw, myId]);
+
   // 자리비움 자동 전환 (설정 분 동안 입력 없으면)
   useEffect(() => {
     const minutes = awayMinutes;
@@ -522,8 +547,15 @@ export default function Main() {
   useEffect(() => {
     const api = window.electronAPI;
     if (!api?.getAlwaysOnTop) return;
-    void api.getAlwaysOnTop().then((r) => setAlwaysOnTop(!!r?.alwaysOnTop));
-    void api.getDownloadPath?.().then((r) => setDownloadPath(r?.path ?? null));
+    void api.getAlwaysOnTop().then((r) => {
+      const on = !!r?.alwaysOnTop;
+      setAlwaysOnTop(on);
+      applyWindowPinClass(on);
+    });
+    void api.getDownloadPath?.().then((r) => {
+      setDownloadPath(r?.path ?? null);
+      setAskSaveAs(!!r?.askSaveAs);
+    });
   }, []);
 
   // 앱 아이콘 배지 (맥 도크/윈도우 태스크바) - 카톡처럼 N 표시
@@ -548,6 +580,7 @@ export default function Main() {
   useEffect(() => {
     if (!window.electronAPI?.onNavigateToRoom) return;
     const unsubscribe = window.electronAPI.onNavigateToRoom((roomId: string) => {
+      if (openChatRoomWindow(roomId)) return;
       setActivePanel('none');
       navigate(`/room/${roomId}`);
     });
@@ -583,6 +616,17 @@ export default function Main() {
   const handleToggleFavorite = async (room: Room) => { try { await roomsApi.toggleFavorite(room.id, !room.isFavorite); queryClient.invalidateQueries({ queryKey: ['rooms'] }); } catch (err) { console.error(err); } setRoomContextMenu(null); };
   const handleToggleMuteRoom = (roomId: string) => { toggleMuteRoom(roomId); setRoomContextMenu(null); };
   const handleLeaveRoom = async (roomId: string) => { if (!confirm('채팅방을 나가시겠습니까?')) { setRoomContextMenu(null); return; } try { await roomsApi.leave(roomId); queryClient.invalidateQueries({ queryKey: ['rooms'] }); } catch (err) { console.error(err); } setRoomContextMenu(null); };
+  const handleSwitchAffiliation = async (departmentId: string) => {
+    try {
+      await usersApi.setAffiliation(departmentId);
+      queryClient.invalidateQueries({ queryKey: ['users', 'affiliations'] });
+      queryClient.invalidateQueries({ queryKey: ['org'] });
+      useToastStore.getState().show('표시 소속을 변경했습니다', 'success');
+    } catch (err) {
+      console.error(err);
+      useToastStore.getState().show('소속 전환에 실패했습니다', 'error');
+    }
+  };
   const handleSetStatus = async (msg: string) => {
     try {
       await usersApi.updateStatus(msg);
@@ -608,7 +652,9 @@ export default function Main() {
   const handleToggleAlwaysOnTop = async () => {
     const next = !alwaysOnTop;
     const r = await window.electronAPI?.setAlwaysOnTop?.(next);
-    setAlwaysOnTop(!!(r?.alwaysOnTop ?? next));
+    const on = !!(r?.alwaysOnTop ?? next);
+    setAlwaysOnTop(on);
+    applyWindowPinClass(on);
   };
   const handlePickDownloadPath = async () => {
     const r = await window.electronAPI?.pickDownloadPath?.();
@@ -617,6 +663,14 @@ export default function Main() {
   const handleClearDownloadPath = async () => {
     await window.electronAPI?.clearDownloadPath?.();
     setDownloadPath(null);
+  };
+  const handleToggleAskSaveAs = async () => {
+    const next = !askSaveAs;
+    const r = await window.electronAPI?.setAskSaveAs?.(next);
+    setAskSaveAs(!!(r?.askSaveAs ?? next));
+  };
+  const handleQuitApp = () => {
+    void window.electronAPI?.appQuit?.();
   };
   const handleOrgSearchFieldChange = (field: OrgSearchField) => setOrgSearchField(field);
   const handleOrgViewModeChange = (mode: 'combined' | 'split') => setOrgViewMode(mode);
@@ -691,6 +745,7 @@ export default function Main() {
     logout();
   }, [logout, queryClient]);
   const handleOpenRoom = useCallback((room: Room) => {
+    if (openChatRoomWindow(room.id)) return;
     setActivePanel('none');
     navigate(`/room/${room.id}`, room.viewMode ? { state: { viewMode: room.viewMode } } : undefined);
   }, [navigate]);
@@ -703,6 +758,7 @@ export default function Main() {
       await roomsApi.join(publicRoomId);
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
       queryClient.invalidateQueries({ queryKey: ['rooms', 'public'] });
+      if (openChatRoomWindow(publicRoomId)) return;
       setActivePanel('none');
       navigate(`/room/${publicRoomId}`);
     } catch (err) {
@@ -724,6 +780,7 @@ export default function Main() {
       }
     }
     if (m.message?.room?.id) {
+      if (openChatRoomWindow(m.message.room.id)) return;
       setActivePanel('none');
       navigate(`/room/${m.message.room.id}`);
     }
@@ -759,7 +816,7 @@ export default function Main() {
   }, [handleOpenMemoCompose]);
   const hasStatusIcon = useCallback((status?: string | null) => {
     if (!status) return false;
-    return STATUS_OPTIONS.some((o) => o.id === status) || status === '외근' || status === '휴가';
+    return STATUS_OPTIONS.some((o) => o.id === status) || status === '외근' || status === '휴가' || status === '외출';
   }, []);
   const handleToggleOnlineOnly = useCallback(() => {
     setShowOnlineOnly((v) => !v);
@@ -768,6 +825,7 @@ export default function Main() {
     try {
       const room = await roomsApi.create(userId);
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      if (openChatRoomWindow(room.id)) return;
       setActivePanel('none');
       navigate(`/room/${room.id}`);
     } catch (err) {
@@ -823,6 +881,7 @@ export default function Main() {
       if (memberIds.length === 1) {
         const room = await roomsApi.create(memberIds[0]);
         queryClient.invalidateQueries({ queryKey: ['rooms'] });
+        if (openChatRoomWindow(room.id)) return;
         setActivePanel('none');
         navigate(`/room/${room.id}`);
         return;
@@ -840,6 +899,7 @@ export default function Main() {
         });
       }
       queryClient.setQueryData(['rooms', room.id], room);
+      if (openChatRoomWindow(room.id)) return;
       setActivePanel('none');
       navigate(`/room/${room.id}`);
     } catch (err) {
@@ -887,6 +947,7 @@ export default function Main() {
   }, []);
   const handleGroupCreated = useCallback((roomId: string, viewMode?: 'chat' | 'board', opts?: { skipRoomsInvalidate?: boolean }) => {
     if (!opts?.skipRoomsInvalidate) queryClient.invalidateQueries({ queryKey: ['rooms'] });
+    if (openChatRoomWindow(roomId)) return;
     setActivePanel('none');
     navigate(`/room/${roomId}`, viewMode != null ? { state: { viewMode } } : undefined);
   }, [navigate, queryClient]);
@@ -942,7 +1003,29 @@ export default function Main() {
 
   return (
     <div className={cn('relative flex flex-col h-full min-h-0 w-full min-w-0', isDark ? 'bg-slate-900' : 'bg-white')}>
-      {hasElectron && isWinElectron() && <TitleBar title="CSIN-Tech" isDark={isDark} />}
+      {hasElectron && isMacElectron() && (
+        <MacInsetChromeTools
+          isDark={isDark}
+          showPin
+          pinned={alwaysOnTop}
+          onTogglePin={() => { void handleToggleAlwaysOnTop(); }}
+          showSettings
+          onSettings={() => setActivePanel((p) => (p === 'settings' ? 'none' : 'settings'))}
+        />
+      )}
+      {hasElectron && isWinElectron() && (
+        <TitleBar
+          title="CSIN-Tech"
+          isDark={isDark}
+          showLogo
+          showPin
+          pinned={alwaysOnTop}
+          onTogglePin={() => { void handleToggleAlwaysOnTop(); }}
+          showSettings
+          onSettings={() => setActivePanel((p) => (p === 'settings' ? 'none' : 'settings'))}
+        />
+      )}
+      {screenLocked && <AppLockOverlay onUnlock={() => setScreenLocked(false)} />}
       <div className="flex flex-1 flex-row min-h-0 min-w-0">
         <LeftSidebar
           isDark={isDark}
@@ -951,8 +1034,17 @@ export default function Main() {
           unreadNotificationCount={unreadNotificationCount}
           unreadMemoCount={unreadMemoCount?.count ?? 0}
           totalUnreadCount={totalUnreadCount}
-          notificationsSnoozedUntil={notificationsSnoozedUntil}
           onNavigateHome={handleNavigateHome}
+          statusOptions={STATUS_OPTIONS}
+          currentStatus={statusInput || '온라인'}
+          renderStatusIcon={(status, size = 14) => <StatusIcon status={status} size={size} />}
+          onSetStatus={(s) => { void handleSetStatus(s); }}
+          affiliations={affiliationData?.affiliations ?? []}
+          onSwitchAffiliation={(id) => { void handleSwitchAffiliation(id); }}
+          currentDeptLabel={currentDeptLabel}
+          onLock={() => setScreenLocked(true)}
+          onLogout={handleLogout}
+          onQuit={hasElectron ? handleQuitApp : undefined}
         />
 
         <div className={cn('flex-1 min-h-0 min-w-0 flex flex-col', isDark ? 'bg-slate-900' : 'bg-white')}>
@@ -1090,8 +1182,10 @@ export default function Main() {
                 alwaysOnTop,
                 onToggleAlwaysOnTop: () => void handleToggleAlwaysOnTop(),
                 downloadPath,
+                askSaveAs,
                 onPickDownloadPath: () => void handlePickDownloadPath(),
                 onClearDownloadPath: () => void handleClearDownloadPath(),
+                onToggleAskSaveAs: () => void handleToggleAskSaveAs(),
                 statusOptions: STATUS_OPTIONS,
                 renderStatusIcon: (status, size = 18) => <StatusIcon status={status} size={size} />,
                 handleSetStatus,
@@ -1101,6 +1195,7 @@ export default function Main() {
                 onTestNotification: handleTestNotification,
                 onRequestNotificationPermission: requestNotificationPermission,
                 onLogout: handleLogout,
+                onQuit: hasElectron ? handleQuitApp : undefined,
                 user,
               }}
             />
