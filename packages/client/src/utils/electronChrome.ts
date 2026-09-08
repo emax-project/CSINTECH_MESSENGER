@@ -31,3 +31,8 @@ export function isWinElectron(): boolean {
 
 export const electronDragStyle = { WebkitAppRegion: 'drag' } as CSSProperties;
 export const electronNoDragStyle = { WebkitAppRegion: 'no-drag' } as CSSProperties;
+
+export function applyWindowPinClass(pinned: boolean) {
+  if (typeof document === 'undefined') return;
+  document.body.classList.toggle('electron-pinned', pinned);
+}

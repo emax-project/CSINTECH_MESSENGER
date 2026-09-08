@@ -2,6 +2,7 @@
 
 interface ImportMetaEnv {
   readonly VITE_API_URL?: string;
+  readonly VITE_GROUPWARE_URL?: string;
 }
 
 interface ImportMeta {
@@ -27,6 +28,8 @@ interface Window {
     windowMinimize: () => Promise<void>;
     windowMaximize: () => Promise<void>;
     windowResize: (width: number, height: number) => Promise<void>;
+    setWindowUiMode?: (mode: 'login' | 'main', width?: number, height?: number) => Promise<{ ok?: boolean }>;
+    appQuit?: () => Promise<void>;
     onLogout: (handler: () => void) => () => void;
     onNavigateToRoom: (handler: (roomId: string) => void) => () => void;
     getAppVersion: () => Promise<string>;
@@ -48,9 +51,10 @@ interface Window {
     fetchRoomAvatar?: (roomId: string, baseUrl: string, token: string) => Promise<string | null>;
     setAlwaysOnTop?: (flag: boolean) => Promise<{ ok?: boolean; alwaysOnTop?: boolean }>;
     getAlwaysOnTop?: () => Promise<{ alwaysOnTop?: boolean }>;
-    getDownloadPath?: () => Promise<{ path: string | null }>;
-    pickDownloadPath?: () => Promise<{ path: string | null; canceled?: boolean }>;
-    clearDownloadPath?: () => Promise<{ path: string | null }>;
+    getDownloadPath?: () => Promise<{ path: string | null; askSaveAs?: boolean }>;
+    pickDownloadPath?: () => Promise<{ path: string | null; askSaveAs?: boolean; canceled?: boolean }>;
+    clearDownloadPath?: () => Promise<{ path: string | null; askSaveAs?: boolean }>;
+    setAskSaveAs?: (flag: boolean) => Promise<{ path: string | null; askSaveAs?: boolean }>;
     saveFileToDownloadPath?: (buffer: ArrayBuffer | Uint8Array, filename: string) => Promise<{ ok: boolean; path?: string; error?: string }>;
   };
 }

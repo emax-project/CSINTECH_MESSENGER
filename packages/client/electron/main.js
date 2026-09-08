@@ -87,7 +87,7 @@ function getNotificationHTML(title, body, progressPercent, hasRoomId, iconDataUr
     .toast-brand {
       font-size: 11px;
       font-weight: 700;
-      color: #171717;
+      color: #000F9F;
       letter-spacing: 0.02em;
     }
     .toast-row {
@@ -176,7 +176,7 @@ function getNotificationHTML(title, body, progressPercent, hasRoomId, iconDataUr
 </head>
 <body>
   <div class="toast">
-    <span class="toast-brand">CSIN-Tech</span>
+    <span class="toast-brand">CSIN Tech</span>
     <div class="toast-row">
       <div class="toast-left">
         ${iconHtml}
@@ -197,6 +197,26 @@ let pendingNotifRoomId = null;
 
 const notifPreloadPath = path.join(__dirname, 'notif-preload.js');
 
+function getNotificationBounds(width, height) {
+  const pad = 24;
+  const cursor = screen.getCursorScreenPoint();
+  const display = screen.getDisplayNearestPoint(cursor)
+    || (mainWindow && !mainWindow.isDestroyed() ? screen.getDisplayMatching(mainWindow.getBounds()) : null)
+    || screen.getPrimaryDisplay();
+  const { x, y, width: sw, height: sh } = display.workArea;
+  return {
+    x: Math.round(x + sw - width - pad),
+    y: Math.round(y + sh - height - pad),
+    width,
+    height,
+  };
+}
+
+function placeNotificationWindow(win, width, height) {
+  if (!win || win.isDestroyed()) return;
+  win.setBounds(getNotificationBounds(width, height));
+}
+
 function showCustomNotification(title, body, options) {
   const opts = options || {};
   const persistent = opts.persistent === true;
@@ -214,16 +234,13 @@ function showCustomNotification(title, body, options) {
   pendingNotifRoomId = roomId;
 
   const notifHeight = showProgressBar ? NOTIF_HEIGHT_PROGRESS : NOTIF_HEIGHT;
-  const primary = screen.getPrimaryDisplay();
-  const { x, y, width: sw } = primary.workArea;
-  const px = x + sw - NOTIF_WIDTH - 24;
-  const py = y + 20;
+  const bounds = getNotificationBounds(NOTIF_WIDTH, notifHeight);
 
   const win = new BrowserWindow({
-    width: NOTIF_WIDTH,
-    height: notifHeight,
-    x: px,
-    y: py,
+    width: bounds.width,
+    height: bounds.height,
+    x: bounds.x,
+    y: bounds.y,
     frame: false,
     transparent: true,
     backgroundColor: '#00000000',
@@ -232,6 +249,7 @@ function showCustomNotification(title, body, options) {
     alwaysOnTop: true,
     hasShadow: false,
     show: false,
+    ...(process.platform === 'darwin' ? { type: 'panel' } : {}),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -240,9 +258,17 @@ function showCustomNotification(title, body, options) {
   });
 
   win.setMenu(null);
+  try {
+    win.setAlwaysOnTop(true, 'screen-saver');
+    win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  } catch {
+    // platform may not support these
+  }
   win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(getNotificationHTML(title, body, progress, !!roomId, icon, imagePreview)));
   win.once('ready-to-show', () => {
-    win.show();
+    placeNotificationWindow(win, NOTIF_WIDTH, notifHeight);
+    win.showInactive();
+    placeNotificationWindow(win, NOTIF_WIDTH, notifHeight);
   });
   win.on('closed', () => {
     if (customNotifWin === win) {
@@ -571,10 +597,50 @@ ipcMain.handle('window-minimize', (event) => {
 });
 ipcMain.handle('window-maximize', (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
-  if (win) {
-    if (win.isMaximized()) win.unmaximize();
-    else win.maximize();
+  if (!win || !win.isMaximizable()) return;
+  if (win.isMaximized()) win.unmaximize();
+  else win.maximize();
+});
+
+ipcMain.handle('window-set-ui-mode', (event, mode, width, height) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win) return { ok: false };
+  const isLogin = mode === 'login';
+  if (win.isMaximized()) win.unmaximize();
+  win.setMaximizable(!isLogin);
+  if (isLogin) {
+    const w = Math.max(360, Math.round(Number(width) || 430));
+    const h = Math.max(560, Math.round(Number(height) || 720));
+    win.setResizable(false);
+    win.setMinimumSize(w, h);
+    win.setMaximumSize(w, h);
+    win.setSize(w, h);
+    if (process.platform === 'win32') {
+      try {
+        win.setTitleBarOverlay({ color: '#ffffff', symbolColor: '#0f172a', height: 38 });
+      } catch {
+        // overlay may be unavailable
+      }
+    }
+  } else {
+    const wa = screen.getPrimaryDisplay().workAreaSize;
+    win.setResizable(true);
+    win.setMinimumSize(360, 560);
+    win.setMaximumSize(Math.max(wa.width, 430), Math.max(wa.height, 900));
+    if (process.platform === 'win32') {
+      try {
+        win.setTitleBarOverlay({ color: '#1e293b', symbolColor: '#e2e8f0', height: 38 });
+      } catch {
+        // overlay may be unavailable
+      }
+    }
   }
+  return { ok: true };
+});
+
+ipcMain.handle('app-quit', () => {
+  isQuitting = true;
+  app.quit();
 });
 
 ipcMain.handle('window-resize', (event, width, height) => {
@@ -589,6 +655,7 @@ ipcMain.handle('window-set-always-on-top', (event, flag) => {
   if (!win) return { ok: false };
   const on = !!flag;
   win.setAlwaysOnTop(on);
+  win.setMovable(!on);
   return { ok: true, alwaysOnTop: win.isAlwaysOnTop() };
 });
 
@@ -599,21 +666,28 @@ ipcMain.handle('window-get-always-on-top', (event) => {
 
 const DOWNLOAD_PREF_PATH = path.join(app.getPath('userData'), 'download-path.json');
 
-function readDownloadPathPref() {
+function readDownloadPref() {
   try {
     const raw = fs.readFileSync(DOWNLOAD_PREF_PATH, 'utf8');
     const parsed = JSON.parse(raw);
-    return typeof parsed?.path === 'string' ? parsed.path : null;
+    return {
+      path: typeof parsed?.path === 'string' ? parsed.path : null,
+      askSaveAs: parsed?.askSaveAs === true,
+    };
   } catch {
-    return null;
+    return { path: null, askSaveAs: false };
   }
 }
 
-function writeDownloadPathPref(dir) {
-  fs.writeFileSync(DOWNLOAD_PREF_PATH, JSON.stringify({ path: dir || null }, null, 2), 'utf8');
+function writeDownloadPref(partial) {
+  const next = { ...readDownloadPref(), ...partial };
+  fs.writeFileSync(DOWNLOAD_PREF_PATH, JSON.stringify(next, null, 2), 'utf8');
+  return next;
 }
 
-ipcMain.handle('get-download-path', () => ({ path: readDownloadPathPref() }));
+ipcMain.handle('get-download-path', () => readDownloadPref());
+
+ipcMain.handle('set-ask-save-as', (_, flag) => writeDownloadPref({ askSaveAs: !!flag }));
 
 ipcMain.handle('pick-download-path', async (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
@@ -622,26 +696,34 @@ ipcMain.handle('pick-download-path', async (event) => {
     properties: ['openDirectory', 'createDirectory'],
   });
   if (result.canceled || !result.filePaths?.[0]) {
-    return { path: readDownloadPathPref(), canceled: true };
+    return { ...readDownloadPref(), canceled: true };
   }
-  writeDownloadPathPref(result.filePaths[0]);
-  return { path: result.filePaths[0], canceled: false };
+  return { ...writeDownloadPref({ path: result.filePaths[0] }), canceled: false };
 });
 
-ipcMain.handle('clear-download-path', () => {
-  writeDownloadPathPref(null);
-  return { path: null };
-});
+ipcMain.handle('clear-download-path', () => writeDownloadPref({ path: null }));
 
-ipcMain.handle('save-file-to-download-path', async (_, { buffer, filename }) => {
-  const dir = readDownloadPathPref();
-  if (!dir || !filename) return { ok: false, error: 'NO_PATH' };
-  const safeName = String(filename).replace(/[\\/:*?"<>|]/g, '_');
-  let target = path.join(dir, safeName);
-  if (fs.existsSync(target)) {
-    const ext = path.extname(safeName);
-    const base = path.basename(safeName, ext);
-    target = path.join(dir, `${base}-${Date.now()}${ext}`);
+ipcMain.handle('save-file-to-download-path', async (event, { buffer, filename }) => {
+  const pref = readDownloadPref();
+  const safeName = String(filename || 'download').replace(/[\\/:*?"<>|]/g, '_');
+  const win = BrowserWindow.fromWebContents(event.sender);
+  let target = null;
+  if (pref.askSaveAs) {
+    const picked = await dialog.showSaveDialog(win || undefined, {
+      title: '다른 이름으로 저장',
+      defaultPath: pref.path ? path.join(pref.path, safeName) : safeName,
+    });
+    if (picked.canceled || !picked.filePath) return { ok: false, error: 'CANCELED' };
+    target = picked.filePath;
+  } else if (pref.path) {
+    target = path.join(pref.path, safeName);
+    if (fs.existsSync(target)) {
+      const ext = path.extname(safeName);
+      const base = path.basename(safeName, ext);
+      target = path.join(pref.path, `${base}-${Date.now()}${ext}`);
+    }
+  } else {
+    return { ok: false, error: 'NO_PATH' };
   }
   const data = Buffer.from(buffer);
   fs.writeFileSync(target, data);

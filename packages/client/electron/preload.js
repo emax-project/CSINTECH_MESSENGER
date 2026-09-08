@@ -36,6 +36,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   windowMinimize: () => ipcRenderer.invoke('window-minimize'),
   windowMaximize: () => ipcRenderer.invoke('window-maximize'),
   windowResize: (width, height) => ipcRenderer.invoke('window-resize', width, height),
+  setWindowUiMode: (mode, width, height) => ipcRenderer.invoke('window-set-ui-mode', mode, width, height),
+  appQuit: () => ipcRenderer.invoke('app-quit'),
   onLogout: (handler) => {
     const listener = () => handler();
     ipcRenderer.on('tray-logout', listener);
@@ -63,5 +65,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getDownloadPath: () => ipcRenderer.invoke('get-download-path'),
   pickDownloadPath: () => ipcRenderer.invoke('pick-download-path'),
   clearDownloadPath: () => ipcRenderer.invoke('clear-download-path'),
+  setAskSaveAs: (flag) => ipcRenderer.invoke('set-ask-save-as', flag),
   saveFileToDownloadPath: (buffer, filename) => ipcRenderer.invoke('save-file-to-download-path', { buffer, filename }),
 });
