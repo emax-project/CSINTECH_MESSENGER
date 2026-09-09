@@ -38,7 +38,6 @@ const STATUS_OPTIONS = [
   { id: '자리 비움', label: '자리 비움' },
   { id: '다른 용무 중', label: '다른 용무 중' },
   { id: '회의 중', label: '회의 중' },
-  { id: '외출', label: '외출' },
   { id: '외근 중', label: '외근 중' },
 ];
 
