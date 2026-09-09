@@ -1178,8 +1178,6 @@ export default function Main() {
                 onSaveStatusProfile: () => void handleSaveStatusProfile(),
                 awayMinutes,
                 onAwayMinutesChange: setAwayMinutes,
-                alwaysOnTop,
-                onToggleAlwaysOnTop: () => void handleToggleAlwaysOnTop(),
                 downloadPath,
                 askSaveAs,
                 onPickDownloadPath: () => void handlePickDownloadPath(),

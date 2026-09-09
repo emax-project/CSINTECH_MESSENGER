@@ -154,8 +154,6 @@ type SettingsPanelProps = {
   onSaveStatusProfile?: () => void;
   awayMinutes?: number;
   onAwayMinutesChange?: (minutes: number) => void;
-  alwaysOnTop?: boolean;
-  onToggleAlwaysOnTop?: () => void;
   downloadPath?: string | null;
   askSaveAs?: boolean;
   onPickDownloadPath?: () => void;
@@ -203,8 +201,6 @@ function SettingsPanel({
   onSaveStatusProfile,
   awayMinutes = 10,
   onAwayMinutesChange,
-  alwaysOnTop = false,
-  onToggleAlwaysOnTop,
   downloadPath = null,
   askSaveAs = false,
   onPickDownloadPath,
@@ -393,15 +389,6 @@ function SettingsPanel({
             <span style={{ position: 'absolute' as const, top: 3, left: isDark ? 23 : 3, width: 22, height: 22, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
           </button>
         </div>
-
-        {hasElectron && onToggleAlwaysOnTop && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 10, padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc' }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: isDark ? '#e2e8f0' : '#0f172a' }}>화면 위치 고정</span>
-            <button type="button" onClick={onToggleAlwaysOnTop} style={{ width: 48, height: 28, borderRadius: 14, border: 'none', background: alwaysOnTop ? '#171717' : (isDark ? '#475569' : '#e2e8f0'), cursor: 'pointer', position: 'relative' as const, padding: 0, flexShrink: 0 }}>
-              <span style={{ position: 'absolute' as const, top: 3, left: alwaysOnTop ? 23 : 3, width: 22, height: 22, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
-            </button>
-          </div>
-        )}
 
         <div style={{ padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc', display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: isDark ? '#e2e8f0' : '#0f172a' }}>자리비움 자동 전환</div>

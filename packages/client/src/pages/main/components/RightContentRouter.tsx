@@ -139,8 +139,6 @@ type RightContentRouterProps = {
     onSaveStatusProfile?: () => void;
     awayMinutes?: number;
     onAwayMinutesChange?: (minutes: number) => void;
-    alwaysOnTop?: boolean;
-    onToggleAlwaysOnTop?: () => void;
     downloadPath?: string | null;
     askSaveAs?: boolean;
     onPickDownloadPath?: () => void;
@@ -327,8 +325,6 @@ function RightContentRouter({
             onSaveStatusProfile={settingsProps.onSaveStatusProfile}
             awayMinutes={settingsProps.awayMinutes}
             onAwayMinutesChange={settingsProps.onAwayMinutesChange}
-            alwaysOnTop={settingsProps.alwaysOnTop}
-            onToggleAlwaysOnTop={settingsProps.onToggleAlwaysOnTop}
             downloadPath={settingsProps.downloadPath}
             askSaveAs={settingsProps.askSaveAs}
             onPickDownloadPath={settingsProps.onPickDownloadPath}
