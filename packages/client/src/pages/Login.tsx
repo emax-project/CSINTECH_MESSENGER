@@ -123,8 +123,8 @@ export default function Login() {
           {...chromeTools}
         />
       )}
-      <div className="flex-1 flex items-center justify-center p-4 overflow-y-auto">
-        <AuthCard title="로그인">
+      <div className="flex-1 flex items-stretch justify-center overflow-y-auto">
+        <AuthCard title="로그인" variant="flush">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
             <div className="relative">
               <UITextInput
@@ -134,7 +134,7 @@ export default function Login() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 autoComplete="username"
-                className="!px-4 !py-3 !rounded-xl !border !border-[#e2e8f0] !bg-[#f8fafc] !text-black placeholder:!text-[#94a3b8]"
+                className="!px-4 !py-3 !rounded-xl !border !border-[#e2e8f0] !bg-[#f8fafc] !text-black placeholder:!text-[#64748b]"
               />
             </div>
             <div className="relative">
@@ -145,12 +145,12 @@ export default function Login() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
-                className="!px-4 !py-3 !pr-12 !rounded-xl !border !border-[#e2e8f0] !bg-[#f8fafc] !text-black placeholder:!text-[#94a3b8]"
+                className="!px-4 !py-3 !pr-12 !rounded-xl !border !border-[#e2e8f0] !bg-[#f8fafc] !text-black placeholder:!text-[#64748b]"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((p) => !p)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#64748b] hover:text-[#334155] p-1"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#334155] hover:text-[#0f172a] p-1"
                 aria-label={showPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
               >
                 <EyeIcon open={showPassword} />
@@ -163,11 +163,11 @@ export default function Login() {
                 onChange={(e) => setRememberEmail(e.target.checked)}
                 className="w-4 h-4 rounded border-[#cbd5e1] accent-black cursor-pointer"
               />
-              <span className="text-[13px] text-[#64748b]">아이디 저장</span>
+              <span className="text-[13px] text-[#334155]">아이디 저장</span>
             </label>
             {(showSettings || error) && (
               <div className="flex flex-col gap-1.5">
-                <label className="text-[13px] font-medium text-[#64748b]">서버 주소</label>
+                <label className="text-[13px] font-medium text-[#334155]">서버 주소</label>
                 <UITextInput
                   type="url"
                   placeholder="비우면 현재 사이트 주소 사용 (예: http://121.143.3.163:3030)"
@@ -179,7 +179,7 @@ export default function Login() {
                       try { localStorage.removeItem('emax_api_url'); } catch { /* ignore */ }
                     }
                   }}
-                  className="!px-4 !py-3 !rounded-xl !border !border-[#e2e8f0] !bg-[#f8fafc] !text-black placeholder:!text-[#94a3b8]"
+                  className="!px-4 !py-3 !rounded-xl !border !border-[#e2e8f0] !bg-[#f8fafc] !text-black placeholder:!text-[#64748b]"
                 />
               </div>
             )}

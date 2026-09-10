@@ -48,12 +48,23 @@ body.electron-app #root {
 }
 body {
   font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', Roboto, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  /* antialiased는 Windows에서 글자가 얇고 옅어 보임 */
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
   text-rendering: optimizeLegibility;
   font-weight: 500;
   background: #0f172a;
 }
+
+/* 본문·보조 텍스트 대비 강화 (slate-400/500이 옅어 시인성이 떨어짐) */
+body.theme-light .text-slate-300 { color: #64748b; }
+body.theme-light .text-slate-400 { color: #475569; }
+body.theme-light .text-slate-500 { color: #334155; }
+body.theme-light .text-slate-600 { color: #1e293b; }
+body.theme-dark .text-slate-300 { color: #e2e8f0; }
+body.theme-dark .text-slate-400 { color: #cbd5e1; }
+body.theme-dark .text-slate-500 { color: #e2e8f0; }
+body.theme-dark .text-slate-600 { color: #f1f5f9; }
 #root {
   display: flex;
   flex-direction: column;

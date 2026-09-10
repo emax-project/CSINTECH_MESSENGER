@@ -1,6 +1,20 @@
 import type { OrgCompany, OrgDepartment, OrgUser } from '../api';
 
 /**
+ * 직급 표기 정규화. HR 연동 데이터에 남아 있는 표기(예: '팀장(대우)')를
+ * 조직도/메신저 화면에서는 통일된 표기('팀장')로 보여준다.
+ */
+const JOB_TITLE_DISPLAY_OVERRIDES: Record<string, string> = {
+  '팀장(대우)': '팀장',
+};
+
+export function formatJobTitle(jobTitle?: string | null): string {
+  if (!jobTitle) return '';
+  const trimmed = jobTitle.trim();
+  return JOB_TITLE_DISPLAY_OVERRIDES[trimmed] ?? trimmed;
+}
+
+/**
  * 부서는 parentId로 중첩된 트리다(children).
  * 아래 헬퍼를 쓰지 않고 company.departments만 훑으면 하위 부서 인원이 통째로 빠지므로,
  * "회사 전체"를 대상으로 하는 곳에서는 반드시 이 함수들을 쓴다.

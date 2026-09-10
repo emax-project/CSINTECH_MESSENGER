@@ -27,11 +27,14 @@ import RightContentRouter from './main/components/RightContentRouter';
 import { hasUnreadAnnouncements, getNewestUnreadAnnouncement } from './main/components/AnnouncementPanel';
 import MainOverlays from './main/components/MainOverlays';
 import PasswordChangeModal from './main/components/PasswordChangeModal';
+import UIPromptModal from '../components/ui/UIPromptModal';
 import { cn } from '../utils/cn';
 import { companyUsers, filterDepartments, allOrgUsers, flattenDepartments } from '../utils/orgTree';
 import { APP_MAX_WIDTH, APP_WINDOW_HEIGHT } from '../layout/constants';
 import { presenceFromList, type OnlinePresenceMap } from '../utils/presence';
 import { openChatRoomWindow } from '../utils/chatPopout';
+
+const EXTERNAL_SITE_URL_KEY = 'emax_external_site_url';
 
 const STATUS_OPTIONS = [
   { id: '온라인', label: '온라인' },
@@ -167,6 +170,11 @@ export default function Main() {
   const [downloadPath, setDownloadPath] = useState<string | null>(null);
   const [statusNote, setStatusNote] = useState('');
   const [extensionInput, setExtensionInput] = useState('');
+  const [deskPhoneInput, setDeskPhoneInput] = useState('');
+  const [externalSiteUrl, setExternalSiteUrl] = useState(() => {
+    try { return localStorage.getItem(EXTERNAL_SITE_URL_KEY) || ''; } catch { return ''; }
+  });
+  const [showExternalSiteEditor, setShowExternalSiteEditor] = useState(false);
   const [orgViewMode, setOrgViewMode] = useState<'combined' | 'split'>(() => {
     try {
       return localStorage.getItem('emax_org_view_mode') === 'combined' ? 'combined' : 'split';
@@ -478,10 +486,14 @@ export default function Main() {
     if (statusSyncedRef.current || !myId) return;
     const me = allOrgUsers(Array.isArray(orgTreeRaw) ? orgTreeRaw : []).find((u) => String(u.id) === String(myId));
     if (me) {
-      setStatusInput(me.statusMessage || '온라인');
+      // 재접속/재로그인 시 이전 상태(자리비움 등)를 그대로 이어받지 않고 '온라인'으로 초기화한다.
+      const prevStatus = me.statusMessage || '온라인';
+      setStatusInput('온라인');
       setStatusNote(me.statusNote || '');
       setExtensionInput(me.extension || '');
+      setDeskPhoneInput(me.deskPhone || '');
       statusSyncedRef.current = true;
+      if (prevStatus !== '온라인') void handleSetStatus('온라인');
     }
   }, [orgTreeRaw, myId]);
 
@@ -636,11 +648,31 @@ export default function Main() {
       console.error(err);
     }
   };
+  const handleOpenExternalSite = () => {
+    const url = externalSiteUrl.trim();
+    if (!url) {
+      setShowExternalSiteEditor(true);
+      return;
+    }
+    const openExternal = window.electronAPI?.openExternal;
+    if (openExternal) void openExternal(url);
+    else window.open(url, '_blank', 'noopener,noreferrer');
+  };
+  const handleSaveExternalSiteUrl = (value: string) => {
+    const trimmed = value.trim();
+    setExternalSiteUrl(trimmed);
+    try {
+      if (trimmed) localStorage.setItem(EXTERNAL_SITE_URL_KEY, trimmed);
+      else localStorage.removeItem(EXTERNAL_SITE_URL_KEY);
+    } catch { /* ignore */ }
+    setShowExternalSiteEditor(false);
+  };
   const handleSaveStatusProfile = async () => {
     try {
       await usersApi.updateProfile({
         statusNote: statusNote.trim() || null,
         extension: extensionInput.trim() || null,
+        deskPhone: deskPhoneInput.trim() || null,
       });
       queryClient.invalidateQueries({ queryKey: ['org'] });
       useToastStore.getState().show('저장되었습니다', 'success');
@@ -1044,6 +1076,9 @@ export default function Main() {
           onLock={() => setScreenLocked(true)}
           onLogout={handleLogout}
           onQuit={hasElectron ? handleQuitApp : undefined}
+          externalSiteUrl={externalSiteUrl}
+          onOpenExternalSite={handleOpenExternalSite}
+          onEditExternalSite={() => setShowExternalSiteEditor(true)}
         />
 
         <div className={cn('flex-1 min-h-0 min-w-0 flex flex-col', isDark ? 'bg-slate-900' : 'bg-white')}>
@@ -1175,6 +1210,8 @@ export default function Main() {
                 onStatusNoteChange: setStatusNote,
                 extensionInput,
                 onExtensionChange: setExtensionInput,
+                deskPhoneInput,
+                onDeskPhoneChange: setDeskPhoneInput,
                 onSaveStatusProfile: () => void handleSaveStatusProfile(),
                 awayMinutes,
                 onAwayMinutesChange: setAwayMinutes,
@@ -1269,6 +1306,20 @@ export default function Main() {
           forced
           onClose={() => {}}
           onSuccess={() => setMustChangePassword(false)}
+        />
+      )}
+
+      {showExternalSiteEditor && (
+        <UIPromptModal
+          isDark={isDark}
+          title="외부 사이트 바로가기 링크"
+          message={'사이드바 아이콘 클릭 시 열릴 자사 업무 포털 등의 주소를 입력하세요.\n(예: https://portal.example.com)'}
+          defaultValue={externalSiteUrl}
+          placeholder="https://"
+          confirmLabel="저장"
+          allowEmpty
+          onSubmit={handleSaveExternalSiteUrl}
+          onClose={() => setShowExternalSiteEditor(false)}
         />
       )}
 

@@ -8,6 +8,7 @@ import AvatarEditModal from '../../../components/AvatarEditModal';
 import UICloseButton from '../../../components/ui/UICloseButton';
 import UserAvatar from '../../../components/UserAvatar';
 import { cn } from '../../../utils/cn';
+import { formatJobTitle } from '../../../utils/orgTree';
 
 type CtxUserMenu = { x: number; y: number; user: OrgUser; orgGroupId?: string; selectedUsers?: OrgUser[] } | null;
 type CtxRoomMenu = { x: number; y: number; room: Room } | null;
@@ -478,7 +479,7 @@ export default function MainOverlays({
                           color: isDark ? '#cbd5e1' : '#475569',
                         }}
                       >
-                        {profileModalUser.jobTitle}
+                        {formatJobTitle(profileModalUser.jobTitle)}
                       </span>
                     )}
                   </div>
@@ -493,24 +494,90 @@ export default function MainOverlays({
                 </div>
               </div>
 
-              {/* 연락 정보 */}
+              {/* 연락 정보: 소속팀 · 휴대전화 · 자리 전화번호 · 이메일 · 회사 주소 · 내선번호 순 */}
               <div style={{ padding: '6px 20px 16px' }}>
-                <div style={metaRow}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={iconStyle} aria-hidden>
-                    <rect x="3" y="5" width="18" height="14" rx="2" />
-                    <path d="m3 7 9 6 9-6" />
-                  </svg>
-                  <span style={{ minWidth: 0, overflowWrap: 'anywhere' as const }}>{profileModalUser.email || '—'}</span>
-                </div>
-                <div style={{ height: 1, background: isDark ? 'rgba(148,163,184,0.14)' : 'rgba(15,23,42,0.06)' }} />
-                <div style={metaRow}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={iconStyle} aria-hidden>
-                    <path d="M6 3h3l2 5-2.5 1.5a12 12 0 0 0 5 5L15 12l5 2v3a2 2 0 0 1-2.2 2A16.5 16.5 0 0 1 4 5.2 2 2 0 0 1 6 3Z" />
-                  </svg>
-                  <span style={profileModalUser.phone ? undefined : { color: isDark ? '#64748b' : '#94a3b8' }}>
-                    {profileModalUser.phone || '연락처 없음'}
-                  </span>
-                </div>
+                {(() => {
+                  const rows: { key: string; icon: JSX.Element; value: string }[] = [];
+                  const teamLabel = [profileModalUser.companyName, profileModalUser.deptName].filter(Boolean).join(' · ');
+                  if (teamLabel) {
+                    rows.push({
+                      key: 'team',
+                      icon: (
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={iconStyle} aria-hidden>
+                          <path d="M3 21h18" />
+                          <path d="M5 21V7l7-4 7 4v14" />
+                          <path d="M9 9h.01M9 13h.01M15 9h.01M15 13h.01" />
+                        </svg>
+                      ),
+                      value: teamLabel,
+                    });
+                  }
+                  rows.push({
+                    key: 'phone',
+                    icon: (
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={iconStyle} aria-hidden>
+                        <rect x="7" y="2" width="10" height="20" rx="2" />
+                        <line x1="12" y1="18" x2="12" y2="18.01" />
+                      </svg>
+                    ),
+                    value: profileModalUser.phone || '휴대전화 없음',
+                  });
+                  if (profileModalUser.deskPhone) {
+                    rows.push({
+                      key: 'deskPhone',
+                      icon: (
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={iconStyle} aria-hidden>
+                          <path d="M6 3h3l2 5-2.5 1.5a12 12 0 0 0 5 5L15 12l5 2v3a2 2 0 0 1-2.2 2A16.5 16.5 0 0 1 4 5.2 2 2 0 0 1 6 3Z" />
+                        </svg>
+                      ),
+                      value: `자리 ${profileModalUser.deskPhone}`,
+                    });
+                  }
+                  rows.push({
+                    key: 'email',
+                    icon: (
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={iconStyle} aria-hidden>
+                        <rect x="3" y="5" width="18" height="14" rx="2" />
+                        <path d="m3 7 9 6 9-6" />
+                      </svg>
+                    ),
+                    value: profileModalUser.email || '—',
+                  });
+                  if (profileModalUser.companyAddress) {
+                    rows.push({
+                      key: 'address',
+                      icon: (
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={iconStyle} aria-hidden>
+                          <path d="M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11z" />
+                          <circle cx="12" cy="10" r="2.5" />
+                        </svg>
+                      ),
+                      value: profileModalUser.companyAddress,
+                    });
+                  }
+                  if (profileModalUser.extension) {
+                    rows.push({
+                      key: 'extension',
+                      icon: (
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={iconStyle} aria-hidden>
+                          <rect x="4" y="2" width="16" height="20" rx="2" />
+                          <line x1="8" y1="6" x2="16" y2="6" />
+                          <line x1="8" y1="18" x2="8.01" y2="18" />
+                        </svg>
+                      ),
+                      value: `내선 ${profileModalUser.extension}`,
+                    });
+                  }
+                  return rows.map((row, i) => (
+                    <div key={row.key}>
+                      {i > 0 && <div style={{ height: 1, background: isDark ? 'rgba(148,163,184,0.14)' : 'rgba(15,23,42,0.06)' }} />}
+                      <div style={metaRow}>
+                        {row.icon}
+                        <span style={{ minWidth: 0, overflowWrap: 'anywhere' as const }}>{row.value}</span>
+                      </div>
+                    </div>
+                  ));
+                })()}
               </div>
             </div>
           </div>

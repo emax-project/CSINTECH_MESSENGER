@@ -12,6 +12,8 @@ model Company {
   name         String
   /// 거래처 MSSQL 사업장/법인 코드 등 외부 키 (동기화용)
   externalCode String?      @unique
+  /// 회사 주소 (프로필 상세 표기용)
+  address      String?
   departments  Department[]
 }
 
@@ -58,6 +60,7 @@ model User {
   name            String
   phone           String?       // 연락처(휴대폰)
   extension       String?       // 사내 내선번호
+  deskPhone       String?       // 자리 전화번호(구내 유선)
   jobTitle        String?       // 직급 (대리, 과장, 팀장 등)
   avatarUrl       String?
   createdAt       DateTime      @default(now())

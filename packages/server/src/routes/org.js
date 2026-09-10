@@ -47,16 +47,22 @@ orgRouter.get('/tree', async (req, res) => {
           include: {
             users: {
               orderBy: { name: 'asc' },
-              select: { id: true, name: true, email: true, phone: true, extension: true, jobTitle: true, statusMessage: true, statusNote: true, avatarUrl: true, updatedAt: true },
+              select: { id: true, name: true, email: true, phone: true, extension: true, deskPhone: true, jobTitle: true, statusMessage: true, statusNote: true, avatarUrl: true, updatedAt: true },
             },
           },
         },
       },
     });
     const myId = String(req.userId || '');
-    const toUserWithAvatarPath = (u) => {
+    const toUserWithAvatarPath = (u, deptCtx) => {
       const ver = u.updatedAt ? `?v=${new Date(u.updatedAt).getTime()}` : '';
-      return { ...u, avatarUrl: u.avatarUrl ? `/users/${u.id}/avatar${ver}` : null };
+      return {
+        ...u,
+        avatarUrl: u.avatarUrl ? `/users/${u.id}/avatar${ver}` : null,
+        deptName: deptCtx?.deptName ?? null,
+        companyName: deptCtx?.companyName ?? null,
+        companyAddress: deptCtx?.companyAddress ?? null,
+      };
     };
 
     let extraAffiliations = [];
@@ -64,7 +70,7 @@ orgRouter.get('/tree', async (req, res) => {
       extraAffiliations = await prisma.userAffiliation.findMany({
         include: {
           user: {
-            select: { id: true, name: true, email: true, phone: true, extension: true, jobTitle: true, statusMessage: true, statusNote: true, avatarUrl: true, updatedAt: true },
+            select: { id: true, name: true, email: true, phone: true, extension: true, deskPhone: true, jobTitle: true, statusMessage: true, statusNote: true, avatarUrl: true, updatedAt: true },
           },
         },
       });
@@ -78,16 +84,17 @@ orgRouter.get('/tree', async (req, res) => {
       extrasByDept.set(row.departmentId, list);
     }
 
-    const nest = (departments) => {
+    const nest = (departments, companyCtx) => {
       const nodes = new Map();
       departments.forEach((d) => {
+        const deptCtx = { deptName: d.name, companyName: companyCtx.companyName, companyAddress: companyCtx.companyAddress };
         const seen = new Set(d.users.map((u) => String(u.id)));
         const extras = (extrasByDept.get(d.id) || []).filter((u) => !seen.has(String(u.id)));
         nodes.set(d.id, {
           id: d.id,
           name: d.name,
           parentId: d.parentId ?? null,
-          users: [...d.users, ...extras].map(toUserWithAvatarPath).sort((a, b) => a.name.localeCompare(b.name)),
+          users: [...d.users, ...extras].map((u) => toUserWithAvatarPath(u, deptCtx)).sort((a, b) => a.name.localeCompare(b.name)),
           children: [],
         });
       });
@@ -104,7 +111,7 @@ orgRouter.get('/tree', async (req, res) => {
     let tree = companies.map((c) => ({
       id: c.id,
       name: c.name,
-      departments: nest(c.departments),
+      departments: nest(c.departments, { companyName: c.name, companyAddress: c.address ?? null }),
     }));
 
     const allUserIds = new Set();
@@ -113,11 +120,12 @@ orgRouter.get('/tree', async (req, res) => {
     if (!allUserIds.has(myId)) {
       const me = await prisma.user.findUnique({
         where: { id: myId },
-        select: { id: true, name: true, email: true, phone: true, extension: true, jobTitle: true, statusMessage: true, statusNote: true, avatarUrl: true, updatedAt: true },
+        select: { id: true, name: true, email: true, phone: true, extension: true, deskPhone: true, jobTitle: true, statusMessage: true, statusNote: true, avatarUrl: true, updatedAt: true },
       });
       if (me && tree.length > 0 && (tree[0]?.departments?.length ?? 0) > 0) {
         const firstDept = tree[0].departments[0];
-        firstDept.users = [...firstDept.users, toUserWithAvatarPath(me)].sort((a, b) => a.name.localeCompare(b.name));
+        const deptCtx = { deptName: firstDept.name, companyName: tree[0].name, companyAddress: companies[0]?.address ?? null };
+        firstDept.users = [...firstDept.users, toUserWithAvatarPath(me, deptCtx)].sort((a, b) => a.name.localeCompare(b.name));
       }
     }
 

@@ -1,3 +1,5 @@
+import { clearSessionDate, getActiveToken } from './utils/authSession';
+
 // 빈 문자열이면 같은 origin 사용(배포 시 같은 서버에서 API·웹 서빙), 없으면 로컬 개발용
 /** 거래처 사외 기본 API (UTM 1442: 121.143.3.163:3030 → 192.168.123.210:3001) */
 const DEFAULT_BASE =
@@ -30,7 +32,7 @@ export function setBaseUrl(url: string): void {
 }
 
 function getToken(): string | null {
-  return localStorage.getItem('token');
+  return getActiveToken();
 }
 
 function headers(): HeadersInit {
@@ -80,6 +82,7 @@ function handleForcedLogout(path: string, status: number, serverMessage?: string
   try {
     localStorage.setItem('forcedLogoutMessage', msg);
     localStorage.removeItem('token');
+    clearSessionDate();
     if (typeof window !== 'undefined') {
       const isLoginPage = window.location.pathname === '/login' || window.location.pathname === '/register';
       if (!isLoginPage) navigateToLogin();
@@ -173,7 +176,7 @@ export const api = {
   },
 };
 
-export type User = { id: string; email: string; name: string; phone?: string | null; extension?: string | null; jobTitle?: string | null; createdAt?: string; isAdmin?: boolean; statusMessage?: string | null; statusNote?: string | null; avatarUrl?: string; mustChangePassword?: boolean };
+export type User = { id: string; email: string; name: string; phone?: string | null; extension?: string | null; deskPhone?: string | null; jobTitle?: string | null; createdAt?: string; isAdmin?: boolean; statusMessage?: string | null; statusNote?: string | null; avatarUrl?: string; mustChangePassword?: boolean };
 
 export type UserAffiliation = {
   departmentId: string;
@@ -194,7 +197,24 @@ export type PasswordPolicy = {
   hint: string;
 };
 
-export type OrgUser = { id: string; name: string; email: string; phone?: string | null; extension?: string | null; jobTitle?: string | null; avatarUrl?: string; statusMessage?: string | null; statusNote?: string | null };
+export type OrgUser = {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string | null;
+  extension?: string | null;
+  deskPhone?: string | null;
+  jobTitle?: string | null;
+  avatarUrl?: string;
+  statusMessage?: string | null;
+  statusNote?: string | null;
+  /** 소속팀(부서) 이름. 프로필 상세 표기용 */
+  deptName?: string | null;
+  /** 소속 회사 이름 */
+  companyName?: string | null;
+  /** 소속 회사 주소 */
+  companyAddress?: string | null;
+};
 export type OrgDepartment = {
   id: string;
   name: string;
@@ -406,7 +426,7 @@ export const usersApi = {
   bulkRegister: (data: { defaultPassword?: string; users: BulkRegisterUserInput[] }) =>
     api.post('/users/bulk', data) as Promise<BulkRegisterResult>,
   /** 직급은 여기서 바꿀 수 없다. 조직 마스터 값이라 관리자만 setJobTitle로 지정한다. */
-  updateProfile: (data: { phone?: string | null; extension?: string | null; statusMessage?: string | null; statusNote?: string | null }) =>
+  updateProfile: (data: { phone?: string | null; extension?: string | null; deskPhone?: string | null; statusMessage?: string | null; statusNote?: string | null }) =>
     api.put('/users/me', data) as Promise<{ ok: boolean }>,
   /** 특정 사용자의 직급 지정 (관리자 전용). 빈 값이면 직급 없음. */
   setJobTitle: (id: string, jobTitle: string | null) =>

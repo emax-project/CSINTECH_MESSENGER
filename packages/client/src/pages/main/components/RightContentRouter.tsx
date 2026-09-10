@@ -136,6 +136,8 @@ type RightContentRouterProps = {
     onStatusNoteChange?: (value: string) => void;
     extensionInput?: string;
     onExtensionChange?: (value: string) => void;
+    deskPhoneInput?: string;
+    onDeskPhoneChange?: (value: string) => void;
     onSaveStatusProfile?: () => void;
     awayMinutes?: number;
     onAwayMinutesChange?: (minutes: number) => void;
@@ -322,6 +324,8 @@ function RightContentRouter({
             onStatusNoteChange={settingsProps.onStatusNoteChange}
             extensionInput={settingsProps.extensionInput}
             onExtensionChange={settingsProps.onExtensionChange}
+            deskPhoneInput={settingsProps.deskPhoneInput}
+            onDeskPhoneChange={settingsProps.onDeskPhoneChange}
             onSaveStatusProfile={settingsProps.onSaveStatusProfile}
             awayMinutes={settingsProps.awayMinutes}
             onAwayMinutesChange={settingsProps.onAwayMinutesChange}

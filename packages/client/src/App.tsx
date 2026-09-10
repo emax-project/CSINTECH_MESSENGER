@@ -3,6 +3,7 @@ import { useThemeStore } from './store';
 import { BrowserRouter, HashRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useAuthStore } from './store';
 import { authApi } from './api';
+import { isSessionFromToday } from './utils/authSession';
 import MacTitleBarInset from './components/MacTitleBarInset';
 import ElectronSecondaryShell from './components/ElectronSecondaryShell';
 import { cn } from './utils/cn';
@@ -93,7 +94,7 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
     return useAuthStore.persist.onFinishHydration(() => setAuthReady(true));
   }, []);
 
-  const token = storeToken ?? localStorage.getItem('token');
+  const token = storeToken ?? (isSessionFromToday() ? localStorage.getItem('token') : null);
 
   if (!authReady && !token) {
     return (
@@ -167,10 +168,28 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!isElectron) return;
     document.body.classList.toggle('theme-dark', isDark);
     document.body.classList.toggle('theme-light', !isDark);
   }, [isDark]);
+
+  // 날짜가 바뀌면 세션을 끊고 로그인 화면으로 보낸다
+  useEffect(() => {
+    const check = () => {
+      const auth = useAuthStore.getState();
+      if (auth.token && !isSessionFromToday()) auth.logout();
+    };
+    const onVis = () => {
+      if (document.visibilityState === 'visible') check();
+    };
+    window.addEventListener('focus', check);
+    document.addEventListener('visibilitychange', onVis);
+    const id = window.setInterval(check, 60_000);
+    return () => {
+      window.removeEventListener('focus', check);
+      document.removeEventListener('visibilitychange', onVis);
+      window.clearInterval(id);
+    };
+  }, []);
 
   // Electron: React 마운트 완료 후 main process에 창 표시 신호 전송
   useEffect(() => {

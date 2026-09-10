@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore, useThemeStore } from '../store';
 import { roomsApi } from '../api';
+import { getActiveToken } from '../utils/authSession';
 import KanbanBoard from '../components/KanbanBoard';
 
 function PageLoading({ isDark }: { isDark: boolean }) {
@@ -17,7 +18,7 @@ export default function KanbanPage() {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
   const storeToken = useAuthStore((s) => s.token);
-  const token = storeToken ?? localStorage.getItem('token');
+  const token = storeToken ?? getActiveToken();
   const isDark = useThemeStore((s) => s.isDark);
 
   useEffect(() => {

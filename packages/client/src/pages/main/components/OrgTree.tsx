@@ -3,7 +3,7 @@ import type { MouseEvent } from 'react';
 import type { OrgCompany, OrgDepartment, OrgGroup, OrgUser } from '../../../api';
 import type { OnlinePresenceMap } from '../../../utils/presence';
 import { cn } from '../../../utils/cn';
-import { allOrgUsers, companyUsers, departmentUsers } from '../../../utils/orgTree';
+import { allOrgUsers, companyUsers, departmentUsers, formatJobTitle } from '../../../utils/orgTree';
 
 const ACTIVE_BLUE = '#5B8DEF';
 const INACTIVE_GRAY = '#c5c9d0';
@@ -226,15 +226,18 @@ function OrgUserRow({
         )}
         <button
           type="button"
+          title="더블 클릭하면 대화창이 열립니다"
           className={cn(
             'min-w-0 flex-1 truncate border-none bg-transparent p-0 text-left text-[13px] cursor-pointer',
             isOnline
               ? (isDark ? 'text-slate-100 font-medium' : 'text-slate-800 font-medium')
-              : (isDark ? 'text-slate-300' : 'text-slate-400'),
+              : (isDark ? 'text-slate-200' : 'text-slate-600'),
           )}
-          onClick={() => void onOpenDirectMessage(u.id)}
+          onClick={() => onToggleSelect(u.id)}
+          onDoubleClick={() => void onOpenDirectMessage(u.id)}
           onContextMenu={openContextMenu}
         >
+          {u.jobTitle ? `[${formatJobTitle(u.jobTitle)}]` : ''}
           {u.name}
           {isMe ? ' (나)' : ''}
         </button>

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { authApi, type User } from './api';
+import { clearSessionDate, isSessionFromToday, markSessionToday } from './utils/authSession';
 
 type AuthState = {
   user: User | null;
@@ -18,8 +19,13 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       mustChangePassword: false,
       setAuth: (user, token, opts) => {
-        if (token) localStorage.setItem('token', token);
-        else localStorage.removeItem('token');
+        if (token) {
+          localStorage.setItem('token', token);
+          markSessionToday();
+        } else {
+          localStorage.removeItem('token');
+          clearSessionDate();
+        }
         set((s) => ({
           user,
           token,
@@ -31,10 +37,22 @@ export const useAuthStore = create<AuthState>()(
       logout: () => {
         authApi.logout().catch(() => {});
         localStorage.removeItem('token');
+        clearSessionDate();
         set({ user: null, token: null, mustChangePassword: false });
       },
     }),
-    { name: 'auth' }
+    {
+      name: 'auth',
+      merge: (persisted, current) => {
+        const saved = persisted as AuthState | undefined;
+        if (saved?.token && !isSessionFromToday()) {
+          localStorage.removeItem('token');
+          clearSessionDate();
+          return { ...current, user: null, token: null, mustChangePassword: false };
+        }
+        return { ...current, ...saved };
+      },
+    }
   )
 );
 

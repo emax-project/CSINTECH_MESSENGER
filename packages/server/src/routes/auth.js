@@ -122,6 +122,16 @@ authRouter.post('/login', async (req, res) => {
     await prisma.userSession.deleteMany({ where: { userId: user.id } });
     const session = await prisma.userSession.create({ data: { userId: user.id } });
     const token = signToken({ userId: user.id, sessionId: session.id });
+
+    // 재접속/재로그인 시 이전에 설정해 둔 상태(자리비움 등)를 지우고 '온라인'으로 초기화한다.
+    if (user.statusMessage) {
+      await prisma.user.update({ where: { id: user.id }, data: { statusMessage: null } }).catch((e) => {
+        console.warn('[auth/login] failed to reset statusMessage:', e?.message || e);
+      });
+      const io = req.app.get('io');
+      if (io) io.emit('user_status_changed', { userId: user.id, statusMessage: null });
+    }
+
     return res.json({
       user: {
         id: user.id,
