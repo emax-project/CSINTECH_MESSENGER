@@ -18,6 +18,8 @@ function ProfileEditModal({ isDark, onClose }: { isDark: boolean; onClose: () =>
   const authUser = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
   const [phone, setPhone] = useState(authUser?.phone ?? '');
+  const [deskPhone, setDeskPhone] = useState(authUser?.deskPhone ?? '');
+  const [extension, setExtension] = useState(authUser?.extension ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,7 +30,11 @@ function ProfileEditModal({ isDark, onClose }: { isDark: boolean; onClose: () =>
     setError(null);
     setSaving(true);
     try {
-      await usersApi.updateProfile({ phone: phone.trim() || null });
+      await usersApi.updateProfile({
+        phone: phone.trim() || null,
+        deskPhone: deskPhone.trim() || null,
+        extension: extension.trim() || null,
+      });
       const { user: u } = await authApi.me();
       if (u) useAuthStore.getState().setAuth(u, useAuthStore.getState().token);
       queryClient.invalidateQueries({ queryKey: ['org'] });
@@ -44,7 +50,7 @@ function ProfileEditModal({ isDark, onClose }: { isDark: boolean; onClose: () =>
     <UIModal title="프로필 수정" onClose={onClose} width={380}>
       <div style={{ padding: 16, display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
         <div>
-          <label style={labelStyle}>연락처</label>
+          <label style={labelStyle}>휴대전화</label>
           <input
             autoFocus
             type="text"
@@ -53,6 +59,30 @@ function ProfileEditModal({ isDark, onClose }: { isDark: boolean; onClose: () =>
             onKeyDown={(e) => { if (e.key === 'Enter') void save(); }}
             placeholder="010-1234-5678"
             maxLength={50}
+            style={inputStyle}
+          />
+        </div>
+        <div>
+          <label style={labelStyle}>자리 전화번호</label>
+          <input
+            type="text"
+            value={deskPhone}
+            onChange={(e) => { setDeskPhone(e.target.value); setError(null); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') void save(); }}
+            placeholder="02-1234-5678"
+            maxLength={30}
+            style={inputStyle}
+          />
+        </div>
+        <div>
+          <label style={labelStyle}>내선번호</label>
+          <input
+            type="text"
+            value={extension}
+            onChange={(e) => { setExtension(e.target.value); setError(null); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') void save(); }}
+            placeholder="1234"
+            maxLength={30}
             style={inputStyle}
           />
         </div>

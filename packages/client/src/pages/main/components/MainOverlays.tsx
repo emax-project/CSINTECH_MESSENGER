@@ -397,7 +397,7 @@ export default function MainOverlays({
             <div
               onClick={(e) => e.stopPropagation()}
               className={cn('relative overflow-hidden rounded-2xl shadow-xl', isDark ? 'bg-slate-800' : 'bg-white')}
-              style={{ width: 340, maxWidth: '90%' }}
+              style={{ width: 360, maxWidth: '90%' }}
             >
               <div style={{ position: 'absolute', top: 10, right: 10, zIndex: 1 }}>
                 <UICloseButton onClick={() => setProfileModalUser(null)} />
@@ -494,14 +494,26 @@ export default function MainOverlays({
                 </div>
               </div>
 
-              {/* 연락 정보: 소속팀 · 휴대전화 · 자리 전화번호 · 이메일 · 회사 주소 · 내선번호 순 */}
+              {/* 연락 정보: 소속팀 · 휴대전화 · 자리 전화번호 · 이메일 · 회사 주소 · 내선번호 */}
               <div style={{ padding: '6px 20px 16px' }}>
                 {(() => {
-                  const rows: { key: string; icon: JSX.Element; value: string }[] = [];
-                  const teamLabel = [profileModalUser.companyName, profileModalUser.deptName].filter(Boolean).join(' · ');
-                  if (teamLabel) {
-                    rows.push({
+                  const dash = '—';
+                  const text = (v?: string | null) => {
+                    const t = v?.trim();
+                    return t || dash;
+                  };
+                  const team = [profileModalUser.companyName, profileModalUser.deptName]
+                    .map((v) => v?.trim())
+                    .filter((v): v is string => !!v)
+                    .filter((v, i, arr) => arr.indexOf(v) === i)
+                    .join(' · ');
+                  const labelColor = isDark ? '#94a3b8' : '#64748b';
+                  const valueColor = isDark ? '#e2e8f0' : '#172033';
+                  const rows: { key: string; label: string; value: string; icon: JSX.Element }[] = [
+                    {
                       key: 'team',
+                      label: '소속팀',
+                      value: text(team),
                       icon: (
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={iconStyle} aria-hidden>
                           <path d="M3 21h18" />
@@ -509,55 +521,54 @@ export default function MainOverlays({
                           <path d="M9 9h.01M9 13h.01M15 9h.01M15 13h.01" />
                         </svg>
                       ),
-                      value: teamLabel,
-                    });
-                  }
-                  rows.push({
-                    key: 'phone',
-                    icon: (
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={iconStyle} aria-hidden>
-                        <rect x="7" y="2" width="10" height="20" rx="2" />
-                        <line x1="12" y1="18" x2="12" y2="18.01" />
-                      </svg>
-                    ),
-                    value: profileModalUser.phone || '휴대전화 없음',
-                  });
-                  if (profileModalUser.deskPhone) {
-                    rows.push({
+                    },
+                    {
+                      key: 'phone',
+                      label: '휴대전화',
+                      value: text(profileModalUser.phone),
+                      icon: (
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={iconStyle} aria-hidden>
+                          <rect x="7" y="2" width="10" height="20" rx="2" />
+                          <line x1="12" y1="18" x2="12" y2="18.01" />
+                        </svg>
+                      ),
+                    },
+                    {
                       key: 'deskPhone',
+                      label: '자리 전화번호',
+                      value: text(profileModalUser.deskPhone),
                       icon: (
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={iconStyle} aria-hidden>
                           <path d="M6 3h3l2 5-2.5 1.5a12 12 0 0 0 5 5L15 12l5 2v3a2 2 0 0 1-2.2 2A16.5 16.5 0 0 1 4 5.2 2 2 0 0 1 6 3Z" />
                         </svg>
                       ),
-                      value: `자리 ${profileModalUser.deskPhone}`,
-                    });
-                  }
-                  rows.push({
-                    key: 'email',
-                    icon: (
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={iconStyle} aria-hidden>
-                        <rect x="3" y="5" width="18" height="14" rx="2" />
-                        <path d="m3 7 9 6 9-6" />
-                      </svg>
-                    ),
-                    value: profileModalUser.email || '—',
-                  });
-                  if (profileModalUser.companyAddress) {
-                    rows.push({
+                    },
+                    {
+                      key: 'email',
+                      label: '이메일 주소',
+                      value: text(profileModalUser.email),
+                      icon: (
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={iconStyle} aria-hidden>
+                          <rect x="3" y="5" width="18" height="14" rx="2" />
+                          <path d="m3 7 9 6 9-6" />
+                        </svg>
+                      ),
+                    },
+                    {
                       key: 'address',
+                      label: '회사 주소',
+                      value: text(profileModalUser.companyAddress),
                       icon: (
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={iconStyle} aria-hidden>
                           <path d="M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11z" />
                           <circle cx="12" cy="10" r="2.5" />
                         </svg>
                       ),
-                      value: profileModalUser.companyAddress,
-                    });
-                  }
-                  if (profileModalUser.extension) {
-                    rows.push({
+                    },
+                    {
                       key: 'extension',
+                      label: '내선번호',
+                      value: text(profileModalUser.extension),
                       icon: (
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={iconStyle} aria-hidden>
                           <rect x="4" y="2" width="16" height="20" rx="2" />
@@ -565,15 +576,17 @@ export default function MainOverlays({
                           <line x1="8" y1="18" x2="8.01" y2="18" />
                         </svg>
                       ),
-                      value: `내선 ${profileModalUser.extension}`,
-                    });
-                  }
+                    },
+                  ];
                   return rows.map((row, i) => (
                     <div key={row.key}>
                       {i > 0 && <div style={{ height: 1, background: isDark ? 'rgba(148,163,184,0.14)' : 'rgba(15,23,42,0.06)' }} />}
                       <div style={metaRow}>
                         {row.icon}
-                        <span style={{ minWidth: 0, overflowWrap: 'anywhere' as const }}>{row.value}</span>
+                        <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: labelColor }}>{row.label}</span>
+                          <span style={{ overflowWrap: 'anywhere' as const, fontWeight: 600, color: valueColor }}>{row.value}</span>
+                        </div>
                       </div>
                     </div>
                   ));

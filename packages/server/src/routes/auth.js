@@ -155,7 +155,7 @@ authRouter.get('/me', authMiddleware, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
-      select: { id: true, email: true, name: true, phone: true, jobTitle: true, statusMessage: true, createdAt: true, avatarUrl: true, updatedAt: true },
+      select: { id: true, email: true, name: true, phone: true, extension: true, deskPhone: true, jobTitle: true, statusMessage: true, createdAt: true, avatarUrl: true, updatedAt: true },
     });
     if (!user) return res.status(401).json({ error: 'User not found' });
     const avatarVer = user.updatedAt ? `?v=${new Date(user.updatedAt).getTime()}` : '';
