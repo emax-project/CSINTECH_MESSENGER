@@ -102,7 +102,7 @@ filesRouter.get('/download/:messageId', async (req, res) => {
     }
 
     const member = await prisma.roomMember.findFirst({
-      where: { roomId: message.roomId, userId: req.userId },
+      where: { roomId: message.roomId, userId: req.userId, leftAt: null },
     });
     if (!member) {
       return res.status(403).json({ error: 'Not authorized' });
@@ -130,6 +130,10 @@ filesRouter.get('/download/:messageId', async (req, res) => {
     if (message.fileMimeType) {
       res.setHeader('Content-Type', message.fileMimeType);
     }
+    // 업로드 시 클라이언트가 보낸 Content-Type을 그대로 신뢰해 반영하므로,
+    // 브라우저가 이를 실행 가능한 콘텐츠로 스니핑하지 않도록 명시적으로 막는다.
+    // (Content-Disposition: attachment와 함께 저장형 XSS 경로를 이중으로 차단)
+    res.setHeader('X-Content-Type-Options', 'nosniff');
 
     return res.sendFile(filePath);
   } catch (err) {

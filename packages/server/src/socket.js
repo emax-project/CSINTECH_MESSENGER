@@ -128,7 +128,15 @@ export function registerSocketHandlers(io) {
           data.eventDescription = sharedEvent.description != null ? String(sharedEvent.description) : null;
         }
         if (replyToId) {
-          data.replyToId = String(replyToId);
+          // replyToId가 실제로 이 roomId에 속한 메시지인지 확인 —
+          // 그렇지 않으면 다른 방의 메시지 내용/작성자가 replyTo로 유출될 수 있음
+          const replyTarget = await prisma.message.findUnique({
+            where: { id: String(replyToId) },
+            select: { roomId: true },
+          });
+          if (replyTarget && replyTarget.roomId === roomId) {
+            data.replyToId = String(replyToId);
+          }
         }
         if (context && typeof context === 'object' && (context.filePath || context.branch)) {
           if (context.filePath && typeof context.filePath === 'string' && context.filePath.trim()) {

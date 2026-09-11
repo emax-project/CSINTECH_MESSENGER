@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { verifySessionToken } from '../auth.js';
+import { safeFetch } from '../lib/ssrfGuard.js';
 
 const LINK_PREVIEW_TIMEOUT_MS = 10000;
 const LINK_PREVIEW_MAX_BYTES = 2 * 1024 * 1024; // 2MB (메타가 뒤에 있는 페이지 대비)
@@ -90,10 +91,9 @@ export function linkPreviewRouter() {
     try {
       controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), LINK_PREVIEW_TIMEOUT_MS);
-      const response = await fetch(url, {
+      const response = await safeFetch(url, {
         signal: controller.signal,
         headers: { 'User-Agent': 'CSIN-Tech-LinkPreview/1.0 (com.csintech.message)' },
-        redirect: 'follow',
       });
       clearTimeout(timeout);
       if (!response.ok) {
@@ -151,10 +151,9 @@ export function linkPreviewRouter() {
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), IMAGE_TIMEOUT_MS);
-      const response = await fetch(imageUrl, {
+      const response = await safeFetch(imageUrl, {
         signal: controller.signal,
         headers: fetchHeaders,
-        redirect: 'follow',
       });
       clearTimeout(timeout);
       if (!response.ok) return res.status(502).end();

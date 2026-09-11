@@ -68,6 +68,8 @@ model User {
   departmentId    String?
   statusMessage   String?       // 프레즌스 상태(온라인/자리비움 등)
   statusNote      String?       // 자유 상태 메시지
+  notepad         String?       // 개인 메모장(본인만 보임, 자동저장)
+  mustChangePassword Boolean    @default(false) // 거래처 자동계정 등 공용 초기비밀번호로 생성된 계정 → 최초 로그인 시 강제 변경
   /// 거래처 MSSQL 사원 PK (hr_employee_master_id)
   externalEmpId   String?       @unique
   bookmarks       Bookmark[]
@@ -439,4 +441,12 @@ model MemoRecipient {
   @@unique([memoId, userId])
   @@index([userId, readAt])
   @@index([userId, deletedAt])
+}
+
+/// 앱 전역 설정. 사이드바 링크 주소처럼 모든 사용자에게 같은 값을 쓸 때 쓴다.
+model AppSetting {
+  key       String   @id
+  value     String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

@@ -63,6 +63,13 @@ authRouter.post('/register', async (req, res) => {
     if (!email || !password || !name) {
       return res.status(400).json({ error: 'email, password, name required' });
     }
+    // isAdmin은 순전히 이메일이 ADMIN_EMAIL 목록에 있는지로 결정된다 (lib/admin.js).
+    // 공개 가입을 그대로 열어두면 관리자 이메일 주소를 아는 사람이 실제 관리자보다
+    // 먼저 가입해 관리자 권한을 선점할 수 있으므로, 관리자 이메일은 셀프 가입을 막고
+    // scripts/create-admin.js로 운영자가 서버에서 직접 생성하도록 한다.
+    if (isAdminEmail(email)) {
+      return res.status(403).json({ error: 'ADMIN_REGISTER_DISABLED' });
+    }
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
       return res.status(409).json({ error: 'Email already registered' });
@@ -98,7 +105,9 @@ authRouter.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    let mustChangePassword = false;
+    // 거래처 자동계정처럼 공용 초기비밀번호로 생성된 로컬 계정은 DB에 저장된
+    // mustChangePassword 플래그로 강제 변경 여부가 결정된다.
+    let mustChangePassword = !!user.mustChangePassword;
     const useLdap = isLdapEnabled() && !isLocalExceptionEmail(user.email);
 
     if (useLdap) {
@@ -114,7 +123,7 @@ authRouter.post('/login', async (req, res) => {
       if (!result.ok) {
         return res.status(loginErrorStatus(result.reason)).json({ error: loginErrorMessage(result.reason) });
       }
-      mustChangePassword = !!result.mustChangePassword;
+      mustChangePassword = mustChangePassword || !!result.mustChangePassword;
     } else if (!(await bcrypt.compare(password, user.password))) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
@@ -155,7 +164,7 @@ authRouter.get('/me', authMiddleware, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
-      select: { id: true, email: true, name: true, phone: true, extension: true, deskPhone: true, jobTitle: true, statusMessage: true, createdAt: true, avatarUrl: true, updatedAt: true },
+      select: { id: true, email: true, name: true, phone: true, extension: true, deskPhone: true, jobTitle: true, statusMessage: true, notepad: true, createdAt: true, avatarUrl: true, updatedAt: true },
     });
     if (!user) return res.status(401).json({ error: 'User not found' });
     const avatarVer = user.updatedAt ? `?v=${new Date(user.updatedAt).getTime()}` : '';
@@ -225,7 +234,7 @@ authRouter.put('/password', authMiddleware, async (req, res) => {
 
     const hashed = await bcrypt.hash(newPassword, 10);
     await prisma.$transaction([
-      prisma.user.update({ where: { id: user.id }, data: { password: hashed } }),
+      prisma.user.update({ where: { id: user.id }, data: { password: hashed, mustChangePassword: false } }),
       // 지금 창은 그대로 쓰게 두고, 다른 기기에 남은 세션만 끊는다
       prisma.userSession.deleteMany({
         where: { userId: user.id, id: { not: req.sessionId } },

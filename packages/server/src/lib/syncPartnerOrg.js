@@ -7,6 +7,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../db.js';
 import { fetchPartnerOrg } from './partnerOrg.js';
 import { isPartnerOrgEnabled, getPartnerOrgSource } from './partnerMssql.js';
+import { isHrCode } from './partnerHrTitles.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -24,8 +25,9 @@ function partnerCompanyExternalCode(departments) {
 function partnerDefaultPassword(optsPassword) {
   const fromOpt = typeof optsPassword === 'string' ? optsPassword.trim() : '';
   if (fromOpt) return fromOpt;
-  const fromEnv = (process.env.PARTNER_DEFAULT_PASSWORD || '').trim();
-  return fromEnv || '123456';
+  // '123456' 같은 하드코딩된 약한 기본값으로 조용히 넘어가지 않는다 —
+  // createMissingUsers를 쓰려면 운영자가 PARTNER_DEFAULT_PASSWORD를 명시적으로 설정해야 한다.
+  return (process.env.PARTNER_DEFAULT_PASSWORD || '').trim();
 }
 
 /**
@@ -60,6 +62,8 @@ export async function syncPartnerOrg(opts = {}) {
     usersUpdated: 0,
     usersUnmatched: 0,
     usersSkippedInvalidEmail: 0,
+    usersIdentityMismatch: 0,
+    identityMismatchEmails: /** @type {string[]} */ ([]),
     unmatchedEmails: /** @type {string[]} */ ([]),
     createdEmails: /** @type {string[]} */ ([]),
     employeesWithoutEmail: 0,
@@ -186,7 +190,7 @@ export async function syncPartnerOrg(opts = {}) {
         continue;
       }
       const departmentId = e.deptCode ? deptIdByCode.get(e.deptCode) ?? null : null;
-      const jobTitle = e.dutyCode || e.positionCode || null;
+      const jobTitle = e.jobTitle || null;
       try {
         user = await prisma.user.create({
           data: {
@@ -197,6 +201,9 @@ export async function syncPartnerOrg(opts = {}) {
             jobTitle,
             departmentId,
             externalEmpId: e.masterId,
+            // 전 직원이 동일한 공용 초기비밀번호를 받으므로, 최초 로그인 시
+            // 반드시 본인 비밀번호로 바꾸도록 강제한다.
+            mustChangePassword: true,
           },
           select: { id: true, email: true, departmentId: true, name: true, phone: true, jobTitle: true, externalEmpId: true },
         });
@@ -230,14 +237,26 @@ export async function syncPartnerOrg(opts = {}) {
       stats.usersMatched += 1;
     }
 
+    // 이미 특정 거래처 사번(externalEmpId)에 연결된 계정인데, 이번 파트너 레코드가
+    // 같은 이메일에 다른 사번을 주장하는 경우 — 이메일 재사용/오타 등으로 다른 사람의
+    // 계정을 덮어쓸 위험이 있으므로 프로필 갱신을 건너뛰고 수동 확인이 필요함을 남긴다.
+    if (user.externalEmpId && e.masterId && user.externalEmpId !== e.masterId) {
+      console.warn(
+        `[syncPartnerOrg] identity mismatch for ${e.email}: local externalEmpId=${user.externalEmpId} vs partner masterId=${e.masterId} — skipping profile update`
+      );
+      stats.usersIdentityMismatch += 1;
+      if (stats.identityMismatchEmails.length < 50) stats.identityMismatchEmails.push(e.email);
+      continue;
+    }
+
     const departmentId = e.deptCode ? deptIdByCode.get(e.deptCode) ?? null : null;
-    const jobTitle = e.dutyCode || e.positionCode || user.jobTitle || null;
+    const jobTitle = e.jobTitle || (isHrCode(user.jobTitle) ? null : user.jobTitle) || null;
     const data = {
       departmentId,
       externalEmpId: e.masterId,
       ...(e.name ? { name: e.name } : {}),
       ...(e.phone ? { phone: e.phone } : {}),
-      ...(jobTitle ? { jobTitle } : {}),
+      ...(jobTitle !== user.jobTitle ? { jobTitle } : {}),
     };
 
     const changed =
@@ -245,7 +264,7 @@ export async function syncPartnerOrg(opts = {}) {
       || user.externalEmpId !== e.masterId
       || (e.name && user.name !== e.name)
       || (e.phone && user.phone !== e.phone)
-      || (jobTitle && user.jobTitle !== jobTitle);
+      || user.jobTitle !== jobTitle;
 
     if (changed) {
       await prisma.user.update({ where: { id: user.id }, data });
