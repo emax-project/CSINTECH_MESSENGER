@@ -28,6 +28,28 @@ jobs:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           # 저장소 Settings > Secrets에 ADMIN_EMAIL을 등록해야 관리자 기능이 열린다
           ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          # Synology LDAP 연동 (CSIN-Tech 직원 로그인)
+          LDAP_ENABLED: ${{ secrets.LDAP_ENABLED }}
+          LDAP_URL: ${{ secrets.LDAP_URL }}
+          LDAP_BASE_DN: ${{ secrets.LDAP_BASE_DN }}
+          LDAP_SEARCH_BASE: ${{ secrets.LDAP_SEARCH_BASE }}
+          LDAP_SEARCH_FILTER: ${{ secrets.LDAP_SEARCH_FILTER }}
+          LDAP_BIND_DN: ${{ secrets.LDAP_BIND_DN }}
+          LDAP_BIND_PASSWORD: ${{ secrets.LDAP_BIND_PASSWORD }}
+          LDAP_EMAIL_DOMAIN: ${{ secrets.LDAP_EMAIL_DOMAIN }}
+          LDAP_TLS_REJECT_UNAUTHORIZED: ${{ secrets.LDAP_TLS_REJECT_UNAUTHORIZED }}
+          # 거래처 MSSQL 조직도 연동
+          PARTNER_ORG_SOURCE: ${{ secrets.PARTNER_ORG_SOURCE }}
+          PARTNER_COMPANY_NAME: ${{ secrets.PARTNER_COMPANY_NAME }}
+          PARTNER_COMPANY_EXTERNAL_CODE: ${{ secrets.PARTNER_COMPANY_EXTERNAL_CODE }}
+          PARTNER_MSSQL_SERVER: ${{ secrets.PARTNER_MSSQL_SERVER }}
+          PARTNER_MSSQL_PORT: ${{ secrets.PARTNER_MSSQL_PORT }}
+          PARTNER_MSSQL_DATABASE: ${{ secrets.PARTNER_MSSQL_DATABASE }}
+          PARTNER_MSSQL_USER: ${{ secrets.PARTNER_MSSQL_USER }}
+          PARTNER_MSSQL_PASSWORD: ${{ secrets.PARTNER_MSSQL_PASSWORD }}
+          PARTNER_MSSQL_ENCRYPT: ${{ secrets.PARTNER_MSSQL_ENCRYPT }}
+          PARTNER_MSSQL_TRUST_CERT: ${{ secrets.PARTNER_MSSQL_TRUST_CERT }}
+          PARTNER_DEFAULT_PASSWORD: ${{ secrets.PARTNER_DEFAULT_PASSWORD }}
 
       - name: Log result
         run: |
