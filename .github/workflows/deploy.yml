@@ -19,6 +19,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # 러너가 Windows 서비스(SYSTEM 계정)로 떠서 Docker Desktop이 사용자 계정에
+      # 등록해둔 PATH를 못 물려받는다. 머신 전체 PATH를 고치면 서비스가 부팅 시
+      # 캐시한 환경을 재부팅 전까지 갱신하지 않으므로, 이 잡에서만 PATH에 추가한다.
+      - name: Ensure Docker CLI is on PATH
+        shell: pwsh
+        run: |
+          $dockerBin = "C:\Users\gw_admin\AppData\Local\Programs\DockerDesktop\resources\bin"
+          if (Test-Path $dockerBin) {
+            Add-Content -Path $env:GITHUB_PATH -Value $dockerBin
+          } else {
+            Write-Error "Docker CLI 경로를 찾을 수 없습니다: $dockerBin (설치 경로가 바뀌었다면 이 워크플로를 수정하세요)"
+            exit 1
+          }
+
       - name: Docker Compose build (no cache)
         run: docker compose build --no-cache
 
