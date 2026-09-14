@@ -177,6 +177,7 @@ function OrgUserRow({
   const pcActive = devices ? !!devices.desktop : (selfDesktop || (onlineUserIds.has(String(u.id)) && !selfMobile));
   const mobileActive = devices ? !!devices.mobile : selfMobile;
   const isOnline = pcActive || mobileActive || onlineUserIds.has(String(u.id)) || (isMe && socketConnected);
+  const jobLabel = formatJobTitle(u.jobTitle);
 
   const openContextMenu = (e: MouseEvent) => {
     e.preventDefault();
@@ -210,15 +211,6 @@ function OrgUserRow({
             className="h-3.5 w-3.5 cursor-pointer accent-brand"
           />
         </label>
-        <FriendStar active={isFriend} isDark={isDark} onClick={() => onToggleFriend(u.id)} />
-        <span className="inline-flex shrink-0 items-center gap-0.5">
-          <span title={mobileActive ? '모바일 접속 중' : '모바일 오프라인'}>
-            <MobileIcon active={mobileActive} />
-          </span>
-          <span title={pcActive ? 'PC 접속 중' : 'PC 오프라인'}>
-            <DesktopIcon active={pcActive} />
-          </span>
-        </span>
         {u.statusMessage && hasStatusIcon(u.statusMessage) && (
           <span className="inline-flex shrink-0" title={u.statusMessage}>
             {renderStatusIcon(u.statusMessage, 12)}
@@ -237,10 +229,19 @@ function OrgUserRow({
           onDoubleClick={() => void onOpenDirectMessage(u.id)}
           onContextMenu={openContextMenu}
         >
-          {u.jobTitle ? `[${formatJobTitle(u.jobTitle)}]` : ''}
+          {jobLabel ? `[${jobLabel}]` : ''}
           {u.name}
           {isMe ? ' (나)' : ''}
         </button>
+        <span className="inline-flex shrink-0 items-center gap-0.5">
+          <span title={mobileActive ? '모바일 접속 중' : '모바일 오프라인'}>
+            <MobileIcon active={mobileActive} />
+          </span>
+          <span title={pcActive ? 'PC 접속 중' : 'PC 오프라인'}>
+            <DesktopIcon active={pcActive} />
+          </span>
+        </span>
+        <FriendStar active={isFriend} isDark={isDark} onClick={() => onToggleFriend(u.id)} />
       </div>
     </li>
   );
@@ -590,10 +591,10 @@ function OrgTree({
             )}
           >
             {dept.name}
+            <span className={cn('ml-0.5 font-normal tabular-nums', isDark ? 'text-slate-500' : 'text-slate-400')}>
+              ({deptIds.length})
+            </span>
           </button>
-          <span className={cn('shrink-0 text-[11px] font-medium tabular-nums', isDark ? 'text-slate-500' : 'text-slate-400')}>
-            {deptIds.length}
-          </span>
         </div>
         {deptOpen && hasContent && (
           <div className={cn(
@@ -673,10 +674,10 @@ function OrgTree({
                 )}
               >
                 {company.name}
+                <span className={cn('ml-0.5 font-normal tabular-nums', isDark ? 'text-slate-500' : 'text-slate-400')}>
+                  ({memberCount})
+                </span>
               </button>
-              <span className={cn('shrink-0 text-[11px] font-medium tabular-nums', isDark ? 'text-slate-500' : 'text-slate-400')}>
-                {memberCount}
-              </span>
             </div>
 
             {companyOpen && (
