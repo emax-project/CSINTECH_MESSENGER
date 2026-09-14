@@ -17,6 +17,18 @@ async function verifyProjectAccess(projectId, userId) {
   return project;
 }
 
+// Helper: verify the board actually belongs to the (already access-checked) project.
+// Prevents an authorized member of project A from operating on a board id
+// that belongs to a different project/room by passing A's :id in the URL.
+async function verifyBoardInProject(boardId, projectId) {
+  return prisma.board.findFirst({ where: { id: boardId, projectId } });
+}
+
+// Helper: verify the task actually belongs to the (already access-checked) project.
+async function verifyTaskInProject(taskId, projectId) {
+  return prisma.task.findFirst({ where: { id: taskId, projectId } });
+}
+
 // List projects for a room
 projectsRouter.get('/room/:roomId', async (req, res) => {
   try {
@@ -184,6 +196,9 @@ projectsRouter.put('/:id/boards/:boardId', async (req, res) => {
   try {
     const project = await verifyProjectAccess(req.params.id, req.userId);
     if (!project) return res.status(403).json({ error: 'Not authorized' });
+    if (!(await verifyBoardInProject(req.params.boardId, req.params.id))) {
+      return res.status(404).json({ error: 'Board not found' });
+    }
 
     const { name } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'name required' });
@@ -208,6 +223,9 @@ projectsRouter.delete('/:id/boards/:boardId', async (req, res) => {
   try {
     const project = await verifyProjectAccess(req.params.id, req.userId);
     if (!project) return res.status(403).json({ error: 'Not authorized' });
+    if (!(await verifyBoardInProject(req.params.boardId, req.params.id))) {
+      return res.status(404).json({ error: 'Board not found' });
+    }
 
     await prisma.board.delete({ where: { id: req.params.boardId } });
 
@@ -230,6 +248,9 @@ projectsRouter.post('/:id/tasks', async (req, res) => {
     const { boardId, title, description, assigneeId, priority, startDate, dueDate, messageId } = req.body;
     if (!boardId || !title?.trim()) {
       return res.status(400).json({ error: 'boardId and title required' });
+    }
+    if (!(await verifyBoardInProject(boardId, req.params.id))) {
+      return res.status(404).json({ error: 'Board not found' });
     }
 
     // Get max position in the board
@@ -279,6 +300,9 @@ projectsRouter.put('/:id/tasks/:taskId', async (req, res) => {
   try {
     const project = await verifyProjectAccess(req.params.id, req.userId);
     if (!project) return res.status(403).json({ error: 'Not authorized' });
+    if (!(await verifyTaskInProject(req.params.taskId, req.params.id))) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
 
     const { title, description, assigneeId, priority, startDate, dueDate } = req.body;
     const data = {};
@@ -316,6 +340,9 @@ projectsRouter.delete('/:id/tasks/:taskId', async (req, res) => {
   try {
     const project = await verifyProjectAccess(req.params.id, req.userId);
     if (!project) return res.status(403).json({ error: 'Not authorized' });
+    if (!(await verifyTaskInProject(req.params.taskId, req.params.id))) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
 
     await prisma.task.delete({ where: { id: req.params.taskId } });
 
@@ -334,10 +361,16 @@ projectsRouter.post('/:id/tasks/:taskId/move', async (req, res) => {
   try {
     const project = await verifyProjectAccess(req.params.id, req.userId);
     if (!project) return res.status(403).json({ error: 'Not authorized' });
+    if (!(await verifyTaskInProject(req.params.taskId, req.params.id))) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
 
     const { boardId, position } = req.body;
     if (!boardId || position === undefined) {
       return res.status(400).json({ error: 'boardId and position required' });
+    }
+    if (!(await verifyBoardInProject(boardId, req.params.id))) {
+      return res.status(404).json({ error: 'Board not found' });
     }
 
     const task = await prisma.task.update({
@@ -367,6 +400,9 @@ projectsRouter.get('/:id/tasks/:taskId/comments', async (req, res) => {
   try {
     const project = await verifyProjectAccess(req.params.id, req.userId);
     if (!project) return res.status(403).json({ error: 'Not authorized' });
+    if (!(await verifyTaskInProject(req.params.taskId, req.params.id))) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
 
     const comments = await prisma.taskComment.findMany({
       where: { taskId: req.params.taskId },
@@ -391,6 +427,9 @@ projectsRouter.post('/:id/tasks/:taskId/comments', async (req, res) => {
   try {
     const project = await verifyProjectAccess(req.params.id, req.userId);
     if (!project) return res.status(403).json({ error: 'Not authorized' });
+    if (!(await verifyTaskInProject(req.params.taskId, req.params.id))) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
 
     const { content } = req.body;
     if (!content?.trim()) return res.status(400).json({ error: 'content required' });

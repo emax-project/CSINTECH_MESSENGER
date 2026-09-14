@@ -42,6 +42,7 @@ import { memosRouter } from './routes/memos.js';
 import { linkPreviewRouter } from './routes/linkPreview.js';
 import { foldersRouter } from './routes/folders.js';
 import { orgGroupsRouter } from './routes/orgGroups.js';
+import { settingsRouter } from './routes/settings.js';
 import { prisma } from './db.js';
 import { authMiddleware, verifySessionToken } from './auth.js';
 import { registerSocketHandlers } from './socket.js';
@@ -94,6 +95,7 @@ app.use('/api/memos', memosRouter);
 app.use('/api/link-preview', linkPreviewRouter());
 app.use('/api/folders', foldersRouter);
 app.use('/api/org-groups', orgGroupsRouter);
+app.use('/api/settings', settingsRouter);
 // 기존 경로도 유지 (하위 호환)
 app.use('/auth', authRouter);
 app.use('/users', usersRouter);
@@ -110,6 +112,7 @@ app.use('/memos', memosRouter);
 app.use('/link-preview', linkPreviewRouter());
 app.use('/folders', foldersRouter);
 app.use('/org-groups', orgGroupsRouter);
+app.use('/settings', settingsRouter);
 // Disable public uploads to enforce auth/expiry checks via /files/download
 // app.use('/uploads', express.static(UPLOAD_DIR));
 
@@ -121,12 +124,17 @@ app.get('/health/db', async (_, res) => {
     await prisma.$queryRaw`SELECT 1`;
     return res.json({ ok: true, db: 'connected' });
   } catch (e) {
-    return res.status(503).json({ ok: false, db: 'disconnected', error: e?.message });
+    // 인증 없이 열려 있는 엔드포인트라 드라이버 원본 에러(내부 DB 진단 정보)는
+    // 서버 로그에만 남기고, 응답에는 상태만 내려준다.
+    console.error('[health/db]', e);
+    return res.status(503).json({ ok: false, db: 'disconnected' });
   }
 });
 app.get('/health/ldap', async (_, res) => {
+  // 인증 없이 열려 있는 엔드포인트이므로 내부 LDAP 서버 주소/검색 base DN 같은
+  // 토폴로지 정보는 내려주지 않고 연결 상태만 알려준다.
   const result = await checkLdapConnection();
-  return res.status(result.ok ? 200 : 503).json(result);
+  return res.status(result.ok ? 200 : 503).json({ ok: result.ok, enabled: result.enabled, bound: result.bound });
 });
 
 // API 안내 (예전처럼 "이 주소는 API 서버입니다" 화면이 필요할 때)
@@ -152,7 +160,7 @@ app.get('/debug-client', (_, res) => {
 });
 
 // API 404: 매칭되지 않은 API 경로는 JSON으로 응답 (클라이언트가 에러 메시지 파싱 가능)
-const API_PREFIXES = ['/auth', '/users', '/rooms', '/org', '/files', '/announcement', '/events', '/polls', '/projects', '/bookmarks', '/mentions', '/memos', '/link-preview', '/folders', '/api'];
+const API_PREFIXES = ['/auth', '/users', '/rooms', '/org', '/files', '/announcement', '/events', '/polls', '/projects', '/bookmarks', '/mentions', '/memos', '/link-preview', '/folders', '/settings', '/api'];
 app.use((req, res, next) => {
   if (API_PREFIXES.some((p) => req.path.startsWith(p))) {
     return res.status(404).json({ error: '요청한 API 경로를 찾을 수 없습니다. 서버를 최신 버전으로 업데이트해 주세요.' });

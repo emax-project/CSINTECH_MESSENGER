@@ -32,7 +32,9 @@ export async function verifySessionToken(token) {
 export async function authMiddleware(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : (req.query?.token || null);
+    // URL 쿼리스트링으로도 토큰을 받으면 서버 접근 로그/브라우저 히스토리/Referer로
+    // 세션 토큰이 새어나갈 수 있어 Authorization 헤더만 인정한다.
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
     if (!token) {
       return res.status(401).json({ error: 'Unauthorized' });
     }

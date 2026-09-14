@@ -18,9 +18,11 @@ const storage = multer.diskStorage({
   },
 });
 
-// 차단 목록: 실행 가능한 위험 파일만 차단
+// 차단 목록: 실행 가능한 위험 파일 + 브라우저에서 열었을 때 그 자체로
+// 스크립트를 실행할 수 있는 웹 콘텐츠 파일 (저장형 XSS 방지)
 const BLOCKED_EXTENSIONS = [
   '.exe', '.bat', '.cmd', '.com', '.msi', '.scr', '.pif', '.vbs', '.wsf',
+  '.html', '.htm', '.xhtml', '.shtml', '.mhtml', '.svg',
 ];
 
 function fileFilter(_req, file, cb) {

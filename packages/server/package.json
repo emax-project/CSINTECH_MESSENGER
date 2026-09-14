@@ -24,7 +24,8 @@
     "partner:org:sync:dry": "node scripts/sync-partner-org.js --dry-run",
     "partner:org:sync:users": "node scripts/sync-partner-org.js --create-users",
     "partner:org:sync:users:dry": "node scripts/sync-partner-org.js --create-users --dry-run",
-    "ldap:check": "node scripts/check-ldap.js"
+    "ldap:check": "node scripts/check-ldap.js",
+    "admin:create": "node scripts/create-admin.js"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

@@ -6,6 +6,7 @@ import { PanelTitleRow, panelTitleRowBg } from '../../../components/PanelDragHea
 import { cn } from '../../../utils/cn';
 import { useAuthStore } from '../../../store';
 import { usersApi, authApi } from '../../../api';
+import { formatJobTitle } from '../../../utils/orgTree';
 import UIModal from '../../../components/ui/UIModal';
 import AdminSection from './AdminSection';
 import PasswordChangeModal from './PasswordChangeModal';
@@ -17,6 +18,8 @@ function ProfileEditModal({ isDark, onClose }: { isDark: boolean; onClose: () =>
   const authUser = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
   const [phone, setPhone] = useState(authUser?.phone ?? '');
+  const [deskPhone, setDeskPhone] = useState(authUser?.deskPhone ?? '');
+  const [extension, setExtension] = useState(authUser?.extension ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,7 +30,11 @@ function ProfileEditModal({ isDark, onClose }: { isDark: boolean; onClose: () =>
     setError(null);
     setSaving(true);
     try {
-      await usersApi.updateProfile({ phone: phone.trim() || null });
+      await usersApi.updateProfile({
+        phone: phone.trim() || null,
+        deskPhone: deskPhone.trim() || null,
+        extension: extension.trim() || null,
+      });
       const { user: u } = await authApi.me();
       if (u) useAuthStore.getState().setAuth(u, useAuthStore.getState().token);
       queryClient.invalidateQueries({ queryKey: ['org'] });
@@ -43,7 +50,7 @@ function ProfileEditModal({ isDark, onClose }: { isDark: boolean; onClose: () =>
     <UIModal title="프로필 수정" onClose={onClose} width={380}>
       <div style={{ padding: 16, display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
         <div>
-          <label style={labelStyle}>연락처</label>
+          <label style={labelStyle}>휴대전화</label>
           <input
             autoFocus
             type="text"
@@ -52,6 +59,30 @@ function ProfileEditModal({ isDark, onClose }: { isDark: boolean; onClose: () =>
             onKeyDown={(e) => { if (e.key === 'Enter') void save(); }}
             placeholder="010-1234-5678"
             maxLength={50}
+            style={inputStyle}
+          />
+        </div>
+        <div>
+          <label style={labelStyle}>자리 전화번호</label>
+          <input
+            type="text"
+            value={deskPhone}
+            onChange={(e) => { setDeskPhone(e.target.value); setError(null); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') void save(); }}
+            placeholder="02-1234-5678"
+            maxLength={30}
+            style={inputStyle}
+          />
+        </div>
+        <div>
+          <label style={labelStyle}>내선번호</label>
+          <input
+            type="text"
+            value={extension}
+            onChange={(e) => { setExtension(e.target.value); setError(null); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') void save(); }}
+            placeholder="1234"
+            maxLength={30}
             style={inputStyle}
           />
         </div>
@@ -151,6 +182,8 @@ type SettingsPanelProps = {
   onStatusNoteChange?: (value: string) => void;
   extensionInput?: string;
   onExtensionChange?: (value: string) => void;
+  deskPhoneInput?: string;
+  onDeskPhoneChange?: (value: string) => void;
   onSaveStatusProfile?: () => void;
   awayMinutes?: number;
   onAwayMinutesChange?: (minutes: number) => void;
@@ -198,6 +231,8 @@ function SettingsPanel({
   onStatusNoteChange,
   extensionInput = '',
   onExtensionChange,
+  deskPhoneInput = '',
+  onDeskPhoneChange,
   onSaveStatusProfile,
   awayMinutes = 10,
   onAwayMinutesChange,
@@ -343,7 +378,7 @@ function SettingsPanel({
                     color: isDark ? '#cbd5e1' : '#475569',
                   }}
                 >
-                  {user.jobTitle}
+                  {formatJobTitle(user.jobTitle)}
                 </span>
               )}
             </div>
@@ -533,12 +568,20 @@ function SettingsPanel({
               maxLength={30}
               className={cn('rounded-lg border px-3 py-2 text-[13px] font-medium outline-none', isDark ? 'border-slate-600 bg-slate-800 text-slate-100' : 'border-slate-200 bg-white text-slate-900')}
             />
+            <label style={{ fontSize: 12, fontWeight: 700, color: isDark ? '#94a3b8' : '#64748b' }}>자리 전화번호</label>
+            <input
+              value={deskPhoneInput}
+              onChange={(e) => onDeskPhoneChange?.(e.target.value)}
+              placeholder="자리 전화번호"
+              maxLength={30}
+              className={cn('rounded-lg border px-3 py-2 text-[13px] font-medium outline-none', isDark ? 'border-slate-600 bg-slate-800 text-slate-100' : 'border-slate-200 bg-white text-slate-900')}
+            />
             <button
               type="button"
               onClick={onSaveStatusProfile}
               className="self-start px-3 py-1.5 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[12px] font-bold cursor-pointer"
             >
-              메시지·내선 저장
+              메시지·내선·전화 저장
             </button>
           </div>
         </div>

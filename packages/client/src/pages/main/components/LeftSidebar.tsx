@@ -1,6 +1,5 @@
 import { memo, useState } from 'react';
 import type { CSSProperties, Dispatch, ReactNode, SetStateAction } from 'react';
-import { EmaxLogo } from '../../../components/EmaxLogo';
 import { electronNoDragClass } from '../../../components/MacElectronDragBar';
 import {
   electronDragStyle,
@@ -35,7 +34,23 @@ type LeftSidebarProps = {
   onLock?: () => void;
   onLogout: () => void;
   onQuit?: () => void;
+  externalSiteUrl?: string;
+  onOpenExternalSite?: () => void;
+  onEditExternalSite?: () => void;
 };
+
+/** 조직도 메뉴 아이콘. 회사 CI 대신 조직 계층 구조를 직관적으로 드러내는 트리 모양을 쓴다. */
+function OrgTreeIcon({ isDark }: { isDark: boolean }) {
+  const color = isDark ? '#e2e8f0' : '#334155';
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="9" y="3" width="6" height="5" rx="1.2" />
+      <rect x="2" y="16" width="6" height="5" rx="1.2" />
+      <rect x="16" y="16" width="6" height="5" rx="1.2" />
+      <path d="M12 8v4M12 12H5v4M12 12h7v4" />
+    </svg>
+  );
+}
 
 function Badge({ children }: { children: string }) {
   return (
@@ -63,6 +78,9 @@ function LeftSidebar({
   onLock,
   onLogout,
   onQuit,
+  externalSiteUrl,
+  onOpenExternalSite,
+  onEditExternalSite,
 }: LeftSidebarProps) {
   const macDrag = isMacElectron();
   const user = useAuthStore((s) => s.user);
@@ -113,12 +131,25 @@ function LeftSidebar({
         style={macDrag ? electronNoDragStyle : undefined}
         title="조직도"
       >
-        <EmaxLogo variant={isDark ? 'light' : 'accent'} size="md" />
+        <OrgTreeIcon isDark={isDark} />
       </button>
 
       <div className={cn('w-8 h-px my-1', isDark ? 'bg-slate-600' : 'bg-slate-200')} />
 
       <nav className="flex flex-col items-center gap-1">
+        <button
+          type="button"
+          style={{ ...btnStyle(false), ...(macDrag ? electronNoDragStyle : {}) }}
+          onClick={() => openGroupware()}
+          title="그룹웨어 바로가기"
+          className={electronNoDragClass}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9 22 9 12 15 12 15 22" />
+          </svg>
+        </button>
+
         <button type="button" style={{ ...btnStyle(activePanel === 'rooms'), ...(macDrag ? electronNoDragStyle : {}) }} onClick={() => togglePanel('rooms')} title="대화" className={cn(electronNoDragClass, 'relative')}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -142,9 +173,16 @@ function LeftSidebar({
         </button>
 
         <button type="button" style={{ ...btnStyle(activePanel === 'memo'), ...(macDrag ? electronNoDragStyle : {}) }} onClick={() => togglePanel('memo')} title="쪽지" className={cn(electronNoDragClass, 'relative')}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+            {/* 쪽지를 꼬아 묶은 모양 (지정 아이콘 원본 형태 그대로, 박스X는 더 두껍고 위아래 폭을 넓게) */}
+            <g strokeWidth={2}>
+              <path d="M6,1 L18,1 L18,12.5 Z" />
+              <path d="M6,1 L18,1 L6,12.5 Z" />
+            </g>
+            <g strokeWidth={1.6}>
+              <path d="M6,12.5 L1,18 L5,22 L12,18.2 Z" />
+              <path d="M18,12.5 L12,18.2 L19,22 L23,18 Z" />
+            </g>
           </svg>
           {unreadMemoCount > 0 && (
             <Badge>{unreadMemoCount > 9 ? '9+' : String(unreadMemoCount)}</Badge>
@@ -171,18 +209,22 @@ function LeftSidebar({
           </svg>
         </button>
 
-        <button
-          type="button"
-          style={{ ...btnStyle(false), ...(macDrag ? electronNoDragStyle : {}) }}
-          onClick={() => openGroupware()}
-          title="그룹웨어 바로가기"
-          className={electronNoDragClass}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-            <polyline points="9 22 9 12 15 12 15 22" />
-          </svg>
-        </button>
+        {onOpenExternalSite && (
+          <button
+            type="button"
+            style={{ ...btnStyle(false), ...(macDrag ? electronNoDragStyle : {}) }}
+            onClick={onOpenExternalSite}
+            onContextMenu={(e) => { e.preventDefault(); onEditExternalSite?.(); }}
+            title={externalSiteUrl ? `외부 사이트 (우클릭: 링크 수정)\n${externalSiteUrl}` : '외부 사이트 (클릭해서 링크 등록)'}
+            className={electronNoDragClass}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+              <polyline points="15 3 21 3 21 9" />
+              <line x1="10" y1="14" x2="21" y2="3" />
+            </svg>
+          </button>
+        )}
       </nav>
 
       <div className="mt-auto flex flex-col items-center pb-1">

@@ -690,7 +690,7 @@ roomsRouter.post('/:id/members', async (req, res) => {
 roomsRouter.get('/:id/messages', async (req, res) => {
   try {
     const member = await prisma.roomMember.findFirst({
-      where: { roomId: req.params.id, userId: req.userId },
+      where: { roomId: req.params.id, userId: req.userId, leftAt: null },
     });
     if (!member) return res.status(404).json({ error: 'Room not found' });
 
@@ -773,7 +773,7 @@ roomsRouter.get('/:id/messages/search', async (req, res) => {
     if (!q || typeof q !== 'string') return res.json({ messages: [] });
 
     const member = await prisma.roomMember.findFirst({
-      where: { roomId: req.params.id, userId: req.userId },
+      where: { roomId: req.params.id, userId: req.userId, leftAt: null },
     });
     if (!member) return res.status(404).json({ error: 'Room not found' });
 
@@ -966,6 +966,11 @@ roomsRouter.post('/:targetRoomId/forward', async (req, res) => {
     if (!original) return res.status(404).json({ error: 'Original message not found' });
     if (original.deletedAt) return res.status(400).json({ error: 'Cannot forward deleted message' });
 
+    const sourceMember = await prisma.roomMember.findFirst({
+      where: { roomId: original.roomId, userId: req.userId, leftAt: null },
+    });
+    if (!sourceMember) return res.status(403).json({ error: 'Not a member of source room' });
+
     const forwardedContent = `[전달됨] ${original.sender.name}: ${original.content}`;
     const message = await prisma.message.create({
       data: {
@@ -1007,7 +1012,7 @@ roomsRouter.post('/:roomId/messages/:messageId/reactions', async (req, res) => {
     }
 
     const member = await prisma.roomMember.findFirst({
-      where: { roomId: req.params.roomId, userId: req.userId },
+      where: { roomId: req.params.roomId, userId: req.userId, leftAt: null },
     });
     if (!member) return res.status(403).json({ error: 'Not a member' });
 
@@ -1116,7 +1121,7 @@ roomsRouter.delete('/:id/pin/:messageId', async (req, res) => {
 roomsRouter.get('/:id/pins', async (req, res) => {
   try {
     const member = await prisma.roomMember.findFirst({
-      where: { roomId: req.params.id, userId: req.userId },
+      where: { roomId: req.params.id, userId: req.userId, leftAt: null },
     });
     if (!member) return res.status(404).json({ error: 'Room not found' });
 
@@ -1154,7 +1159,7 @@ roomsRouter.get('/:id/pins', async (req, res) => {
 roomsRouter.get('/:id/files', async (req, res) => {
   try {
     const member = await prisma.roomMember.findFirst({
-      where: { roomId: req.params.id, userId: req.userId },
+      where: { roomId: req.params.id, userId: req.userId, leftAt: null },
     });
     if (!member) return res.status(404).json({ error: 'Room not found' });
 
@@ -1201,9 +1206,17 @@ roomsRouter.get('/:id/files', async (req, res) => {
 roomsRouter.get('/:roomId/messages/:messageId/readers', async (req, res) => {
   try {
     const member = await prisma.roomMember.findFirst({
-      where: { roomId: req.params.roomId, userId: req.userId },
+      where: { roomId: req.params.roomId, userId: req.userId, leftAt: null },
     });
     if (!member) return res.status(403).json({ error: 'Not a member' });
+
+    const targetMessage = await prisma.message.findUnique({
+      where: { id: req.params.messageId },
+      select: { roomId: true },
+    });
+    if (!targetMessage || targetMessage.roomId !== req.params.roomId) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
 
     const receipts = await prisma.readReceipt.findMany({
       where: { messageId: req.params.messageId },
@@ -1230,7 +1243,7 @@ roomsRouter.get('/:roomId/messages/:messageId/readers', async (req, res) => {
 roomsRouter.get('/:roomId/messages/:messageId/thread', async (req, res) => {
   try {
     const member = await prisma.roomMember.findFirst({
-      where: { roomId: req.params.roomId, userId: req.userId },
+      where: { roomId: req.params.roomId, userId: req.userId, leftAt: null },
     });
     if (!member) return res.status(403).json({ error: 'Not a member' });
 

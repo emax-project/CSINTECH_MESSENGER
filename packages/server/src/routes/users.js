@@ -441,10 +441,11 @@ usersRouter.delete('/me/device-token', async (req, res) => {
 // Update my profile (phone, jobTitle, statusMessage)
 usersRouter.put('/me', async (req, res) => {
   try {
-    const { phone, statusMessage, extension, statusNote } = req.body;
+    const { phone, statusMessage, extension, deskPhone, statusNote } = req.body;
     const data = {};
     if (phone !== undefined) data.phone = phone && String(phone).trim() ? String(phone).trim().slice(0, 50) : null;
     if (extension !== undefined) data.extension = extension && String(extension).trim() ? String(extension).trim().slice(0, 30) : null;
+    if (deskPhone !== undefined) data.deskPhone = deskPhone && String(deskPhone).trim() ? String(deskPhone).trim().slice(0, 30) : null;
     if (statusMessage !== undefined) data.statusMessage = statusMessage && String(statusMessage).trim() ? String(statusMessage).trim().slice(0, 200) : null;
     if (statusNote !== undefined) data.statusNote = statusNote && String(statusNote).trim() ? String(statusNote).trim().slice(0, 200) : null;
     if (Object.keys(data).length === 0) return res.json({ ok: true });
@@ -453,12 +454,13 @@ usersRouter.put('/me', async (req, res) => {
       data,
     });
     const io = req.app.get('io');
-    if (io && (data.statusMessage !== undefined || data.statusNote !== undefined || data.extension !== undefined)) {
+    if (io && (data.statusMessage !== undefined || data.statusNote !== undefined || data.extension !== undefined || data.deskPhone !== undefined)) {
       io.emit('user_status_changed', {
         userId: req.userId,
         statusMessage: data.statusMessage !== undefined ? (data.statusMessage ?? null) : undefined,
         statusNote: data.statusNote !== undefined ? (data.statusNote ?? null) : undefined,
         extension: data.extension !== undefined ? (data.extension ?? null) : undefined,
+        deskPhone: data.deskPhone !== undefined ? (data.deskPhone ?? null) : undefined,
       });
     }
     return res.json({ ok: true });

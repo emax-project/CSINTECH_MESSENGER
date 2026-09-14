@@ -3,7 +3,7 @@ import type { MouseEvent } from 'react';
 import type { OrgCompany, OrgDepartment, OrgGroup, OrgUser } from '../../../api';
 import type { OnlinePresenceMap } from '../../../utils/presence';
 import { cn } from '../../../utils/cn';
-import { allOrgUsers, companyUsers, departmentUsers } from '../../../utils/orgTree';
+import { allOrgUsers, companyUsers, departmentUsers, formatJobTitle } from '../../../utils/orgTree';
 
 const ACTIVE_BLUE = '#5B8DEF';
 const INACTIVE_GRAY = '#c5c9d0';
@@ -177,6 +177,7 @@ function OrgUserRow({
   const pcActive = devices ? !!devices.desktop : (selfDesktop || (onlineUserIds.has(String(u.id)) && !selfMobile));
   const mobileActive = devices ? !!devices.mobile : selfMobile;
   const isOnline = pcActive || mobileActive || onlineUserIds.has(String(u.id)) || (isMe && socketConnected);
+  const jobLabel = formatJobTitle(u.jobTitle);
 
   const openContextMenu = (e: MouseEvent) => {
     e.preventDefault();
@@ -210,7 +211,28 @@ function OrgUserRow({
             className="h-3.5 w-3.5 cursor-pointer accent-brand"
           />
         </label>
-        <FriendStar active={isFriend} isDark={isDark} onClick={() => onToggleFriend(u.id)} />
+        {u.statusMessage && hasStatusIcon(u.statusMessage) && (
+          <span className="inline-flex shrink-0" title={u.statusMessage}>
+            {renderStatusIcon(u.statusMessage, 12)}
+          </span>
+        )}
+        <button
+          type="button"
+          title="더블 클릭하면 대화창이 열립니다"
+          className={cn(
+            'min-w-0 flex-1 truncate border-none bg-transparent p-0 text-left text-[13px] cursor-pointer',
+            isOnline
+              ? (isDark ? 'text-slate-100 font-medium' : 'text-slate-800 font-medium')
+              : (isDark ? 'text-slate-200' : 'text-slate-600'),
+          )}
+          onClick={() => onToggleSelect(u.id)}
+          onDoubleClick={() => void onOpenDirectMessage(u.id)}
+          onContextMenu={openContextMenu}
+        >
+          {jobLabel ? `[${jobLabel}]` : ''}
+          {u.name}
+          {isMe ? ' (나)' : ''}
+        </button>
         <span className="inline-flex shrink-0 items-center gap-0.5">
           <span title={mobileActive ? '모바일 접속 중' : '모바일 오프라인'}>
             <MobileIcon active={mobileActive} />
@@ -219,25 +241,7 @@ function OrgUserRow({
             <DesktopIcon active={pcActive} />
           </span>
         </span>
-        {u.statusMessage && hasStatusIcon(u.statusMessage) && (
-          <span className="inline-flex shrink-0" title={u.statusMessage}>
-            {renderStatusIcon(u.statusMessage, 12)}
-          </span>
-        )}
-        <button
-          type="button"
-          className={cn(
-            'min-w-0 flex-1 truncate border-none bg-transparent p-0 text-left text-[13px] cursor-pointer',
-            isOnline
-              ? (isDark ? 'text-slate-100 font-medium' : 'text-slate-800 font-medium')
-              : (isDark ? 'text-slate-300' : 'text-slate-400'),
-          )}
-          onClick={() => void onOpenDirectMessage(u.id)}
-          onContextMenu={openContextMenu}
-        >
-          {u.name}
-          {isMe ? ' (나)' : ''}
-        </button>
+        <FriendStar active={isFriend} isDark={isDark} onClick={() => onToggleFriend(u.id)} />
       </div>
     </li>
   );
@@ -587,10 +591,10 @@ function OrgTree({
             )}
           >
             {dept.name}
+            <span className={cn('ml-0.5 font-normal tabular-nums', isDark ? 'text-slate-500' : 'text-slate-400')}>
+              ({deptIds.length})
+            </span>
           </button>
-          <span className={cn('shrink-0 text-[11px] font-medium tabular-nums', isDark ? 'text-slate-500' : 'text-slate-400')}>
-            {deptIds.length}
-          </span>
         </div>
         {deptOpen && hasContent && (
           <div className={cn(
@@ -670,10 +674,10 @@ function OrgTree({
                 )}
               >
                 {company.name}
+                <span className={cn('ml-0.5 font-normal tabular-nums', isDark ? 'text-slate-500' : 'text-slate-400')}>
+                  ({memberCount})
+                </span>
               </button>
-              <span className={cn('shrink-0 text-[11px] font-medium tabular-nums', isDark ? 'text-slate-500' : 'text-slate-400')}>
-                {memberCount}
-              </span>
             </div>
 
             {companyOpen && (
