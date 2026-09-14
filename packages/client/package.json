@@ -50,7 +50,7 @@
     "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.4.27",
     "concurrently": "^9.0.1",
-    "electron": "39.8.10",
+    "electron": "44.3.0",
     "electron-builder": "^26.15.3",
     "eslint": "^8.56.0",
     "eslint-plugin-react": "^7.36.1",
