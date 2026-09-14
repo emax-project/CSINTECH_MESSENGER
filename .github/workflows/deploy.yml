@@ -23,7 +23,7 @@ jobs:
       # 등록해둔 PATH를 못 물려받는다. 머신 전체 PATH를 고치면 서비스가 부팅 시
       # 캐시한 환경을 재부팅 전까지 갱신하지 않으므로, 이 잡에서만 PATH에 추가한다.
       - name: Ensure Docker CLI is on PATH
-        shell: pwsh
+        shell: powershell
         run: |
           $dockerBin = "C:\Users\gw_admin\AppData\Local\Programs\DockerDesktop\resources\bin"
           if (Test-Path $dockerBin) {
