@@ -51,6 +51,11 @@ services:
       LDAP_EMAIL_DOMAIN: ${LDAP_EMAIL_DOMAIN:-csin.kr}
       LDAP_TLS_REJECT_UNAUTHORIZED: ${LDAP_TLS_REJECT_UNAUTHORIZED:-true}
       LDAP_LOCAL_EXCEPTIONS: ${LDAP_LOCAL_EXCEPTIONS:-}
+    # ldap.csin.kr은 사내망 전용 도메인이라 공인 DNS로 못 찾는다. 컨테이너
+    # 내부 /etc/hosts에 직접 등록해서, 호스트 머신의 hosts 파일/DNS 설정과
+    # 무관하게 항상 붙도록 한다. (IP가 바뀌면 이 값도 같이 바꿔야 함)
+    extra_hosts:
+      - "ldap.csin.kr:192.168.123.247"
     ports:
       - "3001:3001"
     depends_on:
