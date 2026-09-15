@@ -4,6 +4,7 @@ import { authMiddleware } from '../auth.js';
 import { assertAdmin } from '../lib/admin.js';
 import * as onlineUsers from '../onlineUsers.js';
 import { getPartnerOrgSource, isPartnerOrgEnabled } from '../lib/partnerMssql.js';
+import { getHrTitleMap, resolveHrTitle } from '../lib/partnerHrTitles.js';
 import { syncPartnerOrg } from '../lib/syncPartnerOrg.js';
 
 const NAME_MAX = 60;
@@ -38,9 +39,16 @@ orgRouter.get('/tree', async (req, res) => {
         ? { externalCode: partnerCode }
         : undefined;
 
+    let hrTitleMap = new Map();
+    try {
+      hrTitleMap = await getHrTitleMap();
+    } catch (err) {
+      console.warn('[org/tree] HR title map unavailable:', err?.message || err);
+    }
+
     const companies = await prisma.company.findMany({
       where: companyWhere,
-      orderBy: { name: 'asc' },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
       include: {
         departments: {
           orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
@@ -58,6 +66,7 @@ orgRouter.get('/tree', async (req, res) => {
       const ver = u.updatedAt ? `?v=${new Date(u.updatedAt).getTime()}` : '';
       return {
         ...u,
+        jobTitle: resolveHrTitle(u.jobTitle, hrTitleMap) ?? u.jobTitle,
         avatarUrl: u.avatarUrl ? `/users/${u.id}/avatar${ver}` : null,
         deptName: deptCtx?.deptName ?? null,
         companyName: deptCtx?.companyName ?? null,
@@ -183,6 +192,73 @@ orgRouter.post('/partner-sync', async (req, res) => {
 });
 
 /* ------------------------------------------------------------------ *
+ * 회사 관리 (조회는 로그인 사용자, 순서 변경은 관리자)
+ * 회사 추가·이름 변경·삭제는 부서 등록 화면(companyName)과 거래처 동기화가 맡고,
+ * 여기서는 조직도에 노출되는 순서만 다룬다.
+ * ------------------------------------------------------------------ */
+
+/** GET /org/companies - 회사 목록. 정렬 순서와 부서·인원 수를 함께 준다. */
+orgRouter.get('/companies', async (_req, res) => {
+  try {
+    const companies = await prisma.company.findMany({
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      include: {
+        departments: { select: { _count: { select: { users: true } } } },
+      },
+    });
+    return res.json(
+      companies.map((c, i) => ({
+        id: c.id,
+        name: c.name,
+        sortOrder: c.sortOrder,
+        order: i + 1,
+        departmentCount: c.departments.length,
+        userCount: c.departments.reduce((sum, d) => sum + d._count.users, 0),
+      })),
+    );
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to fetch companies' });
+  }
+});
+
+/**
+ * PUT /org/companies/:id/order - 회사 목록 순번을 한 칸 올리거나 내린다.
+ * body: { direction: 'up' | 'down' }
+ * 기존 행들이 전부 sortOrder=0일 수 있으므로, 이동할 때마다 전체를 1..n으로 다시 매긴다.
+ */
+orgRouter.put('/companies/:id/order', async (req, res) => {
+  try {
+    if (!(await assertAdmin(req, res))) return;
+
+    const direction = req.body?.direction;
+    if (direction !== 'up' && direction !== 'down') {
+      return res.status(400).json({ error: "direction must be 'up' or 'down'" });
+    }
+
+    const target = await prisma.company.findUnique({ where: { id: req.params.id } });
+    if (!target) return res.status(404).json({ error: 'COMPANY_NOT_FOUND' });
+
+    const companies = await prisma.company.findMany({ orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }] });
+    const index = companies.findIndex((c) => c.id === target.id);
+    const swapWith = direction === 'up' ? index - 1 : index + 1;
+    if (swapWith < 0 || swapWith >= companies.length) {
+      return res.json({ moved: false, reason: 'ALREADY_AT_EDGE' });
+    }
+
+    const reordered = [...companies];
+    [reordered[index], reordered[swapWith]] = [reordered[swapWith], reordered[index]];
+    await prisma.$transaction(
+      reordered.map((c, i) => prisma.company.update({ where: { id: c.id }, data: { sortOrder: i + 1 } })),
+    );
+    return res.json({ moved: true });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to reorder company' });
+  }
+});
+
+/* ------------------------------------------------------------------ *
  * 부서 관리 (조회는 로그인 사용자, 추가·수정·삭제는 관리자)
  * ------------------------------------------------------------------ */
 
@@ -194,7 +270,12 @@ orgRouter.post('/partner-sync', async (req, res) => {
 orgRouter.get('/departments', async (_req, res) => {
   try {
     const departments = await prisma.department.findMany({
-      orderBy: [{ company: { name: 'asc' } }, { sortOrder: 'asc' }, { name: 'asc' }],
+      orderBy: [
+        { company: { sortOrder: 'asc' } },
+        { company: { name: 'asc' } },
+        { sortOrder: 'asc' },
+        { name: 'asc' },
+      ],
       include: {
         company: { select: { id: true, name: true } },
         _count: { select: { users: true } },
@@ -289,10 +370,13 @@ orgRouter.post('/departments', async (req, res) => {
       const companyName = normalizeName(req.body?.companyName);
       let company = companyName
         ? await prisma.company.findFirst({ where: { name: companyName } })
-        : await prisma.company.findFirst({ orderBy: { name: 'asc' } });
+        : await prisma.company.findFirst({ orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }] });
       if (!company) {
         if (!companyName) return res.status(400).json({ error: 'companyName is required' });
-        company = await prisma.company.create({ data: { name: companyName } });
+        const lastCompany = await prisma.company.findFirst({ orderBy: { sortOrder: 'desc' } });
+        company = await prisma.company.create({
+          data: { name: companyName, sortOrder: (lastCompany?.sortOrder ?? 0) + 1 },
+        });
       }
       companyId = company.id;
     }

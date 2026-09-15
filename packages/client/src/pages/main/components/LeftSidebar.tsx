@@ -12,7 +12,7 @@ import { useAuthStore } from '../../../store';
 import { getBaseUrl, type UserAffiliation } from '../../../api';
 import ProfileMenu from './ProfileMenu';
 
-type ActivePanel = 'none' | 'notifications' | 'memo' | 'rooms' | 'schedule' | 'settings';
+type ActivePanel = 'none' | 'notifications' | 'memo' | 'rooms' | 'schedule' | 'settings' | 'notepad';
 
 type StatusOption = { id: string; label: string };
 
@@ -36,7 +36,6 @@ type LeftSidebarProps = {
   onQuit?: () => void;
   externalSiteUrl?: string;
   onOpenExternalSite?: () => void;
-  onEditExternalSite?: () => void;
 };
 
 /** 조직도 메뉴 아이콘. 회사 CI 대신 조직 계층 구조를 직관적으로 드러내는 트리 모양을 쓴다. */
@@ -48,6 +47,18 @@ function OrgTreeIcon({ isDark }: { isDark: boolean }) {
       <rect x="2" y="16" width="6" height="5" rx="1.2" />
       <rect x="16" y="16" width="6" height="5" rx="1.2" />
       <path d="M12 8v4M12 12H5v4M12 12h7v4" />
+    </svg>
+  );
+}
+
+/** 메모장 아이콘. 접힌 종이 모양 + 글줄 (쪽지 아이콘과 헷갈리지 않게 별도 형태) */
+function NotepadIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="8" y1="13" x2="16" y2="13" />
+      <line x1="8" y1="17" x2="13" y2="17" />
     </svg>
   );
 }
@@ -80,7 +91,6 @@ function LeftSidebar({
   onQuit,
   externalSiteUrl,
   onOpenExternalSite,
-  onEditExternalSite,
 }: LeftSidebarProps) {
   const macDrag = isMacElectron();
   const user = useAuthStore((s) => s.user);
@@ -209,13 +219,16 @@ function LeftSidebar({
           </svg>
         </button>
 
+        <button type="button" style={{ ...btnStyle(activePanel === 'notepad'), ...(macDrag ? electronNoDragStyle : {}) }} onClick={() => togglePanel('notepad')} title="메모장" className={electronNoDragClass}>
+          <NotepadIcon />
+        </button>
+
         {onOpenExternalSite && (
           <button
             type="button"
             style={{ ...btnStyle(false), ...(macDrag ? electronNoDragStyle : {}) }}
             onClick={onOpenExternalSite}
-            onContextMenu={(e) => { e.preventDefault(); onEditExternalSite?.(); }}
-            title={externalSiteUrl ? `외부 사이트 (우클릭: 링크 수정)\n${externalSiteUrl}` : '외부 사이트 (클릭해서 링크 등록)'}
+            title={externalSiteUrl ? `링크 접속\n${externalSiteUrl}` : '링크 접속'}
             className={electronNoDragClass}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

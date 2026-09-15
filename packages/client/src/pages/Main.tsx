@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Socket } from 'socket.io-client';
 import { useAuthStore, useThemeStore, useToastStore } from '../store';
-import { roomsApi, orgApi, announcementApi, eventsApi, usersApi, mentionsApi, memosApi, foldersApi, orgGroupsApi, authApi, type Room, type OrgCompany, type OrgUser, type OrgGroup, type Event, type Folder, type UserAffiliation } from '../api';
+import { roomsApi, orgApi, announcementApi, eventsApi, usersApi, mentionsApi, memosApi, foldersApi, orgGroupsApi, authApi, appSettingsApi, type Room, type OrgCompany, type OrgUser, type OrgGroup, type Event, type Folder, type UserAffiliation } from '../api';
 import MemoComposeModal from '../components/MemoComposeModal';
 import ToastProvider from '../components/ui/ToastProvider';
 import TitleBar, { MacInsetChromeTools } from '../components/TitleBar';
@@ -27,14 +27,11 @@ import RightContentRouter from './main/components/RightContentRouter';
 import { hasUnreadAnnouncements, getNewestUnreadAnnouncement } from './main/components/AnnouncementPanel';
 import MainOverlays from './main/components/MainOverlays';
 import PasswordChangeModal from './main/components/PasswordChangeModal';
-import UIPromptModal from '../components/ui/UIPromptModal';
 import { cn } from '../utils/cn';
 import { companyUsers, filterDepartments, allOrgUsers, flattenDepartments } from '../utils/orgTree';
 import { APP_MAX_WIDTH, APP_WINDOW_HEIGHT } from '../layout/constants';
 import { presenceFromList, type OnlinePresenceMap } from '../utils/presence';
 import { openChatRoomWindow } from '../utils/chatPopout';
-
-const EXTERNAL_SITE_URL_KEY = 'emax_external_site_url';
 
 const STATUS_OPTIONS = [
   { id: '온라인', label: '온라인' },
@@ -149,7 +146,7 @@ export default function Main() {
   }, [isDark]);
 
   // --- Layout state ---
-  const [activePanel, setActivePanel] = useState<'none' | 'notifications' | 'memo' | 'rooms' | 'schedule' | 'settings'>('none');
+  const [activePanel, setActivePanel] = useState<'none' | 'notifications' | 'memo' | 'rooms' | 'schedule' | 'settings' | 'notepad'>('none');
   const [searchQuery, setSearchQuery] = useState('');
   const [orgSearchField, setOrgSearchField] = useState<OrgSearchField>(() => {
     try {
@@ -171,10 +168,10 @@ export default function Main() {
   const [statusNote, setStatusNote] = useState('');
   const [extensionInput, setExtensionInput] = useState('');
   const [deskPhoneInput, setDeskPhoneInput] = useState('');
-  const [externalSiteUrl, setExternalSiteUrl] = useState(() => {
-    try { return localStorage.getItem(EXTERNAL_SITE_URL_KEY) || ''; } catch { return ''; }
-  });
-  const [showExternalSiteEditor, setShowExternalSiteEditor] = useState(false);
+  const [notepadValue, setNotepadValue] = useState('');
+  const [notepadSaveStatus, setNotepadSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const notepadTouchedRef = useRef(false);
+  const notepadSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [orgViewMode, setOrgViewMode] = useState<'combined' | 'split'>(() => {
     try {
       return localStorage.getItem('emax_org_view_mode') === 'combined' ? 'combined' : 'split';
@@ -414,6 +411,12 @@ export default function Main() {
 
   const { data: onlineData } = useQuery({ queryKey: ['org', 'online'], queryFn: orgApi.online, enabled: !!token });
   const { data: announcementData } = useQuery({ queryKey: ['announcement'], queryFn: announcementApi.get, enabled: !!token });
+  const { data: externalSiteSetting } = useQuery({
+    queryKey: ['settings', 'external-site'],
+    queryFn: appSettingsApi.getExternalSite,
+    enabled: !!token,
+  });
+  const externalSiteUrl = externalSiteSetting?.url?.trim() || '';
   const { data: events = [] } = useQuery<Event[]>({ queryKey: ['events'], queryFn: eventsApi.list, enabled: !!token });
   const { data: mentions = [] } = useQuery({ queryKey: ['mentions'], queryFn: mentionsApi.list, enabled: !!token && activePanel === 'notifications' });
   const { data: unreadMentionCount } = useQuery({ queryKey: ['mentions', 'unread-count'], queryFn: mentionsApi.unreadCount, enabled: !!token, refetchInterval: 30000 });
@@ -496,6 +499,31 @@ export default function Main() {
       if (prevStatus !== '온라인') void handleSetStatus('온라인');
     }
   }, [orgTreeRaw, myId]);
+
+  // 메모장: 서버(/auth/me)에서 불러온 값으로 채운다. 사용자가 입력을 시작한 뒤로는 덮어쓰지 않는다.
+  useEffect(() => {
+    if (notepadTouchedRef.current) return;
+    setNotepadValue(user?.notepad || '');
+  }, [user?.notepad]);
+
+  useEffect(() => () => {
+    if (notepadSaveTimerRef.current) clearTimeout(notepadSaveTimerRef.current);
+  }, []);
+
+  const handleNotepadChange = (value: string) => {
+    notepadTouchedRef.current = true;
+    setNotepadValue(value);
+    setNotepadSaveStatus('saving');
+    if (notepadSaveTimerRef.current) clearTimeout(notepadSaveTimerRef.current);
+    notepadSaveTimerRef.current = setTimeout(() => {
+      usersApi.updateNotepad(value)
+        .then(() => setNotepadSaveStatus('saved'))
+        .catch((err) => {
+          console.error(err);
+          setNotepadSaveStatus('error');
+        });
+    }, 800);
+  };
 
   const currentDeptLabel = useMemo(() => {
     const active = affiliationData?.affiliations?.find((a) => a.active);
@@ -649,23 +677,20 @@ export default function Main() {
     }
   };
   const handleOpenExternalSite = () => {
-    const url = externalSiteUrl.trim();
+    const url = externalSiteUrl;
     if (!url) {
-      setShowExternalSiteEditor(true);
+      showToast(
+        user?.isAdmin
+          ? '설정에서 링크 주소를 먼저 저장해 주세요'
+          : '관리자가 아직 링크를 설정하지 않았습니다',
+        'error',
+      );
+      if (user?.isAdmin) setActivePanel('settings');
       return;
     }
     const openExternal = window.electronAPI?.openExternal;
     if (openExternal) void openExternal(url);
     else window.open(url, '_blank', 'noopener,noreferrer');
-  };
-  const handleSaveExternalSiteUrl = (value: string) => {
-    const trimmed = value.trim();
-    setExternalSiteUrl(trimmed);
-    try {
-      if (trimmed) localStorage.setItem(EXTERNAL_SITE_URL_KEY, trimmed);
-      else localStorage.removeItem(EXTERNAL_SITE_URL_KEY);
-    } catch { /* ignore */ }
-    setShowExternalSiteEditor(false);
   };
   const handleSaveStatusProfile = async () => {
     try {
@@ -1078,7 +1103,6 @@ export default function Main() {
           onQuit={hasElectron ? handleQuitApp : undefined}
           externalSiteUrl={externalSiteUrl}
           onOpenExternalSite={handleOpenExternalSite}
-          onEditExternalSite={() => setShowExternalSiteEditor(true)}
         />
 
         <div className={cn('flex-1 min-h-0 min-w-0 flex flex-col', isDark ? 'bg-slate-900' : 'bg-white')}>
@@ -1232,6 +1256,11 @@ export default function Main() {
                 onQuit: hasElectron ? handleQuitApp : undefined,
                 user,
               }}
+              notepadProps={{
+                value: notepadValue,
+                onChange: handleNotepadChange,
+                saveStatus: notepadSaveStatus,
+              }}
             />
           </div>
         </div>
@@ -1306,20 +1335,6 @@ export default function Main() {
           forced
           onClose={() => {}}
           onSuccess={() => setMustChangePassword(false)}
-        />
-      )}
-
-      {showExternalSiteEditor && (
-        <UIPromptModal
-          isDark={isDark}
-          title="외부 사이트 바로가기 링크"
-          message={'사이드바 아이콘 클릭 시 열릴 자사 업무 포털 등의 주소를 입력하세요.\n(예: https://portal.example.com)'}
-          defaultValue={externalSiteUrl}
-          placeholder="https://"
-          confirmLabel="저장"
-          allowEmpty
-          onSubmit={handleSaveExternalSiteUrl}
-          onClose={() => setShowExternalSiteEditor(false)}
         />
       )}
 

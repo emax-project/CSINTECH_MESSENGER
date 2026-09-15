@@ -7,7 +7,7 @@ type AppInfo = { version: string; isPackaged: boolean; platform: string };
 type UseUpdateManagerParams = {
   hasElectron: boolean;
   electronPlatform?: string;
-  activePanel: 'none' | 'notifications' | 'memo' | 'rooms' | 'schedule' | 'ai' | 'settings';
+  activePanel: 'none' | 'notifications' | 'memo' | 'rooms' | 'schedule' | 'ai' | 'settings' | 'notepad';
   showToast?: (message: string, type?: 'info' | 'success' | 'error') => void;
 };
 

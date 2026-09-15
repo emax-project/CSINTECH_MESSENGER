@@ -176,7 +176,7 @@ export const api = {
   },
 };
 
-export type User = { id: string; email: string; name: string; phone?: string | null; extension?: string | null; deskPhone?: string | null; jobTitle?: string | null; createdAt?: string; isAdmin?: boolean; statusMessage?: string | null; statusNote?: string | null; avatarUrl?: string; mustChangePassword?: boolean };
+export type User = { id: string; email: string; name: string; phone?: string | null; extension?: string | null; deskPhone?: string | null; jobTitle?: string | null; createdAt?: string; isAdmin?: boolean; statusMessage?: string | null; statusNote?: string | null; notepad?: string | null; avatarUrl?: string; mustChangePassword?: boolean };
 
 export type UserAffiliation = {
   departmentId: string;
@@ -437,6 +437,9 @@ export const usersApi = {
     }>,
   updateStatus: (statusMessage: string) =>
     api.put('/users/status', { statusMessage }) as Promise<{ ok: boolean }>,
+  /** 개인 메모장 저장 (본인만 조회, 자동저장) */
+  updateNotepad: (notepad: string) =>
+    api.put('/users/me/notepad', { notepad }) as Promise<{ ok: boolean }>,
   affiliations: () =>
     api.get('/users/me/affiliations') as Promise<{ departmentId: string | null; affiliations: UserAffiliation[] }>,
   setAffiliation: (departmentId: string) =>
@@ -464,6 +467,19 @@ export const usersApi = {
       xhr.send();
     });
   },
+};
+
+export type CompanyItem = {
+  id: string;
+  name: string;
+  /** 저장된 정렬값 */
+  sortOrder: number;
+  /** 화면에 보이는 조회 순번 (1부터) */
+  order: number;
+  /** 직속 부서 수 */
+  departmentCount: number;
+  /** 소속 전체 인원 */
+  userCount: number;
 };
 
 export type DepartmentItem = {
@@ -513,6 +529,11 @@ export const orgApi = {
     userIds: string[];
     presence?: Record<string, { desktop: boolean; mobile: boolean }>;
   }>,
+
+  companies: () => api.get('/org/companies') as Promise<CompanyItem[]>,
+  /** 회사 목록 순번을 한 칸 이동한다. */
+  reorderCompany: (id: string, direction: 'up' | 'down') =>
+    api.put(`/org/companies/${id}/order`, { direction }) as Promise<{ moved: boolean }>,
 
   departments: () => api.get('/org/departments') as Promise<DepartmentItem[]>,
   createDepartment: (name: string, parentId?: string | null, companyName?: string) =>
@@ -566,6 +587,12 @@ export type AnnouncementItem = {
   content: string;
   createdAt: string;
   updatedAt: string;
+};
+
+export const appSettingsApi = {
+  getExternalSite: () => api.get('/settings/external-site') as Promise<{ url: string }>,
+  putExternalSite: (url: string) =>
+    api.put('/settings/external-site', { url }) as Promise<{ url: string }>,
 };
 
 export const announcementApi = {

@@ -2,7 +2,7 @@ import { memo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { orgApi, usersApi, type JobTitleItem, type OrgCompany, type OrgDepartment, type OrgUser } from '../../../api';
 import { cn } from '../../../utils/cn';
-import { companyUsers, departmentUsers } from '../../../utils/orgTree';
+import { companyUsers, departmentUsers, formatJobTitle } from '../../../utils/orgTree';
 import UIPromptModal from '../../../components/ui/UIPromptModal';
 
 type Props = {
@@ -264,7 +264,7 @@ function UserManageSection({ isDark, isNarrowLayout = false, currentUserId, embe
                 />
                 <span className={cn('min-w-0 truncate text-[13px]', text)}>
                   {u.name}
-                  {u.jobTitle && <span className={cn('ml-1 text-[11px]', muted)}>{u.jobTitle}</span>}
+                  {formatJobTitle(u.jobTitle) && <span className={cn('ml-1 text-[11px]', muted)}>{formatJobTitle(u.jobTitle)}</span>}
                 </span>
                 <span className={cn('min-w-0 flex-1 truncate text-[11px]', muted)}>{u.email}</span>
                 {!selectable(u) && <span className={cn('shrink-0 text-[11px]', muted)}>본인</span>}

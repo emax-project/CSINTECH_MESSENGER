@@ -490,6 +490,27 @@ usersRouter.put('/status', async (req, res) => {
   }
 });
 
+const NOTEPAD_MAX = 20000;
+
+// 개인 메모장 저장 (본인만 조회 가능, 자동저장이라 다른 사용자에게 알릴 필요 없음)
+usersRouter.put('/me/notepad', async (req, res) => {
+  try {
+    const { notepad } = req.body;
+    if (notepad !== undefined && notepad !== null && typeof notepad !== 'string') {
+      return res.status(400).json({ error: 'notepad must be a string' });
+    }
+    const value = typeof notepad === 'string' ? notepad.slice(0, NOTEPAD_MAX) : null;
+    await prisma.user.update({
+      where: { id: req.userId },
+      data: { notepad: value },
+    });
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('[users/me/notepad PUT]', err);
+    return res.status(500).json({ error: 'Failed to save notepad' });
+  }
+});
+
 /**
  * GET /users/:id/impact - 이 사용자를 지우면 무엇이 함께 사라지는지.
  * Message.sender가 onDelete: Cascade라 보낸 메시지가 전부 삭제되고,

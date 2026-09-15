@@ -183,6 +183,11 @@ const baseProps = () => ({
     onLogout: vi.fn(),
     user: null,
   },
+  notepadProps: {
+    value: '',
+    onChange: vi.fn(),
+    saveStatus: 'idle' as const,
+  },
 });
 
 describe('RightContentRouter', () => {

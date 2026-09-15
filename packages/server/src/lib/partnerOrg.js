@@ -3,6 +3,7 @@
  * 스키마: DEPT_TREE_V, HR_EMPLOYEE_MASTER, HR_EMPLOYEE_INFO, HR_EMPLOYEE_APPOINTMENT
  */
 import { getPartnerOrgSource, getPartnerPool, sql } from './partnerMssql.js';
+import { fetchHrTitleMap, pickEmployeeJobTitle } from './partnerHrTitles.js';
 
 const WORK_STATE_ACTIVE = process.env.PARTNER_WORK_STATE_ACTIVE || 'hr009100';
 
@@ -95,7 +96,8 @@ async function fetchEmployeesFromMssql(pool, asOf = yyyymmdd()) {
         i.celephone             AS phone,
         a.hr_department_code    AS deptCode,
         a.position_code         AS positionCode,
-        a.duty_code             AS dutyCode
+        a.duty_code             AS dutyCode,
+        a.rank_code             AS rankCode
       FROM HR_EMPLOYEE_MASTER m
       INNER JOIN HR_EMPLOYEE_APPOINTMENT a
         ON a.hr_employee_appointment_id = dbo.hr_date_appointment_id(m.hr_employee_master_id, @asOf)
@@ -119,7 +121,8 @@ async function fetchEmployeesFromMssql(pool, asOf = yyyymmdd()) {
         i.celephone             AS phone,
         a.hr_department_code    AS deptCode,
         a.position_code         AS positionCode,
-        a.duty_code             AS dutyCode
+        a.duty_code             AS dutyCode,
+        a.rank_code             AS rankCode
       FROM HR_EMPLOYEE_MASTER m
       CROSS APPLY (
         SELECT TOP 1 *
@@ -135,16 +138,23 @@ async function fetchEmployeesFromMssql(pool, asOf = yyyymmdd()) {
     `);
   }
 
-  return (result.recordset || []).map((r) => ({
-    masterId: String(r.masterId),
-    empNo: r.empNo == null ? null : String(r.empNo).trim(),
-    name: String(r.name || '').trim() || String(r.empNo || r.masterId),
-    email: r.email == null || String(r.email).trim() === '' ? null : String(r.email).trim().toLowerCase(),
-    phone: r.phone == null || String(r.phone).trim() === '' ? null : String(r.phone).trim(),
-    deptCode: r.deptCode == null || String(r.deptCode).trim() === '' ? null : String(r.deptCode).trim(),
-    positionCode: r.positionCode == null ? null : String(r.positionCode).trim(),
-    dutyCode: r.dutyCode == null ? null : String(r.dutyCode).trim(),
-  }));
+  return (result.recordset || []).map((r) => {
+    const positionCode = r.positionCode == null || String(r.positionCode).trim() === '' ? null : String(r.positionCode).trim();
+    const dutyCode = r.dutyCode == null || String(r.dutyCode).trim() === '' ? null : String(r.dutyCode).trim();
+    const rankCode = r.rankCode == null || String(r.rankCode).trim() === '' ? null : String(r.rankCode).trim();
+    return {
+      masterId: String(r.masterId),
+      empNo: r.empNo == null ? null : String(r.empNo).trim(),
+      name: String(r.name || '').trim() || String(r.empNo || r.masterId),
+      email: r.email == null || String(r.email).trim() === '' ? null : String(r.email).trim().toLowerCase(),
+      phone: r.phone == null || String(r.phone).trim() === '' ? null : String(r.phone).trim(),
+      deptCode: r.deptCode == null || String(r.deptCode).trim() === '' ? null : String(r.deptCode).trim(),
+      positionCode,
+      dutyCode,
+      rankCode,
+      jobTitle: null,
+    };
+  });
 }
 
 /**
@@ -160,9 +170,17 @@ export async function fetchPartnerOrg() {
   }
 
   const pool = await getPartnerPool();
-  const [departments, employees] = await Promise.all([
+  const [departments, employees, titleMap] = await Promise.all([
     fetchDepartmentsFromMssql(pool),
     fetchEmployeesFromMssql(pool),
+    fetchHrTitleMap(pool),
   ]);
-  return { departments, employees, source: 'mssql' };
+  return {
+    departments,
+    employees: employees.map((e) => ({
+      ...e,
+      jobTitle: pickEmployeeJobTitle(e, titleMap),
+    })),
+    source: 'mssql',
+  };
 }
