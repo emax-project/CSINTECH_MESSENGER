@@ -1,6 +1,6 @@
 import { memo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { orgApi, type DepartmentItem, type JobTitleItem } from '../../../api';
+import { orgApi, type CompanyItem, type DepartmentItem, type JobTitleItem } from '../../../api';
 import { cn } from '../../../utils/cn';
 import UIPromptModal from '../../../components/ui/UIPromptModal';
 
@@ -78,6 +78,7 @@ function friendlyError(err: unknown): string {
     PARENT_NOT_FOUND: '상위 부서를 찾을 수 없습니다.',
     CANNOT_MOVE_INTO_SELF: '자기 자신을 상위 부서로 지정할 수 없습니다.',
     CANNOT_MOVE_INTO_DESCENDANT: '하위 부서를 상위로 지정할 수 없습니다.',
+    COMPANY_NOT_FOUND: '회사를 찾을 수 없습니다.',
     JOB_TITLE_EXISTS: '같은 이름의 직급이 이미 있습니다.',
     JOB_TITLE_IN_USE: '이 직급을 쓰는 사용자가 있어 지울 수 없습니다. 사용 인원이 0이 된 뒤에 지울 수 있습니다.',
     'Admin only': '관리자만 사용할 수 있습니다.',
@@ -102,6 +103,10 @@ function OrgManageSection({ isDark, isNarrowLayout = false, embedded = false }: 
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
+  const { data: companies = [] } = useQuery<CompanyItem[]>({
+    queryKey: ['org', 'companies'],
+    queryFn: orgApi.companies,
+  });
   const { data: departments = [] } = useQuery<DepartmentItem[]>({
     queryKey: ['org', 'departments'],
     queryFn: orgApi.departments,
@@ -206,6 +211,12 @@ function OrgManageSection({ isDark, isNarrowLayout = false, embedded = false }: 
     if (!window.confirm(`${dept.userCount}명을 '${dest.path}'로 옮기고 '${dept.name}'를 삭제합니다.`)) return;
     run(() => orgApi.deleteDepartment(dept.id, dest.id), (r) => {
       setNotice(`${r.movedUsers}명을 '${r.movedTo}'로 옮기고 '${dept.name}'를 삭제했습니다.`);
+    });
+  };
+
+  const reorderCompany = (company: CompanyItem, direction: 'up' | 'down') => {
+    run(() => orgApi.reorderCompany(company.id, direction), (r) => {
+      if (!r.moved) setNotice(`'${company.name}'는 이미 ${direction === 'up' ? '맨 위' : '맨 아래'}입니다.`);
     });
   };
 
@@ -361,6 +372,59 @@ function OrgManageSection({ isDark, isNarrowLayout = false, embedded = false }: 
           하위 부서를 만들 수 있습니다. 여기서 정리한 이름이 사용자 등록의 추천 목록에 그대로 쓰입니다.
         </p>
       </div>
+
+      {/* 회사 */}
+      {companies.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <span className={cn('text-[13px] font-semibold', text)}>회사</span>
+          <p className={cn('m-0 text-xs leading-relaxed', muted)}>
+            여러 회사(법인)가 있을 때 조직도·부서 관리에 노출되는 순서입니다.
+          </p>
+          <div className={cn('overflow-x-auto rounded-lg border', border)}>
+            <table className="w-full min-w-[430px] border-collapse text-[13px]">
+              <thead>
+                <tr className={cn(isDark ? 'bg-slate-900' : 'bg-slate-100')}>
+                  <th className={cn('w-12 px-2 py-1.5 text-center font-semibold', muted)}>순번</th>
+                  <th className={cn('px-2 py-1.5 text-left font-semibold', muted)}>회사명</th>
+                  <th className={cn('w-16 px-2 py-1.5 text-right font-semibold', muted)}>부서</th>
+                  <th className={cn('w-20 px-2 py-1.5 text-right font-semibold', muted)}>인원</th>
+                  <th className={cn('w-16 px-2 py-1.5 text-right font-semibold', muted)}>관리</th>
+                </tr>
+              </thead>
+              <tbody>
+                {companies.map((c) => (
+                  <tr key={c.id} className={cn('border-t', border, rowBg)}>
+                    <td className={cn('px-2 py-1.5 text-center tabular-nums', muted)}>{c.order}</td>
+                    <td className={cn('px-2 py-1.5', text)}>{c.name}</td>
+                    <td className={cn('px-2 py-1.5 text-right tabular-nums', muted)}>{c.departmentCount}</td>
+                    <td className={cn('px-2 py-1.5 text-right tabular-nums', muted)}>{c.userCount}</td>
+                    <td className="whitespace-nowrap px-2 py-1.5 text-right">
+                      <button
+                        type="button"
+                        title="순번 올리기"
+                        aria-label={`${c.name} 순번 올리기`}
+                        onClick={() => reorderCompany(c, 'up')}
+                        className={iconBtn}
+                      >
+                        <CaretIcon up />
+                      </button>
+                      <button
+                        type="button"
+                        title="순번 내리기"
+                        aria-label={`${c.name} 순번 내리기`}
+                        onClick={() => reorderCompany(c, 'down')}
+                        className={iconBtn}
+                      >
+                        <CaretIcon up={false} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* 부서 */}
       <div className="flex flex-col gap-2">

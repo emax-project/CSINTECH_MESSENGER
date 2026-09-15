@@ -367,7 +367,7 @@ function SettingsPanel({
               <span style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.01em', color: isDark ? '#f1f5f9' : '#172033' }}>
                 {user?.name || '사용자'}
               </span>
-              {user?.jobTitle && (
+              {formatJobTitle(user?.jobTitle) && (
                 <span
                   style={{
                     padding: '2px 8px',
@@ -378,7 +378,7 @@ function SettingsPanel({
                     color: isDark ? '#cbd5e1' : '#475569',
                   }}
                 >
-                  {formatJobTitle(user.jobTitle)}
+                  {formatJobTitle(user?.jobTitle)}
                 </span>
               )}
             </div>

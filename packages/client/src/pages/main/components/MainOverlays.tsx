@@ -468,7 +468,7 @@ export default function MainOverlays({
                     <span style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.01em', color: isDark ? '#f1f5f9' : '#172033' }}>
                       {profileModalUser.name}
                     </span>
-                    {profileModalUser.jobTitle && (
+                    {formatJobTitle(profileModalUser.jobTitle) && (
                       <span
                         style={{
                           padding: '2px 8px',

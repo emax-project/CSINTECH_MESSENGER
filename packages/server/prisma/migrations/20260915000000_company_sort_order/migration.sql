@@ -1,0 +1,2 @@
+-- 회사 단위 정렬 순서
+ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "sortOrder" INTEGER NOT NULL DEFAULT 0;

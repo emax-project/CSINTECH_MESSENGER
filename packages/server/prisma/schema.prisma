@@ -10,6 +10,8 @@ datasource db {
 model Company {
   id           String       @id @default(cuid())
   name         String
+  // 조직도·부서 관리 화면에서의 조회 순번. 작을수록 먼저 나온다.
+  sortOrder    Int          @default(0)
   /// 거래처 MSSQL 사업장/법인 코드 등 외부 키 (동기화용)
   externalCode String?      @unique
   /// 회사 주소 (프로필 상세 표기용)

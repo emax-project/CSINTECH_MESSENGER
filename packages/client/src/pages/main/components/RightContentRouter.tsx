@@ -15,6 +15,7 @@ const OrgPanel = lazy(() => import('./OrgPanel'));
 const SchedulePanel = lazy(() => import('./SchedulePanel'));
 const MemoPanel = lazy(() => import('./MemoPanel'));
 const SettingsPanel = lazy(() => import('./SettingsPanel'));
+const NotepadPanel = lazy(() => import('./NotepadPanel'));
 
 function PanelLoadingFallback() {
   const c = getCommonMessages();
@@ -25,7 +26,7 @@ function PanelLoadingFallback() {
   );
 }
 
-type ActivePanel = 'none' | 'notifications' | 'memo' | 'rooms' | 'schedule' | 'settings';
+type ActivePanel = 'none' | 'notifications' | 'memo' | 'rooms' | 'schedule' | 'settings' | 'notepad';
 type EventFormState = { title: string; startAt: string; endAt: string; description: string };
 
 type RightContentRouterProps = {
@@ -158,6 +159,11 @@ type RightContentRouterProps = {
     onQuit?: () => void;
     user: { id: string; name?: string | null; avatarUrl?: string | null } | null | undefined;
   };
+  notepadProps: {
+    value: string;
+    onChange: (value: string) => void;
+    saveStatus: 'idle' | 'saving' | 'saved' | 'error';
+  };
 };
 
 function RightContentRouter({
@@ -176,6 +182,7 @@ function RightContentRouter({
   orgProps,
   scheduleProps,
   settingsProps,
+  notepadProps,
 }: RightContentRouterProps) {
   if (selectedRoomId && activePanel === 'none') {
     return <ChatWindow key={selectedRoomId} embedded onOpenInNewWindow={() => onOpenInNewWindow(selectedRoomId)} />;
@@ -344,6 +351,18 @@ function RightContentRouter({
             onRequestNotificationPermission={settingsProps.onRequestNotificationPermission}
             onLogout={settingsProps.onLogout}
             onQuit={settingsProps.onQuit}
+          />
+        </Suspense>
+      )}
+
+      {activePanel === 'notepad' && (
+        <Suspense fallback={<PanelLoadingFallback />}>
+          <NotepadPanel
+            isDark={isDark}
+            panelWrapStyle={panelWrapStyle}
+            value={notepadProps.value}
+            onChange={notepadProps.onChange}
+            saveStatus={notepadProps.saveStatus}
           />
         </Suspense>
       )}
