@@ -111,6 +111,23 @@ export function allOrgUsers(orgTree: OrgCompany[]): OrgUser[] {
 }
 
 /**
+ * 기본으로 펼쳐 보일 부서(본부 depth 0 · 팀 depth 1)의 id 집합.
+ * 매번 본부를 눌러야 하위 팀이 보이는 불편을 없애기 위해, 팀 단계까지는
+ * 관리자가 접어둔 적이 없다면 항상 펼쳐진 채로 노출한다. 그보다 아래(파트 등)는 기본 접힘.
+ */
+export function defaultOpenDepartmentIds(orgTree: OrgCompany[]): Set<string> {
+  const ids = new Set<string>();
+  const walk = (departments: OrgDepartment[], depth: number) => {
+    (departments ?? []).forEach((d) => {
+      if (depth < 2) ids.add(d.id);
+      walk(d.children ?? [], depth + 1);
+    });
+  };
+  (orgTree ?? []).forEach((c) => walk(c.departments ?? [], 0));
+  return ids;
+}
+
+/**
  * 부서 트리를 검색·필터 조건으로 거른다.
  * 자기 인원이 조건에 맞지 않아도 하위 부서에 남는 사람이 있으면 유지한다.
  * keepDept 가 true 인 부서는 이름 매칭 등으로 통째로 유지(인원 필터 완화).

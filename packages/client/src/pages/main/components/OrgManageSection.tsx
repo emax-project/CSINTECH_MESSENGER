@@ -350,15 +350,23 @@ function OrgManageSection({ isDark, isNarrowLayout = false, embedded = false }: 
     'shrink-0 rounded-lg border px-3 py-2.5 text-[13px] font-semibold cursor-pointer',
     isDark ? 'border-slate-600 bg-transparent text-slate-200' : 'border-slate-200 bg-transparent text-slate-700',
   );
-  const linkBtn = cn('shrink-0 whitespace-nowrap border-none bg-transparent px-1.5 py-1 text-xs font-semibold cursor-pointer');
+  const linkBtn = cn(
+    'shrink-0 whitespace-nowrap border-none bg-transparent font-semibold cursor-pointer',
+    isNarrowLayout ? 'px-2.5 py-2 text-sm' : 'px-1.5 py-1 text-xs',
+  );
+  // 좁은 화면(터치 조작)에서는 아이콘 버튼 히트 영역을 44px 권장 기준에 가깝게 키운다.
   const iconBtn = cn(
-    'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded border-none bg-transparent p-0 cursor-pointer align-middle',
-    isDark ? 'text-slate-300 hover:bg-slate-700' : 'text-slate-500 hover:bg-slate-100',
+    'inline-flex shrink-0 items-center justify-center rounded border-none bg-transparent p-0 cursor-pointer align-middle',
+    isNarrowLayout ? 'h-9 w-9' : 'h-6 w-6',
+    isDark ? 'text-slate-300 hover:bg-slate-700 active:bg-slate-600' : 'text-slate-500 hover:bg-slate-100 active:bg-slate-200',
   );
   const iconBtnDanger = cn(
-    'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded border-none bg-transparent p-0 cursor-pointer align-middle',
-    isDark ? 'text-red-400 hover:bg-slate-700' : 'text-red-500 hover:bg-slate-100',
+    'inline-flex shrink-0 items-center justify-center rounded border-none bg-transparent p-0 cursor-pointer align-middle',
+    isNarrowLayout ? 'h-9 w-9' : 'h-6 w-6',
+    isDark ? 'text-red-400 hover:bg-slate-700 active:bg-slate-600' : 'text-red-500 hover:bg-slate-100 active:bg-slate-200',
   );
+  // 액션 버튼끼리 붙어서 오조작하지 않도록 좁은 화면에서 사이 간격을 넉넉히 준다.
+  const actionGroupCls = cn('inline-flex items-center', isNarrowLayout && 'gap-0.5');
 
   return (
     <div className={cn('flex flex-col gap-4', !embedded && cn('rounded-[10px] px-3.5 py-3', sectionBg))}>
@@ -388,7 +396,7 @@ function OrgManageSection({ isDark, isNarrowLayout = false, embedded = false }: 
                   <th className={cn('px-2 py-1.5 text-left font-semibold', muted)}>회사명</th>
                   <th className={cn('w-16 px-2 py-1.5 text-right font-semibold', muted)}>부서</th>
                   <th className={cn('w-20 px-2 py-1.5 text-right font-semibold', muted)}>인원</th>
-                  <th className={cn('w-16 px-2 py-1.5 text-right font-semibold', muted)}>관리</th>
+                  <th className={cn('px-2 py-1.5 text-right font-semibold', muted, isNarrowLayout ? 'w-24' : 'w-16')}>관리</th>
                 </tr>
               </thead>
               <tbody>
@@ -399,24 +407,26 @@ function OrgManageSection({ isDark, isNarrowLayout = false, embedded = false }: 
                     <td className={cn('px-2 py-1.5 text-right tabular-nums', muted)}>{c.departmentCount}</td>
                     <td className={cn('px-2 py-1.5 text-right tabular-nums', muted)}>{c.userCount}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-right">
-                      <button
-                        type="button"
-                        title="순번 올리기"
-                        aria-label={`${c.name} 순번 올리기`}
-                        onClick={() => reorderCompany(c, 'up')}
-                        className={iconBtn}
-                      >
-                        <CaretIcon up />
-                      </button>
-                      <button
-                        type="button"
-                        title="순번 내리기"
-                        aria-label={`${c.name} 순번 내리기`}
-                        onClick={() => reorderCompany(c, 'down')}
-                        className={iconBtn}
-                      >
-                        <CaretIcon up={false} />
-                      </button>
+                      <span className={actionGroupCls}>
+                        <button
+                          type="button"
+                          title="순번 올리기"
+                          aria-label={`${c.name} 순번 올리기`}
+                          onClick={() => reorderCompany(c, 'up')}
+                          className={iconBtn}
+                        >
+                          <CaretIcon up />
+                        </button>
+                        <button
+                          type="button"
+                          title="순번 내리기"
+                          aria-label={`${c.name} 순번 내리기`}
+                          onClick={() => reorderCompany(c, 'down')}
+                          className={iconBtn}
+                        >
+                          <CaretIcon up={false} />
+                        </button>
+                      </span>
                     </td>
                   </tr>
                 ))}
@@ -470,7 +480,7 @@ function OrgManageSection({ isDark, isNarrowLayout = false, embedded = false }: 
                   <th className={cn('px-2 py-1.5 text-left font-semibold', muted)}>부서명</th>
                   <th className={cn('w-16 px-2 py-1.5 text-right font-semibold', muted)}>직속</th>
                   <th className={cn('w-20 px-2 py-1.5 text-right font-semibold', muted)}>하위 포함</th>
-                  <th className={cn('w-[152px] px-2 py-1.5 text-right font-semibold', muted)}>관리</th>
+                  <th className={cn('px-2 py-1.5 text-right font-semibold', muted, isNarrowLayout ? 'w-[210px]' : 'w-[152px]')}>관리</th>
                 </tr>
               </thead>
               <tbody>
@@ -481,7 +491,7 @@ function OrgManageSection({ isDark, isNarrowLayout = false, embedded = false }: 
                     <tr key={d.id} className={cn('border-t', border, rowBg)}>
                       <td className={cn('px-2 py-1.5 text-center tabular-nums', muted)}>{d.order}</td>
                       <td className="p-0">
-                        <div className="flex min-h-[34px] items-stretch">
+                        <div className={cn('flex items-stretch', isNarrowLayout ? 'min-h-[44px]' : 'min-h-[34px]')}>
                           {/* 조상 세로 가이드: 그 조상이 마지막 형제가 아니면 선을 잇는다 */}
                           {ancestorsOf(d).map((a) => (
                             <span key={a.id} className="relative w-4 shrink-0" aria-hidden>
@@ -508,7 +518,8 @@ function OrgManageSection({ isDark, isNarrowLayout = false, embedded = false }: 
                                 aria-expanded={!isCollapsed}
                                 onClick={() => toggleCollapse(d.id)}
                                 className={cn(
-                                  'flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-[3px] border text-[10px] leading-none cursor-pointer',
+                                  'flex shrink-0 items-center justify-center rounded-[3px] border leading-none cursor-pointer',
+                                  isNarrowLayout ? 'h-[22px] w-[22px] text-sm' : 'h-[15px] w-[15px] text-[10px]',
                                   border,
                                   muted,
                                   isDark ? 'bg-slate-900' : 'bg-white',
@@ -517,7 +528,7 @@ function OrgManageSection({ isDark, isNarrowLayout = false, embedded = false }: 
                                 {isCollapsed ? '+' : '−'}
                               </button>
                             ) : (
-                              <span className="h-[15px] w-[15px] shrink-0" aria-hidden />
+                              <span className={cn('shrink-0', isNarrowLayout ? 'h-[22px] w-[22px]' : 'h-[15px] w-[15px]')} aria-hidden />
                             )}
                             <FolderIcon open={expandable && !isCollapsed} />
                             {editingId === d.id ? (
@@ -555,7 +566,7 @@ function OrgManageSection({ isDark, isNarrowLayout = false, embedded = false }: 
                             </button>
                           </>
                         ) : (
-                          <>
+                          <span className={actionGroupCls}>
                             <button
                               type="button"
                               title="순번 올리기"
@@ -604,7 +615,7 @@ function OrgManageSection({ isDark, isNarrowLayout = false, embedded = false }: 
                             >
                               <TrashIcon />
                             </button>
-                          </>
+                          </span>
                         )}
                       </td>
                     </tr>
@@ -661,7 +672,7 @@ function OrgManageSection({ isDark, isNarrowLayout = false, embedded = false }: 
                   <th className={cn('px-2 py-1.5 text-left font-semibold', muted)}>직급명</th>
                   <th className={cn('w-20 px-2 py-1.5 text-right font-semibold', muted)}>사용 인원</th>
                   <th className={cn('w-20 px-2 py-1.5 text-center font-semibold', muted)}>상태</th>
-                  <th className={cn('w-[124px] px-2 py-1.5 text-right font-semibold', muted)}>관리</th>
+                  <th className={cn('px-2 py-1.5 text-right font-semibold', muted, isNarrowLayout ? 'w-[168px]' : 'w-[124px]')}>관리</th>
                 </tr>
               </thead>
               <tbody>
@@ -711,7 +722,7 @@ function OrgManageSection({ isDark, isNarrowLayout = false, embedded = false }: 
                           </button>
                         </>
                       ) : (
-                        <>
+                        <span className={actionGroupCls}>
                           {j.inMaster && (
                             <>
                               <button
@@ -755,7 +766,7 @@ function OrgManageSection({ isDark, isNarrowLayout = false, embedded = false }: 
                           >
                             <TrashIcon />
                           </button>
-                        </>
+                        </span>
                       )}
                     </td>
                   </tr>

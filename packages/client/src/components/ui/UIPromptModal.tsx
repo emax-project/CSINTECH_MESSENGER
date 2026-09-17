@@ -92,7 +92,7 @@ export default function UIPromptModal({
                 type="button"
                 onClick={() => setValue(opt.value)}
                 className={cn(
-                  'block w-full truncate border-none px-3 py-2 text-left text-[13px] cursor-pointer',
+                  'block w-full truncate border-none px-3 py-2.5 text-left text-[13px] cursor-pointer',
                   value === opt.value
                     ? isDark
                       ? 'bg-slate-600 text-slate-100'
