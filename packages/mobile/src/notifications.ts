@@ -9,6 +9,8 @@ import { useAuthStore } from './store';
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
   }),
@@ -91,7 +93,9 @@ export async function showLocalNotification(title: string, body: string, data?: 
 }
 
 // Navigation ref for notification tap → chat
-type NavRef = { isReady: () => boolean; navigate: (...args: unknown[]) => void };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- 실제 네비게이션 ref의 오버로드된 navigate와
+// 구조적으로 맞추기 위한 느슨한 내부 타입 (런타임 동작에는 영향 없음)
+type NavRef = { isReady: () => boolean; navigate: (...args: any[]) => void };
 
 function navigateToChat(navRef: NavRef, roomId: string, roomName: string) {
   if (!navRef?.isReady?.()) return;
