@@ -26,7 +26,7 @@ export const lightColors = {
   card: '#ffffff',
   cardBorder: '#eceef5',
   shadow: 'rgba(0,0,0,0.04)',
-  statusBar: 'dark' as const,
+  statusBar: 'dark' as 'light' | 'dark',
 };
 
 export const darkColors = {
@@ -55,7 +55,7 @@ export const darkColors = {
   card: '#161b26',
   cardBorder: '#262d3e',
   shadow: 'rgba(0,0,0,0.2)',
-  statusBar: 'light' as const,
+  statusBar: 'light' as 'light' | 'dark',
 };
 
 export type ThemeColors = typeof lightColors;

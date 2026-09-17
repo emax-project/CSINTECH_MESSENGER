@@ -28,7 +28,7 @@ import { hasUnreadAnnouncements, getNewestUnreadAnnouncement } from './main/comp
 import MainOverlays from './main/components/MainOverlays';
 import PasswordChangeModal from './main/components/PasswordChangeModal';
 import { cn } from '../utils/cn';
-import { companyUsers, filterDepartments, allOrgUsers, flattenDepartments } from '../utils/orgTree';
+import { companyUsers, filterDepartments, allOrgUsers, flattenDepartments, defaultOpenDepartmentIds } from '../utils/orgTree';
 import { APP_MAX_WIDTH, APP_WINDOW_HEIGHT } from '../layout/constants';
 import { presenceFromList, type OnlinePresenceMap } from '../utils/presence';
 import { openChatRoomWindow } from '../utils/chatPopout';
@@ -338,6 +338,8 @@ export default function Main() {
     queryFn: orgGroupsApi.list,
     enabled: !!myId,
   });
+  // 검색으로 필터링되기 전 원본 기준으로 계산해야 본부·팀 깊이가 흔들리지 않는다.
+  const defaultOpenDeptIds = useMemo(() => defaultOpenDepartmentIds(orgTreeRaw ?? []), [orgTreeRaw]);
   const orgTree = useMemo(() => {
     const tree = orgTreeRaw ?? [];
     const keepUser = (u: OrgUser) => {
@@ -597,21 +599,22 @@ export default function Main() {
     });
   }, []);
 
-  // 앱 아이콘 배지 (맥 도크/윈도우 태스크바) - 카톡처럼 N 표시
+  // 앱 아이콘 배지 (맥 도크/윈도우 태스크바) - 실제 안 읽은 개수 표시
   useEffect(() => {
     const api = window.electronAPI;
     if (!api) return;
-    const hasUnread = !!(token && totalUnreadCount > 0);
+    const count = token ? totalUnreadCount : 0;
+    const badgeText = count > 99 ? '99+' : String(count);
     if (api.platform === 'darwin' && api.setBadgeCount) {
-      api.setBadgeCount(hasUnread ? 1 : 0).catch(() => {});
+      api.setBadgeCount(count).catch(() => {});
     } else if (api.platform === 'win32' && api.setOverlayIcon) {
       import('../utils/badgeOverlay').then(({ generateBadgeOverlayIcon }) => {
-        const dataUrl = hasUnread ? generateBadgeOverlayIcon('N') : null;
+        const dataUrl = count > 0 ? generateBadgeOverlayIcon(badgeText) : null;
         api.setOverlayIcon!(dataUrl).catch(() => {});
         api.setTrayBadge?.(dataUrl).catch(() => {});
       });
     } else if (api.setBadgeCount) {
-      api.setBadgeCount(hasUnread ? 1 : 0).catch(() => {});
+      api.setBadgeCount(count).catch(() => {});
     }
   }, [token, totalUnreadCount]);
 
@@ -629,8 +632,9 @@ export default function Main() {
   // --- Handlers ---
   const toggleSection = useCallback((key: 'topic' | 'chat') => setSectionOpen((prev) => ({ ...prev, [key]: !prev[key] })), []);
   const toggleTree = (key: string) => setTreeOpen((prev) => {
-    // 회사·내 그룹: 기본 펼침 / 부서: 기본 접힘
-    const defaultOpen = key.startsWith('company-') || key.startsWith('orggroup-');
+    // 회사·내 그룹: 기본 펼침 / 부서: 본부·팀 단계까지는 기본 펼침, 그 아래는 기본 접힘
+    const defaultOpen = key.startsWith('company-') || key.startsWith('orggroup-')
+      || (key.startsWith('dept-') && defaultOpenDeptIds.has(key.slice('dept-'.length)));
     const currentlyOpen = prev[key] === undefined ? defaultOpen : !!prev[key];
     return { ...prev, [key]: !currentlyOpen };
   });

@@ -1,10 +1,9 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import type { MouseEvent } from 'react';
 import type { OrgCompany, OrgDepartment, OrgGroup, OrgUser } from '../../../api';
 import type { OnlinePresenceMap } from '../../../utils/presence';
 import { cn } from '../../../utils/cn';
-import { allOrgUsers, companyUsers, departmentUsers, formatJobTitle } from '../../../utils/orgTree';
-import DeptOrderResetModal from './DeptOrderResetModal';
+import { allOrgUsers, companyUsers, defaultOpenDepartmentIds, departmentUsers, formatJobTitle } from '../../../utils/orgTree';
 
 const ACTIVE_BLUE = '#5B8DEF';
 const INACTIVE_GRAY = '#c5c9d0';
@@ -57,84 +56,6 @@ function ExpandBox({ open, onClick, isDark }: { open: boolean; onClick: () => vo
       aria-label={open ? '접기' : '펼치기'}
     >
       {open ? '−' : '+'}
-    </button>
-  );
-}
-
-/**
- * 부서 노출 순서를 나만 보이게 바꾸는 개인화 설정. 관리자가 정한 전체 순서 위에 얹혀서,
- * 계정(myId)별로 이 브라우저/앱에만 저장된다(서버에 저장하지 않음 - 즐겨찾기와 같은 방식).
- */
-const DEPT_ORDER_STORAGE_PREFIX = 'emax_org_dept_order_v1_';
-
-function loadDeptOrder(myId?: string): Record<string, number> {
-  try {
-    const raw = localStorage.getItem(DEPT_ORDER_STORAGE_PREFIX + (myId || 'anon'));
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as unknown;
-    return parsed && typeof parsed === 'object' ? (parsed as Record<string, number>) : {};
-  } catch {
-    return {};
-  }
-}
-
-function saveDeptOrder(myId: string | undefined, order: Record<string, number>) {
-  try {
-    localStorage.setItem(DEPT_ORDER_STORAGE_PREFIX + (myId || 'anon'), JSON.stringify(order));
-  } catch {
-    /* 저장 실패해도 화면 동작에는 지장 없음 */
-  }
-}
-
-function ResetIcon() {
-  return (
-    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M3 12a9 9 0 1 0 3-6.7" />
-      <path d="M3 4v5h5" />
-    </svg>
-  );
-}
-
-function DeptOrderButton({
-  direction,
-  disabled,
-  onClick,
-  isDark,
-}: {
-  direction: 'up' | 'down';
-  disabled: boolean;
-  onClick: () => void;
-  isDark: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      title={direction === 'up' ? '위로 이동 (나에게만 적용)' : '아래로 이동 (나에게만 적용)'}
-      aria-label={direction === 'up' ? '부서 위로 이동' : '부서 아래로 이동'}
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick();
-      }}
-      className={cn(
-        'inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border-none bg-transparent p-0 cursor-pointer disabled:cursor-default disabled:opacity-20',
-        isDark ? 'text-slate-500 hover:bg-slate-700 hover:text-slate-300' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600',
-      )}
-    >
-      <svg
-        width="10"
-        height="10"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={2.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden
-        style={{ transform: direction === 'down' ? 'rotate(180deg)' : undefined }}
-      >
-        <path d="m6 15 6-6 6 6" />
-      </svg>
     </button>
   );
 }
@@ -365,33 +286,8 @@ function OrgTree({
 }: OrgTreeProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [selectedDeptId, setSelectedDeptId] = useState<string | null>(null);
-  const [deptOrder, setDeptOrder] = useState<Record<string, number>>(() => loadDeptOrder(myId));
-  const [resettingDeptOrder, setResettingDeptOrder] = useState(false);
-  useEffect(() => {
-    setDeptOrder(loadDeptOrder(myId));
-  }, [myId]);
-
-  /** 같은 상위 부서 안 형제 목록을, 나에게만 적용되는 순서로 정렬한다. 순서가 없으면 원래(관리자) 순서 그대로. */
-  const orderedChildren = (list: OrgDepartment[]): OrgDepartment[] =>
-    list
-      .map((d, i) => ({ d, key: deptOrder[d.id] ?? 1e9 + i }))
-      .sort((a, b) => a.key - b.key)
-      .map((w) => w.d);
-
-  /** 부서를 형제 중 한 칸 위/아래로. 나에게만 저장되며(로컬), 전체 순서에는 영향 없다. */
-  const reorderDept = (dept: OrgDepartment, siblings: OrgDepartment[], direction: 'up' | 'down') => {
-    const index = siblings.findIndex((s) => s.id === dept.id);
-    const swapWith = direction === 'up' ? index - 1 : index + 1;
-    if (index < 0 || swapWith < 0 || swapWith >= siblings.length) return;
-    const reordered = [...siblings];
-    [reordered[index], reordered[swapWith]] = [reordered[swapWith], reordered[index]];
-    setDeptOrder((prev) => {
-      const next = { ...prev };
-      reordered.forEach((d, i) => { next[d.id] = i + 1; });
-      saveDeptOrder(myId, next);
-      return next;
-    });
-  };
+  // 본부·팀 단계는 접어둔 적이 없다면 기본으로 펼쳐 보인다(매번 본부를 눌러야 하는 불편 방지).
+  const defaultOpenDeptIds = useMemo(() => defaultOpenDepartmentIds(orgTree), [orgTree]);
   const [splitRatio, setSplitRatio] = useState(() => {
     try {
       const n = Number(localStorage.getItem('emax_org_split_ratio'));
@@ -647,10 +543,10 @@ function OrgTree({
    * 부서는 하위 부서를 가질 수 있으므로 재귀로 그린다.
    * 체크박스는 하위 부서 인원까지 포함해 한 번에 선택되게 한다.
    */
-  const renderDept = (dept: OrgDepartment, siblings: OrgDepartment[]) => {
+  const renderDept = (dept: OrgDepartment) => {
     const deptKey = `dept-${dept.id}`;
-    const deptOpen = !!treeOpen[deptKey];
-    const children = orderedChildren(dept.children ?? []);
+    const deptOpen = treeOpen[deptKey] !== undefined ? !!treeOpen[deptKey] : defaultOpenDeptIds.has(dept.id);
+    const children = dept.children ?? [];
     // 이 부서 + 모든 하위 부서의 인원
     const deptIds = departmentUsers(dept).map((u) => u.id);
     const deptAllSelected = deptIds.length > 0 && deptIds.every((id) => selectedIds.has(id));
@@ -658,7 +554,6 @@ function OrgTree({
       ? children.length > 0
       : (dept.users.length > 0 || children.length > 0);
     const isSelectedDept = selectedDeptId === dept.id;
-    const siblingIndex = siblings.findIndex((s) => s.id === dept.id);
 
     return (
       <div key={dept.id} className="mt-0.5">
@@ -702,20 +597,6 @@ function OrgTree({
               ({deptIds.length})
             </span>
           </button>
-          <span className="inline-flex shrink-0 items-center">
-            <DeptOrderButton
-              direction="up"
-              disabled={siblingIndex <= 0}
-              onClick={() => reorderDept(dept, siblings, 'up')}
-              isDark={isDark}
-            />
-            <DeptOrderButton
-              direction="down"
-              disabled={siblingIndex < 0 || siblingIndex >= siblings.length - 1}
-              onClick={() => reorderDept(dept, siblings, 'down')}
-              isDark={isDark}
-            />
-          </span>
         </div>
         {deptOpen && hasContent && (
           <div className={cn(
@@ -735,7 +616,7 @@ function OrgTree({
                 ))}
               </ul>
             )}
-            {children.map((child) => renderDept(child, children))}
+            {children.map((child) => renderDept(child))}
           </div>
         )}
       </div>
@@ -765,24 +646,6 @@ function OrgTree({
         className={viewMode === 'split' ? 'min-h-[80px] overflow-y-auto' : undefined}
         style={viewMode === 'split' ? { height: `${Math.round(splitRatio * 1000) / 10}%` } : undefined}
       >
-      {Object.keys(deptOrder).length > 0 && (
-        <div className="flex justify-end px-1 pb-1">
-          <button
-            type="button"
-            onClick={() => setResettingDeptOrder(true)}
-            title="내가 바꾼 부서 순서를 모두 원래대로 되돌립니다"
-            className={cn(
-              'inline-flex cursor-pointer items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors',
-              isDark
-                ? 'border-slate-600 text-slate-400 hover:border-slate-500 hover:bg-slate-700 hover:text-slate-200'
-                : 'border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-100 hover:text-slate-700',
-            )}
-          >
-            <ResetIcon />
-            부서 순서 초기화
-          </button>
-        </div>
-      )}
       {orgTree.map((company) => {
         const companyKey = `company-${company.id}`;
         const companyOpen = treeOpen[companyKey] !== false;
@@ -790,7 +653,7 @@ function OrgTree({
         const companyUserIds = companyUsers(company).map((u) => u.id);
         const companyAllSelected =
           companyUserIds.length > 0 && companyUserIds.every((id) => selectedIds.has(id));
-        const rootDepts = orderedChildren(company.departments ?? []);
+        const rootDepts = company.departments ?? [];
 
         return (
           <div key={company.id} className="mb-0.5">
@@ -825,7 +688,7 @@ function OrgTree({
                 'ml-[7px] border-l border-dashed pl-2',
                 isDark ? 'border-slate-600' : 'border-slate-200',
               )}>
-                {rootDepts.map((dept) => renderDept(dept, rootDepts))}
+                {rootDepts.map((dept) => renderDept(dept))}
               </div>
             )}
           </div>
@@ -870,16 +733,6 @@ function OrgTree({
           </ul>
         </div>
         </>
-      )}
-      {resettingDeptOrder && (
-        <DeptOrderResetModal
-          isDark={isDark}
-          onClose={() => setResettingDeptOrder(false)}
-          onConfirm={() => {
-            setDeptOrder({});
-            saveDeptOrder(myId, {});
-          }}
-        />
       )}
     </div>
   );

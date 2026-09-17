@@ -6,11 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.emax.mobile",
@@ -57,7 +52,18 @@
         }
       ],
       "expo-asset",
-      "expo-font"
+      "expo-font",
+      "expo-secure-store",
+      "expo-sharing",
+      "expo-status-bar",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ]
     ],
     "web": {
       "favicon": "./assets/favicon.png"
