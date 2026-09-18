@@ -19,6 +19,17 @@ import { getStoredBaseUrl } from '../storage';
 type RootStackParamList = { Login: undefined; Register: undefined };
 type NavProp = NativeStackNavigationProp<RootStackParamList, 'Register'>;
 
+// 서버의 회원가입 비밀번호 정책 오류 코드를 사용자 문구로 변환.
+// 회원가입은 LDAP 연동 중엔 막혀 있으므로 로컬 정책(4자 이상) 기준만 온다.
+function registerErrorMessage(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  const map: Record<string, string> = {
+    PASSWORD_TOO_SHORT: '비밀번호는 4자 이상이어야 합니다.',
+    REGISTER_DISABLED: 'LDAP 연동 중에는 회원가입을 사용할 수 없습니다. 관리자에게 계정을 요청해 주세요.',
+  };
+  return map[msg] || msg;
+}
+
 export default function RegisterScreen() {
   const navigation = useNavigation<NavProp>();
   const [serverUrl, setServerUrl] = useState('');
@@ -52,7 +63,7 @@ export default function RegisterScreen() {
       const { user, token } = await authApi.register(email, password, name);
       setAuth(user, token);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '회원가입 실패');
+      setError(registerErrorMessage(err));
     } finally {
       setLoading(false);
     }

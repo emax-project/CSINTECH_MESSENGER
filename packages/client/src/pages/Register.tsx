@@ -6,6 +6,19 @@ import TitleBar from '../components/TitleBar';
 import { AuthCard } from '../components/AuthCard';
 import UITextInput from '../components/ui/UITextInput';
 import { APP_MAX_WIDTH, APP_WINDOW_HEIGHT } from '../layout/constants';
+import { passwordErrorMessage } from './main/components/PasswordChangeModal';
+
+// 회원가입은 LDAP 연동 중엔 막혀 있으므로(REGISTER_DISABLED) 여기서 나올 수 있는
+// 비밀번호 정책 오류는 항상 로컬 정책(4자 이상) 기준이다.
+const LOCAL_PASSWORD_POLICY = {
+  ldapEnabled: false,
+  minLength: 4,
+  requireUpper: false,
+  requireLower: false,
+  requireDigit: false,
+  requireSpecial: false,
+  hint: '4자 이상',
+};
 
 function EyeIcon({ open }: { open: boolean }) {
   return open ? (
@@ -45,7 +58,11 @@ export default function Register() {
       navigate('/', { replace: true });
     } catch (err) {
       const msg = err instanceof Error ? err.message : '회원가입 실패';
-      setError(msg === 'REGISTER_DISABLED' ? 'LDAP 연동 중에는 회원가입을 사용할 수 없습니다. 관리자에게 계정을 요청해 주세요.' : msg);
+      setError(
+        msg === 'REGISTER_DISABLED'
+          ? 'LDAP 연동 중에는 회원가입을 사용할 수 없습니다. 관리자에게 계정을 요청해 주세요.'
+          : passwordErrorMessage(err, LOCAL_PASSWORD_POLICY)
+      );
     } finally {
       setLoading(false);
     }

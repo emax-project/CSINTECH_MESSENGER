@@ -64,6 +64,8 @@ authRouter.post('/register', async (req, res) => {
     if (!email || !password || !name) {
       return res.status(400).json({ error: 'email, password, name required' });
     }
+    const policyError = validatePassword(password);
+    if (policyError) return res.status(400).json({ error: policyError });
     // isAdmin은 순전히 이메일이 ADMIN_EMAIL 목록에 있는지로 결정된다 (lib/admin.js).
     // 공개 가입을 그대로 열어두면 관리자 이메일 주소를 아는 사람이 실제 관리자보다
     // 먼저 가입해 관리자 권한을 선점할 수 있으므로, 관리자 이메일은 셀프 가입을 막고
