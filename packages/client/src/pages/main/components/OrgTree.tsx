@@ -560,7 +560,7 @@ function OrgTree({
         <div
           className={cn(
             'flex items-center gap-1.5 px-1 py-0.5 rounded',
-            isSelectedDept && viewMode === 'split' && (isDark ? 'bg-brand-dark/20' : 'bg-brand-dark/[0.08]'),
+            isSelectedDept && (isDark ? 'bg-brand-dark/20' : 'bg-brand-dark/[0.08]'),
           )}
           onContextMenu={(e) => {
             e.preventDefault();
@@ -582,12 +582,12 @@ function OrgTree({
           <button
             type="button"
             onClick={() => {
-              if (viewMode === 'split') setSelectedDeptId(dept.id);
+              setSelectedDeptId(dept.id);
               onToggleTree(deptKey);
             }}
             className={cn(
               'min-w-0 flex-1 truncate border-none bg-transparent p-0 text-left text-[13px] font-semibold cursor-pointer',
-              deptOpen || isSelectedDept
+              isSelectedDept
                 ? (isDark ? 'text-brand-light' : 'text-brand-dark')
                 : (isDark ? 'text-slate-300' : 'text-slate-600'),
             )}
