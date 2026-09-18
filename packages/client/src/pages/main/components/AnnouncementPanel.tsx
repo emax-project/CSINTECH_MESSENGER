@@ -2,6 +2,8 @@ import { memo, useEffect } from 'react';
 import type { AnnouncementItem } from '../../../api';
 import { cn } from '../../../utils/cn';
 import { PanelTitleRow, panelTitleRowBg } from '../../../components/PanelDragHeader';
+import { useThemeStore } from '../../../store';
+import { getOrgTheme } from '../../../utils/orgTheme';
 
 const SEEN_KEY = 'emax_announcement_seen_at';
 
@@ -100,6 +102,9 @@ function AnnouncementPanel({
 }: AnnouncementPanelProps) {
   const wrap = panelWrapStyle(820);
   const isFormOpen = editingId !== null;
+  const accentTheme = useThemeStore((s) => s.accentTheme);
+  const orgTheme = getOrgTheme(accentTheme);
+  const useCustomAccent = !isDark && orgTheme.id !== 'default';
 
   useEffect(() => {
     if (markSeen && items.length > 0) markAnnouncementsSeen(items);
@@ -112,9 +117,10 @@ function AnnouncementPanel({
           type="button"
           onClick={onStartCreate}
           className={cn(
-            'border-none rounded-lg px-3 py-1.5 text-[13px] font-semibold cursor-pointer',
-            isDark ? 'bg-brand-dark text-white hover:bg-brand-light' : 'bg-brand-dark text-white hover:bg-brand-light',
+            'border-none rounded-lg px-3 py-1.5 text-[13px] font-semibold cursor-pointer text-white',
+            !useCustomAccent && (isDark ? 'bg-brand-dark hover:bg-brand-light' : 'bg-brand-dark hover:bg-brand-light'),
           )}
+          style={useCustomAccent ? { background: orgTheme.accent } : undefined}
         >
           새 공지
         </button>
@@ -137,8 +143,9 @@ function AnnouncementPanel({
             className={cn(
               'border-none rounded-lg px-3 py-1.5 text-[13px] font-semibold cursor-pointer text-white',
               announcementSaving ? 'opacity-70 cursor-wait' : '',
-              'bg-brand-dark hover:bg-brand-light',
+              !useCustomAccent && 'bg-brand-dark hover:bg-brand-light',
             )}
+            style={useCustomAccent ? { background: orgTheme.accent } : undefined}
           >
             {announcementSaving ? '저장 중...' : '저장'}
           </button>
@@ -208,8 +215,9 @@ function AnnouncementPanel({
                   onClick={() => onStartEdit(item)}
                   className={cn(
                     'shrink-0 border-none bg-transparent cursor-pointer text-xs font-semibold underline',
-                    isDark ? 'text-brand-light' : 'text-brand-dark',
+                    !useCustomAccent && (isDark ? 'text-brand-light' : 'text-brand-dark'),
                   )}
+                  style={useCustomAccent ? { color: orgTheme.accent } : undefined}
                 >
                   수정
                 </button>

@@ -93,7 +93,10 @@ function RoomSections({
             <span className={cn('text-[13px] font-bold', isDark ? 'text-white' : 'text-slate-900')}>아젠다</span>
             <span className={cn('text-[11px]', isDark ? 'text-slate-400' : 'text-slate-500')}>{topicRooms.length}개</span>
             {topicUnreadCount > 0 && (
-              <span className="min-w-[16px] h-4 px-[5px] rounded-full bg-brand text-white text-[10px] font-bold inline-flex items-center justify-center">
+              <span
+                className={cn('min-w-[16px] h-4 px-[5px] rounded-full text-white text-[10px] font-bold inline-flex items-center justify-center', !useCustomAccent && 'bg-brand')}
+                style={useCustomAccent ? { background: orgTheme.accent } : undefined}
+              >
                 {topicUnreadCount > 99 ? '99+' : topicUnreadCount}
               </span>
             )}
@@ -149,7 +152,10 @@ function RoomSections({
                         <span>{f.name}</span>
                         <span className="text-[11px] opacity-80">({rooms.length})</span>
                         {folderUnread > 0 && (
-                          <span className="min-w-[16px] h-4 px-[5px] rounded-full bg-brand text-white text-[10px] font-bold inline-flex items-center justify-center">
+                          <span
+                className={cn('min-w-[16px] h-4 px-[5px] rounded-full text-white text-[10px] font-bold inline-flex items-center justify-center', !useCustomAccent && 'bg-brand')}
+                style={useCustomAccent ? { background: orgTheme.accent } : undefined}
+              >
                             {folderUnread > 99 ? '99+' : folderUnread}
                           </span>
                         )}
@@ -205,7 +211,10 @@ function RoomSections({
             <span className={cn('text-[13px] font-bold', isDark ? 'text-white' : 'text-slate-900')}>채팅</span>
             <span className={cn('text-[11px]', isDark ? 'text-slate-400' : 'text-slate-500')}>{chatRooms.length}개</span>
             {chatUnreadCount > 0 && (
-              <span className="min-w-[16px] h-4 px-[5px] rounded-full bg-brand text-white text-[10px] font-bold inline-flex items-center justify-center">
+              <span
+                className={cn('min-w-[16px] h-4 px-[5px] rounded-full text-white text-[10px] font-bold inline-flex items-center justify-center', !useCustomAccent && 'bg-brand')}
+                style={useCustomAccent ? { background: orgTheme.accent } : undefined}
+              >
                 {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
               </span>
             )}

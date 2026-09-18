@@ -8,8 +8,9 @@ import {
 } from '../../../utils/electronChrome';
 import { openGroupware } from '../../../utils/groupware';
 import { cn } from '../../../utils/cn';
-import { useAuthStore } from '../../../store';
+import { useAuthStore, useThemeStore } from '../../../store';
 import { getBaseUrl, type UserAffiliation } from '../../../api';
+import { getOrgTheme } from '../../../utils/orgTheme';
 import ProfileMenu from './ProfileMenu';
 
 type ActivePanel = 'none' | 'notifications' | 'memo' | 'rooms' | 'schedule' | 'settings' | 'notepad';
@@ -64,8 +65,18 @@ function NotepadIcon() {
 }
 
 function Badge({ children }: { children: string }) {
+  const isDark = useThemeStore((s) => s.isDark);
+  const accentTheme = useThemeStore((s) => s.accentTheme);
+  const orgTheme = getOrgTheme(accentTheme);
+  const useCustomAccent = !isDark && orgTheme.id !== 'default';
   return (
-    <span className="absolute top-0.5 right-0.5 min-w-4 h-4 px-0.5 rounded-full bg-brand text-white font-bold flex items-center justify-center text-[10px]">
+    <span
+      className={cn(
+        'absolute top-0.5 right-0.5 min-w-4 h-4 px-0.5 rounded-full text-white font-bold flex items-center justify-center text-[10px]',
+        !useCustomAccent && 'bg-brand',
+      )}
+      style={useCustomAccent ? { background: orgTheme.accent } : undefined}
+    >
       {children}
     </span>
   );
