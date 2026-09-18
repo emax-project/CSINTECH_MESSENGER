@@ -1022,7 +1022,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                 fontSize: 11,
                 padding: '4px 10px',
                 borderRadius: 8,
-                background: isDark ? 'rgba(91,141,239,0.2)' : 'rgba(91,141,239,0.12)',
+                background: isDark ? 'rgba(91,141,239,0.2)' : 'rgba(var(--color-brand-dark-rgb),0.12)',
                 color: isDark ? '#93c5fd' : 'var(--color-brand-dark)',
                 display: 'inline-flex',
                 alignItems: 'center',

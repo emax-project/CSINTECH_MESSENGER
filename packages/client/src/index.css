@@ -5,6 +5,10 @@
   --color-brand: #0071CE;
   --color-brand-light: #2B8DE0;
   --color-brand-dark: #000F9F;
+  /* rgba() 안에 그대로 쓰기 위한 --color-brand-dark의 옅은 배경 틴트용 RGB.
+     대화방 멘션/스레드 배지 등에서 쓰던 기존 값(91,141,239)을 기본값으로 유지 —
+     조직도 색상 테마를 고르면 App.tsx가 이 값을 테마 강조색으로 덮어쓴다. */
+  --color-brand-dark-rgb: 91, 141, 239;
   --color-chart-primary: #5B8DEF;
   --color-chart-secondary: #7CA5FF;
   --ui-radius-sm: 6px;

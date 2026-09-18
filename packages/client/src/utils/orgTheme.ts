@@ -48,3 +48,12 @@ export const ORG_THEMES: OrgTheme[] = [
 export function getOrgTheme(id: string | undefined): OrgTheme {
   return ORG_THEMES.find((t) => t.id === id) ?? ORG_THEMES[0];
 }
+
+/** "#0D9488" -> "13, 148, 136" (rgba() 안에 그대로 넣을 수 있는 형태) */
+export function hexToRgbTriplet(hex: string): string {
+  const clean = hex.replace('#', '');
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  return `${r}, ${g}, ${b}`;
+}

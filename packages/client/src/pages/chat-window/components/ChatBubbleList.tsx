@@ -49,7 +49,7 @@ function MessageActionButton({
   const idleColor = isDark ? '#cbd5e1' : '#334155';
   const accentColor = isDark ? 'var(--color-brand-light)' : 'var(--color-brand-dark)';
   const hoverBg = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
-  const activeBg = isDark ? 'rgba(124,165,255,0.12)' : 'rgba(91,141,239,0.1)';
+  const activeBg = isDark ? 'rgba(124,165,255,0.12)' : 'rgba(var(--color-brand-dark-rgb),0.1)';
   const color = isActive ? accentColor : idleColor;
   const bg = isActive ? activeBg : 'transparent';
   return (
@@ -245,7 +245,7 @@ export default function ChatBubbleList({
                   fontSize: 11,
                   padding: '4px 10px',
                   borderRadius: 8,
-                  background: isDark ? 'rgba(91,141,239,0.15)' : 'rgba(91,141,239,0.1)',
+                  background: isDark ? 'rgba(91,141,239,0.15)' : 'rgba(var(--color-brand-dark-rgb),0.1)',
                   color: isDark ? '#bfdbfe' : 'var(--color-brand-dark)',
                   marginBottom: 4,
                   cursor: 'pointer',

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, Component, lazy, Suspense, type ReactNode } from 'react';
 import { useThemeStore } from './store';
-import { getOrgTheme } from './utils/orgTheme';
+import { getOrgTheme, hexToRgbTriplet } from './utils/orgTheme';
 import { BrowserRouter, HashRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useAuthStore } from './store';
 import { authApi } from './api';
@@ -126,8 +126,10 @@ export default function App() {
     const theme = getOrgTheme(accentTheme);
     if (!isDark && theme.id !== 'default') {
       root.style.setProperty('--color-brand-dark', theme.accent);
+      root.style.setProperty('--color-brand-dark-rgb', hexToRgbTriplet(theme.accent));
     } else {
       root.style.removeProperty('--color-brand-dark');
+      root.style.removeProperty('--color-brand-dark-rgb');
     }
   }, [isDark, accentTheme]);
 

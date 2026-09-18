@@ -5,6 +5,7 @@ import { useThemeStore } from '../store';
 import UIButton from './ui/UIButton';
 import { getThemeTokens } from './ui/themeTokens';
 import UIChevron from './ui/UIChevron';
+import { getOrgTheme } from '../utils/orgTheme';
 
 type Props = {
   roomId: string;
@@ -12,6 +13,7 @@ type Props = {
 
 export default function PinnedMessages({ roomId }: Props) {
   const isDark = useThemeStore((s) => s.isDark);
+  const accentTheme = useThemeStore((s) => s.accentTheme);
   const [expanded, setExpanded] = useState(false);
   const queryClient = useQueryClient();
 
@@ -26,8 +28,10 @@ export default function PinnedMessages({ roomId }: Props) {
   if (pins.length === 0) return null;
 
   const t = getThemeTokens(isDark);
-  const accent = t.primary;
-  const bgColor = isDark ? 'rgba(91,141,239,0.14)' : 'rgba(91,141,239,0.08)';
+  const orgTheme = getOrgTheme(accentTheme);
+  const useCustomAccent = !isDark && orgTheme.id !== 'default';
+  const accent = useCustomAccent ? orgTheme.accent : t.primary;
+  const bgColor = isDark ? 'rgba(91,141,239,0.14)' : 'rgba(var(--color-brand-dark-rgb),0.08)';
   const panelBg = t.bgSurface;
   const cardBg = isDark ? t.bgMuted : t.bgMuted;
   const textColor = t.text;
@@ -48,7 +52,7 @@ export default function PinnedMessages({ roomId }: Props) {
       style={{
         borderBottom: `1px solid ${borderColor}`,
         background: bgColor,
-        boxShadow: isDark ? 'inset 0 -1px 0 rgba(91,141,239,0.2)' : 'inset 0 -1px 0 rgba(91,141,239,0.12)',
+        boxShadow: isDark ? 'inset 0 -1px 0 rgba(91,141,239,0.2)' : 'inset 0 -1px 0 rgba(var(--color-brand-dark-rgb),0.12)',
       }}
     >
       <UIButton
