@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { cn } from '../../../utils/cn';
 import type { UserAffiliation } from '../../../api';
+import { electronNoDragClass } from '../../../components/MacElectronDragBar';
 
 type StatusOption = { id: string; label: string };
 
@@ -48,9 +49,15 @@ export default function ProfileMenu({
 
   return (
     <>
-      <button type="button" className="fixed inset-0 z-40 cursor-default border-none bg-transparent" aria-label="닫기" onClick={onClose} />
+      <button
+        type="button"
+        className={cn(electronNoDragClass, 'fixed inset-0 z-40 cursor-default border-none bg-transparent')}
+        aria-label="닫기"
+        onClick={onClose}
+      />
       <div
         className={cn(
+          electronNoDragClass,
           'absolute bottom-11 left-11 z-50 w-[248px] rounded-xl border py-1.5 shadow-xl',
           isDark ? 'border-slate-600 bg-slate-800 text-slate-100' : 'border-slate-200 bg-white text-slate-800',
         )}
