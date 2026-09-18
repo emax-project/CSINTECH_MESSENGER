@@ -248,11 +248,12 @@ function OrgPanel({
             className={cn(
               'shrink-0 flex items-center gap-1.5 px-2.5 py-1 border rounded-2xl text-[11px] font-bold whitespace-nowrap cursor-pointer transition-colors',
               showOnlineOnly
-                ? 'border-brand-dark bg-brand-dark text-white'
+                ? (useCustomAccent ? 'text-white' : 'border-brand-dark bg-brand-dark text-white')
                 : isDark
                   ? 'border-slate-600 bg-slate-800 text-slate-300 hover:border-slate-500'
                   : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-700',
             )}
+            style={showOnlineOnly && useCustomAccent ? { background: orgTheme.accent, borderColor: orgTheme.accent } : undefined}
           >
             <span
               className={cn(
@@ -273,6 +274,7 @@ function OrgPanel({
                   ? 'border-slate-600 bg-slate-800 text-brand-light hover:bg-slate-700'
                   : 'border-slate-200 bg-white text-brand-dark hover:bg-brand-dark/[0.06]',
               )}
+              style={useCustomAccent ? { color: orgTheme.accent } : undefined}
             >
               + 그룹
             </button>
