@@ -3,6 +3,8 @@ import type { Dispatch, SetStateAction } from 'react';
 import type { Folder, PublicRoom, Room } from '../../../api';
 import UIChevron from '../../../components/ui/UIChevron';
 import { cn } from '../../../utils/cn';
+import { useThemeStore } from '../../../store';
+import { getOrgTheme } from '../../../utils/orgTheme';
 
 type SectionOpen = { topic: boolean; chat: boolean };
 type CreateGroupFor = 'topic' | 'chat';
@@ -58,6 +60,10 @@ function RoomSections({
   renderRoomItem,
   onJoinPublicRoom,
 }: RoomSectionsProps) {
+  const accentTheme = useThemeStore((s) => s.accentTheme);
+  const orgTheme = getOrgTheme(accentTheme);
+  const useCustomAccent = !isDark && orgTheme.id !== 'default';
+
   const joinablePublicRooms = useMemo(() => {
     const roomIds = new Set(allRooms.map((r) => r.id));
     return (Array.isArray(publicRooms) ? publicRooms : []).filter((pr) => !roomIds.has(pr.id));
@@ -104,7 +110,11 @@ function RoomSections({
             >폴더</button>
             <button
               type="button"
-              className="w-[22px] h-[22px] rounded-[6px] border-none bg-brand text-white inline-flex items-center justify-center text-base leading-none cursor-pointer shrink-0"
+              className={cn(
+                'w-[22px] h-[22px] rounded-[6px] border-none text-white inline-flex items-center justify-center text-base leading-none cursor-pointer shrink-0',
+                !useCustomAccent && 'bg-brand',
+              )}
+              style={useCustomAccent ? { background: orgTheme.accent } : undefined}
               onClick={(e) => { e.stopPropagation(); openCreateModal('topic'); }}
               title="아젠다 만들기"
               aria-label="아젠다 만들기"
@@ -202,7 +212,11 @@ function RoomSections({
           </span>
           <button
             type="button"
-            className="w-[22px] h-[22px] rounded-[6px] border-none bg-brand text-white inline-flex items-center justify-center text-base leading-none cursor-pointer shrink-0"
+            className={cn(
+              'w-[22px] h-[22px] rounded-[6px] border-none text-white inline-flex items-center justify-center text-base leading-none cursor-pointer shrink-0',
+              !useCustomAccent && 'bg-brand',
+            )}
+            style={useCustomAccent ? { background: orgTheme.accent } : undefined}
             onClick={(e) => { e.stopPropagation(); openCreateModal('chat'); }}
             title="1:1 채팅 만들기"
             aria-label="1:1 채팅 만들기"
