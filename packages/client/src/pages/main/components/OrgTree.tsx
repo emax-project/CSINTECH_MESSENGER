@@ -10,8 +10,8 @@ const ACTIVE_BLUE = '#5B8DEF';
 const INACTIVE_GRAY = '#c5c9d0';
 const FOLDER_BLUE = '#5B8DEF';
 
-function FolderIcon({ size = 15, active = true }: { size?: number; active?: boolean }) {
-  const color = active ? FOLDER_BLUE : INACTIVE_GRAY;
+function FolderIcon({ size = 15, active = true, activeColor }: { size?: number; active?: boolean; activeColor?: string }) {
+  const color = active ? (activeColor ?? FOLDER_BLUE) : INACTIVE_GRAY;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill={color} aria-hidden style={{ flexShrink: 0 }}>
       <path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" />
@@ -588,7 +588,10 @@ function OrgTree({
             onChange={(e) => toggleSelectMany(deptIds, e.target.checked)}
             className="h-3.5 w-3.5 cursor-pointer accent-brand"
           />
-          <FolderIcon active={deptOpen || isSelectedDept} />
+          <FolderIcon
+            active={deptOpen || isSelectedDept}
+            activeColor={(deptOpen || isSelectedDept) && useCustomAccent ? orgTheme.accent : undefined}
+          />
           <button
             type="button"
             onClick={() => {
@@ -605,7 +608,13 @@ function OrgTree({
             style={isSelectedDept && useCustomAccent ? { color: orgTheme.activeText } : undefined}
           >
             {dept.name}
-            <span className={cn('ml-0.5 font-normal tabular-nums', isDark ? 'text-slate-500' : 'text-slate-400')}>
+            <span
+              className={cn(
+                'ml-0.5 font-normal tabular-nums',
+                !(isSelectedDept && useCustomAccent) && (isDark ? 'text-slate-500' : 'text-slate-400'),
+              )}
+              style={isSelectedDept && useCustomAccent ? { color: orgTheme.activeText } : undefined}
+            >
               ({deptIds.length})
             </span>
           </button>
@@ -677,7 +686,7 @@ function OrgTree({
                 onChange={(e) => toggleSelectMany(companyUserIds, e.target.checked)}
                 className="h-3.5 w-3.5 cursor-pointer accent-brand"
               />
-              <FolderIcon active={companyOpen} />
+              <FolderIcon active={companyOpen} activeColor={companyOpen && useCustomAccent ? orgTheme.accent : undefined} />
               <button
                 type="button"
                 onClick={() => onToggleTree(companyKey)}
