@@ -7,12 +7,15 @@ import LinkPreview, { extractFirstUrl } from '../../../components/LinkPreview';
 import EmojiPicker from '../../../components/EmojiPicker';
 import { cn } from '../../../utils/cn';
 import { formatDateLabel, getDateKey, isSystemMessage, renderMessageContent, HIDE_CONTEXT_ATTACH } from '../utils';
+import { getOrgTheme, type OrgThemeId } from '../../../utils/orgTheme';
 
 type ChatBubbleListProps = {
   displayMessages: Message[];
   firstUnreadMessageId: string | null;
   firstUnreadRef: RefObject<HTMLDivElement> | MutableRefObject<HTMLDivElement | null>;
   isDark: boolean;
+  /** 내 메시지 말풍선 배경색 테마 (라이트 모드에서만 적용) */
+  accentTheme?: OrgThemeId;
   myId?: string;
   room?: Room;
   hoveredMsg: string | null;
@@ -87,6 +90,7 @@ export default function ChatBubbleList({
   firstUnreadMessageId,
   firstUnreadRef,
   isDark,
+  accentTheme = 'default',
   myId,
   room,
   hoveredMsg,
@@ -101,6 +105,9 @@ export default function ChatBubbleList({
   handleReaction,
 }: ChatBubbleListProps) {
   const [alwaysShowActions, setAlwaysShowActions] = useState(false);
+  // 내 메시지 말풍선 배경색 테마. 다크 모드는 대비 문제로 항상 기존 색 유지.
+  const orgTheme = getOrgTheme(accentTheme);
+  const useCustomAccent = !isDark && orgTheme.id !== 'default';
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
@@ -181,11 +188,16 @@ export default function ChatBubbleList({
                   )
                 )}
                 <div className={cn('w-fit max-w-[75%] min-w-0', isMine && 'ml-auto')}>
-                  <div className={cn(
-                    'min-w-[80px] py-2.5 px-3.5 rounded-2xl rounded-tl',
-                    isMine ? 'bg-brand-dark/80 text-white rounded-tl-2xl rounded-tr' : isDark ? 'bg-slate-700 text-slate-200' : 'bg-white text-slate-800',
-                    'opacity-50 italic',
-                  )}>
+                  <div
+                    className={cn(
+                      'min-w-[80px] py-2.5 px-3.5 rounded-2xl rounded-tl',
+                      isMine
+                        ? (useCustomAccent ? 'text-white rounded-tl-2xl rounded-tr' : 'bg-brand-dark/80 text-white rounded-tl-2xl rounded-tr')
+                        : isDark ? 'bg-slate-700 text-slate-200' : 'bg-white text-slate-800',
+                      'opacity-50 italic',
+                    )}
+                    style={isMine && useCustomAccent ? { background: orgTheme.accent } : undefined}
+                  >
                     <span className="whitespace-pre-wrap break-words text-[15px] leading-snug">[삭제된 메시지]</span>
                   </div>
                 </div>
@@ -317,8 +329,11 @@ export default function ChatBubbleList({
                   className={cn(
                     isHighlighted && 'message-bubble-highlight',
                     'min-w-[80px] py-2.5 px-3.5 rounded-2xl rounded-tl shadow-sm',
-                    isMine ? 'bg-brand-dark text-white rounded-tl-2xl rounded-tr shadow-sm' : isDark ? 'bg-slate-700 text-slate-200' : 'bg-white text-slate-800',
+                    isMine
+                      ? (useCustomAccent ? 'text-white rounded-tl-2xl rounded-tr shadow-sm' : 'bg-brand-dark text-white rounded-tl-2xl rounded-tr shadow-sm')
+                      : isDark ? 'bg-slate-700 text-slate-200' : 'bg-white text-slate-800',
                   )}
+                  style={isMine && useCustomAccent ? { background: orgTheme.accent } : undefined}
                 >
                   {m.poll ? (
                     <PollCard poll={m.poll} myId={myId} isMine={isMine} />

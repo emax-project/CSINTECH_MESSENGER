@@ -140,7 +140,7 @@ export default function Main() {
   const logout = useAuthStore((s) => s.logout);
   const isDark = useThemeStore((s) => s.isDark);
   const toggleDark = useThemeStore((s) => s.toggleDark);
-  const accentTheme = useThemeStore((s) => s.accentTheme) as import('../utils/orgTheme').OrgThemeId;
+  const accentTheme = useThemeStore((s) => s.accentTheme);
   const setAccentTheme = useThemeStore((s) => s.setAccentTheme);
 
   useEffect(() => {

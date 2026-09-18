@@ -26,6 +26,7 @@ import ContextAttachModal, { type MessageContext } from '../components/ContextAt
 import BoardEditor from '../components/BoardEditor';
 import UICloseButton from '../components/ui/UICloseButton';
 import { canEditOrDelete, HIDE_CONTEXT_ATTACH } from './chat-window/utils';
+import { getOrgTheme } from '../utils/orgTheme';
 import { useChatSocket } from './chat-window/hooks/useChatSocket';
 import { useActiveChatPresence } from './chat-window/hooks/useActiveChatPresence';
 import { cn } from '../utils/cn';
@@ -46,6 +47,9 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
   const token = useAuthStore((s) => s.token);
   const myId = useAuthStore((s) => s.user?.id);
   const isDark = useThemeStore((s) => s.isDark);
+  const accentTheme = useThemeStore((s) => s.accentTheme);
+  const orgTheme = getOrgTheme(accentTheme);
+  const useCustomAccent = !isDark && orgTheme.id !== 'default';
   const showToast = useToastStore((s) => s.show);
   useEffect(() => {
     if (!embedded) window.electronAPI?.setTitleBarTheme?.(isDark);
@@ -792,6 +796,7 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
               firstUnreadMessageId={firstUnreadMessageId}
               firstUnreadRef={firstUnreadRef}
               isDark={isDark}
+              accentTheme={accentTheme}
               myId={myId}
               room={room}
               hoveredMsg={hoveredMsg}
@@ -1138,8 +1143,13 @@ export default function ChatWindow({ embedded, onOpenInNewWindow }: ChatWindowPr
                 isCompactHeader && 'px-3.5 py-2',
                 !input.trim() || !socket || fileUploading
                   ? (isDark ? 'bg-slate-700 text-slate-400 opacity-90' : 'bg-slate-300 text-white opacity-90')
-                  : 'bg-brand-dark text-white',
+                  : (useCustomAccent ? 'text-white' : 'bg-brand-dark text-white'),
               )}
+              style={
+                useCustomAccent && (input.trim() && socket && !fileUploading)
+                  ? { background: orgTheme.accent }
+                  : undefined
+              }
               disabled={!input.trim() || !socket || fileUploading}
             >
               {editingMsg ? '수정' : '전송'}

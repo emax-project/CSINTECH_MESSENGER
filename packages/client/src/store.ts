@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { authApi, type User } from './api';
 import { clearSessionDate, isSessionFromToday, markSessionToday } from './utils/authSession';
+import type { OrgThemeId } from './utils/orgTheme';
 
 type AuthState = {
   user: User | null;
@@ -60,8 +61,8 @@ type ThemeState = {
   isDark: boolean;
   toggleDark: () => void;
   /** 조직도 상단 영역·선택 부서 강조색 테마. 'default'는 기존 파란색을 그대로 씀. */
-  accentTheme: string;
-  setAccentTheme: (id: string) => void;
+  accentTheme: OrgThemeId;
+  setAccentTheme: (id: OrgThemeId) => void;
 };
 
 export const useThemeStore = create<ThemeState>()(
