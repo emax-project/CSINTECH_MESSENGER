@@ -1,3 +1,4 @@
+import { useAccentStyles } from '../../hooks/useAccentStyles';
 import { useState } from 'react';
 import { cn } from '../../utils/cn';
 import UIModal from './UIModal';
@@ -41,6 +42,7 @@ export default function UIPromptModal({
   onSubmit,
   onClose,
 }: Props) {
+  const accent = useAccentStyles(isDark);
   const [value, setValue] = useState(defaultValue);
   const hasOptions = (options?.length ?? 0) > 0;
   const canSubmit = allowEmpty || value.trim().length > 0;
@@ -91,6 +93,7 @@ export default function UIPromptModal({
                 key={opt.value || '__empty__'}
                 type="button"
                 onClick={() => setValue(opt.value)}
+                style={value === opt.value ? accent.secondaryStyle : undefined}
                 className={cn(
                   'block w-full truncate border-none px-3 py-2.5 text-left text-[13px] cursor-pointer',
                   value === opt.value
@@ -118,7 +121,7 @@ export default function UIPromptModal({
             onKeyDown={(e) => {
               if (e.key === 'Enter') submit();
             }}
-            style={inputStyle}
+            style={{ ...inputStyle, ...accent.inputStyle }}
           />
         )}
 
@@ -127,6 +130,7 @@ export default function UIPromptModal({
             type="button"
             disabled={!canSubmit}
             onClick={submit}
+            style={accent.primaryStyle}
             className="flex-1 px-4 py-2 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[13px] font-semibold cursor-pointer disabled:opacity-60"
           >
             {confirmLabel}
@@ -138,7 +142,7 @@ export default function UIPromptModal({
               'px-4 py-2 rounded-lg border text-[13px] font-semibold cursor-pointer',
               isDark
                 ? 'border-slate-600 bg-transparent text-slate-200'
-                : 'border-slate-200 bg-transparent text-slate-700',
+                : accent.custom ? 'border-[var(--color-brand-dark)] bg-transparent text-[var(--color-brand-dark)]' : 'border-slate-200 bg-transparent text-slate-700',
             )}
           >
             취소

@@ -369,7 +369,10 @@ export default function ChatBubbleList({
                 </div>
                 {(isHovered || alwaysShowActions) && !m.deletedAt && (
                   <div
-                    className="absolute bottom-0 right-full mr-1.5 flex items-center gap-0.5"
+                    className={cn(
+                      'absolute bottom-0 flex items-center gap-0.5',
+                      isMine ? 'right-full mr-1.5' : 'left-full ml-1.5',
+                    )}
                   >
                     <MessageActionButton
                       isDark={isDark}

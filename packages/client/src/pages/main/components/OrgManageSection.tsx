@@ -1,6 +1,7 @@
 import { memo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { orgApi, type CompanyItem, type DepartmentItem, type JobTitleItem } from '../../../api';
+import { useAccentStyles } from '../../../hooks/useAccentStyles';
 import { cn } from '../../../utils/cn';
 import UIPromptModal from '../../../components/ui/UIPromptModal';
 
@@ -60,9 +61,9 @@ function TrashIcon() {
 }
 
 /** 부서 폴더 (조직도 화면과 같은 모양) */
-function FolderIcon({ open }: { open: boolean }) {
+function FolderIcon({ open, color }: { open: boolean; color?: string }) {
   return (
-    <svg width={14} height={14} viewBox="0 0 24 24" fill={open ? '#3b82f6' : '#94a3b8'} aria-hidden style={{ flexShrink: 0 }}>
+    <svg width={14} height={14} viewBox="0 0 24 24" fill={open ? color ?? '#3b82f6' : '#94a3b8'} aria-hidden style={{ flexShrink: 0 }}>
       <path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" />
     </svg>
   );
@@ -87,6 +88,7 @@ function friendlyError(err: unknown): string {
 }
 
 function OrgManageSection({ isDark, isNarrowLayout = false, embedded = false }: Props) {
+  const accent = useAccentStyles(isDark);
   const queryClient = useQueryClient();
   const [newDept, setNewDept] = useState('');
   const [newParentId, setNewParentId] = useState('');
@@ -348,7 +350,7 @@ function OrgManageSection({ isDark, isNarrowLayout = false, embedded = false }: 
   );
   const btnCls = cn(
     'shrink-0 rounded-lg border px-3 py-2.5 text-[13px] font-semibold cursor-pointer',
-    isDark ? 'border-slate-600 bg-transparent text-slate-200' : 'border-slate-200 bg-transparent text-slate-700',
+    isDark ? 'border-slate-600 bg-transparent text-slate-200' : accent.custom ? 'border-[var(--color-brand-dark)] bg-transparent text-[var(--color-brand-dark)]' : 'border-slate-200 bg-transparent text-slate-700',
   );
   const linkBtn = cn(
     'shrink-0 whitespace-nowrap border-none bg-transparent font-semibold cursor-pointer',
@@ -358,7 +360,7 @@ function OrgManageSection({ isDark, isNarrowLayout = false, embedded = false }: 
   const iconBtn = cn(
     'inline-flex shrink-0 items-center justify-center rounded border-none bg-transparent p-0 cursor-pointer align-middle',
     isNarrowLayout ? 'h-9 w-9' : 'h-6 w-6',
-    isDark ? 'text-slate-300 hover:bg-slate-700 active:bg-slate-600' : 'text-slate-500 hover:bg-slate-100 active:bg-slate-200',
+    isDark ? 'text-slate-300 hover:bg-slate-700 active:bg-slate-600' : accent.custom ? 'text-[var(--color-brand-dark)] hover:bg-[rgba(var(--color-brand-dark-rgb),0.1)] active:bg-[rgba(var(--color-brand-dark-rgb),0.2)]' : 'text-slate-500 hover:bg-slate-100 active:bg-slate-200',
   );
   const iconBtnDanger = cn(
     'inline-flex shrink-0 items-center justify-center rounded border-none bg-transparent p-0 cursor-pointer align-middle',
@@ -530,7 +532,7 @@ function OrgManageSection({ isDark, isNarrowLayout = false, embedded = false }: 
                             ) : (
                               <span className={cn('shrink-0', isNarrowLayout ? 'h-[22px] w-[22px]' : 'h-[15px] w-[15px]')} aria-hidden />
                             )}
-                            <FolderIcon open={expandable && !isCollapsed} />
+                            <FolderIcon color={accent.custom ? accent.theme.accent : undefined} open={expandable && !isCollapsed} />
                             {editingId === d.id ? (
                               <input
                                 autoFocus
@@ -558,7 +560,7 @@ function OrgManageSection({ isDark, isNarrowLayout = false, embedded = false }: 
                       <td className="whitespace-nowrap px-2 py-1.5 text-right">
                         {editingId === d.id ? (
                           <>
-                            <button type="button" onClick={() => saveRename(d)} className={cn(linkBtn, 'text-blue-500')}>
+                            <button type="button" onClick={() => saveRename(d)} className={cn(linkBtn, accent.custom ? 'text-[var(--color-brand-dark)]' : 'text-blue-500')}>
                               저장
                             </button>
                             <button type="button" onClick={() => setEditingId(null)} className={cn(linkBtn, muted)}>
@@ -714,7 +716,7 @@ function OrgManageSection({ isDark, isNarrowLayout = false, embedded = false }: 
                     <td className="whitespace-nowrap px-2 py-1.5 text-right">
                       {editingJob === j.name ? (
                         <>
-                          <button type="button" onClick={() => saveJobRename(j)} className={cn(linkBtn, 'text-blue-500')}>
+                          <button type="button" onClick={() => saveJobRename(j)} className={cn(linkBtn, accent.custom ? 'text-[var(--color-brand-dark)]' : 'text-blue-500')}>
                             저장
                           </button>
                           <button type="button" onClick={() => setEditingJob(null)} className={cn(linkBtn, muted)}>

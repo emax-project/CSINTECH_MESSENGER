@@ -1,6 +1,7 @@
 import { memo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { orgApi, usersApi, type JobTitleItem, type OrgCompany, type OrgDepartment, type OrgUser } from '../../../api';
+import { useAccentStyles } from '../../../hooks/useAccentStyles';
 import { cn } from '../../../utils/cn';
 import { companyUsers, departmentUsers, formatJobTitle } from '../../../utils/orgTree';
 import UIPromptModal from '../../../components/ui/UIPromptModal';
@@ -72,6 +73,7 @@ function KeyIcon() {
 }
 
 function UserManageSection({ isDark, isNarrowLayout = false, currentUserId, embedded = false }: Props) {
+  const accent = useAccentStyles(isDark);
   const queryClient = useQueryClient();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -246,6 +248,7 @@ function UserManageSection({ isDark, isNarrowLayout = false, currentUserId, embe
             disabled={pickable.length === 0}
             onChange={(e) => toggleMany(users, e.target.checked)}
             className="h-3.5 w-3.5 cursor-pointer accent-brand disabled:opacity-40"
+            style={accent.custom ? { accentColor: accent.theme.accent } : undefined}
           />
           <span className={cn('min-w-0 truncate text-[13px] font-medium', text)}>{dept.name}</span>
           <span className={cn('shrink-0 text-[11px] tabular-nums', muted)}>{users.length}</span>
@@ -261,6 +264,7 @@ function UserManageSection({ isDark, isNarrowLayout = false, currentUserId, embe
                   disabled={!selectable(u)}
                   onChange={() => toggleOne(u.id)}
                   className="h-3.5 w-3.5 cursor-pointer accent-brand disabled:opacity-40"
+                  style={accent.custom ? { accentColor: accent.theme.accent } : undefined}
                 />
                 <span className={cn('min-w-0 truncate text-[13px]', text)}>
                   {u.name}
@@ -276,7 +280,7 @@ function UserManageSection({ isDark, isNarrowLayout = false, currentUserId, embe
                   onClick={() => setPrompting({ kind: 'jobTitle', user: u })}
                   className={cn(
                     'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded border-none bg-transparent p-0 cursor-pointer disabled:opacity-40',
-                    isDark ? 'text-slate-300 hover:bg-slate-700' : 'text-slate-500 hover:bg-slate-200',
+                    isDark ? 'text-slate-300 hover:bg-slate-700' : accent.custom ? 'text-[var(--color-brand-dark)] hover:bg-[rgba(var(--color-brand-dark-rgb),0.1)]' : 'text-slate-500 hover:bg-slate-200',
                   )}
                 >
                   <BadgeIcon />
@@ -289,7 +293,7 @@ function UserManageSection({ isDark, isNarrowLayout = false, currentUserId, embe
                   onClick={() => setPrompting({ kind: 'password', user: u })}
                   className={cn(
                     'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded border-none bg-transparent p-0 cursor-pointer disabled:opacity-40',
-                    isDark ? 'text-slate-300 hover:bg-slate-700' : 'text-slate-500 hover:bg-slate-200',
+                    isDark ? 'text-slate-300 hover:bg-slate-700' : accent.custom ? 'text-[var(--color-brand-dark)] hover:bg-[rgba(var(--color-brand-dark-rgb),0.1)]' : 'text-slate-500 hover:bg-slate-200',
                   )}
                 >
                   <KeyIcon />
@@ -337,6 +341,7 @@ function UserManageSection({ isDark, isNarrowLayout = false, currentUserId, embe
                     disabled={pickable.length === 0}
                     onChange={(e) => toggleMany(users, e.target.checked)}
                     className="h-3.5 w-3.5 cursor-pointer accent-brand disabled:opacity-40"
+                    style={accent.custom ? { accentColor: accent.theme.accent } : undefined}
                   />
                   <span className={cn('min-w-0 truncate text-[13px] font-semibold', text)}>{company.name}</span>
                   <span className={cn('shrink-0 text-[11px] tabular-nums', muted)}>{users.length}</span>

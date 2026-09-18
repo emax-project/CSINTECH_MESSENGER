@@ -209,11 +209,11 @@ function SchedulePanel({
     'flex w-full min-w-0 cursor-pointer items-center justify-between gap-1.5 rounded-xl border px-3 py-2 text-sm outline-none focus:outline-none',
     isDark
       ? 'border-brand-dark/30 bg-slate-900 text-slate-100'
-      : 'border-brand-dark/25 bg-white text-slate-700',
+      : 'border-[rgba(var(--color-brand-dark-rgb),0.25)] bg-white text-slate-700',
   );
   const dateTimeTextClass = 'min-w-0 flex-1 truncate whitespace-nowrap text-left';
   const pickerIconSlotClass = 'flex h-[14px] w-[14px] shrink-0 items-center justify-center';
-  const pickerIconColorClass = isDark ? 'text-brand-light' : 'text-brand-dark';
+  const pickerIconColorClass = isDark ? 'text-brand-light' : 'text-[var(--color-brand-dark)]';
   const modalOverlayClass = cn(
     'inset-0 flex items-center justify-center bg-black/40',
     isNarrowLayout ? 'absolute z-[2000] p-2' : 'fixed z-[2000] p-4',
@@ -222,7 +222,7 @@ function SchedulePanel({
     cn(
       'w-full rounded-2xl border',
       isNarrowLayout ? 'max-w-full p-3' : wide ? 'max-w-[760px] p-4' : 'max-w-[540px] p-4',
-      isDark ? 'border-brand-dark/30 bg-slate-900' : 'border-brand-dark/20 bg-white shadow-soft',
+      isDark ? 'border-brand-dark/30 bg-slate-900' : 'border-[rgba(var(--color-brand-dark-rgb),0.2)] bg-white shadow-soft',
     );
   const startTime = eventForm.startAt.slice(11, 16) || '09:00';
   const endTime = eventForm.endAt.slice(11, 16) || '18:00';
@@ -372,7 +372,7 @@ function SchedulePanel({
                 className={cn(
                   'h-8 rounded-md text-xs font-semibold transition-colors outline-none focus:outline-none',
                   isActive
-                    ? (isDark ? 'bg-brand-light text-white' : 'bg-brand-dark text-white')
+                    ? (isDark ? 'bg-brand-light text-white' : 'bg-[var(--color-brand-dark)] text-white')
                     : isDark
                       ? 'text-slate-300 hover:bg-slate-800'
                       : 'text-slate-600 hover:bg-slate-100'
@@ -427,9 +427,9 @@ function SchedulePanel({
                 className={cn(
                   'h-8 rounded-md text-xs font-semibold transition-colors outline-none focus:outline-none',
                   isBoundary
-                    ? (isDark ? 'bg-brand-light text-white' : 'bg-brand-dark text-white')
+                    ? (isDark ? 'bg-brand-light text-white' : 'bg-[var(--color-brand-dark)] text-white')
                     : isInRange
-                      ? (isDark ? 'bg-brand-dark/20 text-blue-200' : 'bg-brand-dark/15 text-brand-dark')
+                      ? (isDark ? 'bg-brand-dark/20 text-blue-200' : 'bg-[rgba(var(--color-brand-dark-rgb),0.15)] text-[var(--color-brand-dark)]')
                       : (isDark ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-600 hover:bg-slate-100')
                 )}
               >
@@ -604,7 +604,7 @@ function SchedulePanel({
                   'flex h-8 w-8 items-center justify-center rounded-lg transition-colors',
                   !useCustomAccent && (isDark
                     ? 'bg-brand-dark text-white hover:bg-brand-light'
-                    : 'bg-brand-dark text-white hover:bg-brand-light'),
+                    : 'bg-[var(--color-brand-dark)] text-white hover:bg-[color-mix(in_srgb,var(--color-brand-dark),white_15%)]'),
                   useCustomAccent && 'text-white'
                 )}
                 style={useCustomAccent ? { background: orgTheme.accent } : undefined}
@@ -621,7 +621,7 @@ function SchedulePanel({
                   'flex h-8 w-8 items-center justify-center rounded-lg transition-colors',
                   !useCustomAccent && (isDark
                     ? 'bg-brand-dark text-white hover:bg-brand-light'
-                    : 'bg-brand-dark text-white hover:bg-brand-light'),
+                    : 'bg-[var(--color-brand-dark)] text-white hover:bg-[color-mix(in_srgb,var(--color-brand-dark),white_15%)]'),
                   useCustomAccent && 'text-white'
                 )}
                 style={useCustomAccent ? { background: orgTheme.accent } : undefined}
@@ -677,7 +677,7 @@ function SchedulePanel({
                     'relative overflow-visible rounded-xl p-1.5 text-left transition-colors',
                     hasSpanningSegmentStart && 'z-[2]',
                     cell.isSelected
-                      ? (useCustomAccent ? '' : isDark ? 'bg-brand-dark/20' : 'bg-brand-dark/10')
+                      ? (useCustomAccent ? '' : isDark ? 'bg-brand-dark/20' : 'bg-[rgba(var(--color-brand-dark-rgb),0.1)]')
                       : isDark
                         ? 'bg-slate-900 hover:bg-slate-800'
                         : 'bg-white hover:bg-slate-50'
@@ -688,11 +688,11 @@ function SchedulePanel({
                     className={cn(
                       'mx-auto mb-1 flex h-5 w-5 items-center justify-center text-xs font-semibold',
                       cell.isSelected
-                        ? (useCustomAccent ? '' : isDark ? 'text-blue-200' : 'text-brand-dark')
+                        ? (useCustomAccent ? '' : isDark ? 'text-blue-200' : 'text-[var(--color-brand-dark)]')
                         : cell.isToday
                           ? isDark
                             ? 'text-sky-200'
-                            : 'text-sky-600'
+                            : 'text-[var(--color-brand-dark)]'
                           : isDark
                             ? 'text-slate-200'
                             : 'text-slate-600'
@@ -782,7 +782,7 @@ function SchedulePanel({
                     <div
                       className={cn(
                         'pointer-events-none absolute right-1.5 top-1.5 rounded px-1 text-[10px] font-semibold',
-                        isDark ? 'bg-brand-dark/20 text-brand-light' : 'bg-brand-dark/15 text-brand-dark'
+                        isDark ? 'bg-brand-dark/20 text-brand-light' : 'bg-[rgba(var(--color-brand-dark-rgb),0.15)] text-[var(--color-brand-dark)]'
                       )}
                     >
                       +{hiddenCount}
@@ -846,12 +846,12 @@ function SchedulePanel({
                   className={cn(
                     'rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors',
                     createTab === tab.id
-                      ? (useCustomAccent ? 'border-transparent text-white' : (isDark ? 'border-brand-dark bg-brand-dark text-white' : 'border-brand-dark bg-brand-dark text-white'))
+                      ? (useCustomAccent ? 'border-transparent text-white' : (isDark ? 'border-brand-dark bg-brand-dark text-white' : 'border-[var(--color-brand-dark)] bg-[var(--color-brand-dark)] text-white'))
                       : (useCustomAccent
                           ? 'border-transparent bg-transparent'
                           : isDark
                             ? 'border-brand-dark/40 bg-transparent text-brand-light hover:bg-brand-dark/15'
-                            : 'border-brand-dark/40 bg-white text-brand-dark hover:bg-brand-dark/10')
+                            : 'border-[rgba(var(--color-brand-dark-rgb),0.4)] bg-white text-[var(--color-brand-dark)] hover:bg-[rgba(var(--color-brand-dark-rgb),0.1)]')
                   )}
                   style={
                     useCustomAccent
@@ -870,7 +870,7 @@ function SchedulePanel({
           <h5
             className={cn(
               'mb-3 text-sm font-semibold',
-              !useCustomAccent && (isDark ? 'text-blue-200' : 'text-brand-dark')
+              !useCustomAccent && (isDark ? 'text-blue-200' : 'text-[var(--color-brand-dark)]')
             )}
             style={useCustomAccent ? { color: orgTheme.accent } : undefined}
           >
@@ -887,14 +887,14 @@ function SchedulePanel({
               'mb-2',
               isDark
                 ? 'border-brand-dark/30 bg-slate-900 text-slate-100 placeholder:text-slate-500'
-                : 'border-brand-dark/25 bg-white text-slate-700 placeholder:text-slate-400'
+                : 'border-[rgba(var(--color-brand-dark-rgb),0.25)] bg-white text-slate-700 placeholder:text-slate-400'
             )}
           />
 
           {(editingEventId || createTab === 'normal') && (
             <div className={dateRangeGridClass}>
-              <div className={cn('rounded-xl border p-3', isDark ? 'border-brand-dark/30 bg-slate-900/70' : 'border-brand-dark/20 bg-white')}>
-                <div className={cn('mb-2 text-xs font-semibold', isDark ? 'text-blue-200' : 'text-brand-dark')}>시작</div>
+              <div className={cn('rounded-xl border p-3', isDark ? 'border-brand-dark/30 bg-slate-900/70' : 'border-[rgba(var(--color-brand-dark-rgb),0.2)] bg-white')}>
+                <div className={cn('mb-2 text-xs font-semibold', isDark ? 'text-blue-200' : 'text-[var(--color-brand-dark)]')}>시작</div>
                 <button
                   type="button"
                   onClick={() => openSingleDateModal('start')}
@@ -917,8 +917,8 @@ function SchedulePanel({
                 </button>
               </div>
 
-              <div className={cn('rounded-xl border p-3', isDark ? 'border-brand-dark/30 bg-slate-900/70' : 'border-brand-dark/20 bg-white')}>
-                <div className={cn('mb-2 text-xs font-semibold', isDark ? 'text-blue-200' : 'text-brand-dark')}>종료</div>
+              <div className={cn('rounded-xl border p-3', isDark ? 'border-brand-dark/30 bg-slate-900/70' : 'border-[rgba(var(--color-brand-dark-rgb),0.2)] bg-white')}>
+                <div className={cn('mb-2 text-xs font-semibold', isDark ? 'text-blue-200' : 'text-[var(--color-brand-dark)]')}>종료</div>
                 <button
                   type="button"
                   onClick={() => openSingleDateModal('end')}
@@ -945,8 +945,8 @@ function SchedulePanel({
 
           {!editingEventId && createTab === 'repeat' && (
             <div className={dateRangeGridClass}>
-              <div className={cn('rounded-xl border p-3', isDark ? 'border-brand-dark/30 bg-slate-900/70' : 'border-brand-dark/20 bg-white')}>
-                <div className={cn('mb-2 text-xs font-semibold', isDark ? 'text-blue-200' : 'text-brand-dark')}>반복 시작</div>
+              <div className={cn('rounded-xl border p-3', isDark ? 'border-brand-dark/30 bg-slate-900/70' : 'border-[rgba(var(--color-brand-dark-rgb),0.2)] bg-white')}>
+                <div className={cn('mb-2 text-xs font-semibold', isDark ? 'text-blue-200' : 'text-[var(--color-brand-dark)]')}>반복 시작</div>
                 <button
                   type="button"
                   onClick={() => openSingleDateModal('start')}
@@ -969,8 +969,8 @@ function SchedulePanel({
                 </button>
               </div>
 
-              <div className={cn('rounded-xl border p-3', isDark ? 'border-brand-dark/30 bg-slate-900/70' : 'border-brand-dark/20 bg-white')}>
-                <div className={cn('mb-2 text-xs font-semibold', isDark ? 'text-blue-200' : 'text-brand-dark')}>반복 종료</div>
+              <div className={cn('rounded-xl border p-3', isDark ? 'border-brand-dark/30 bg-slate-900/70' : 'border-[rgba(var(--color-brand-dark-rgb),0.2)] bg-white')}>
+                <div className={cn('mb-2 text-xs font-semibold', isDark ? 'text-blue-200' : 'text-[var(--color-brand-dark)]')}>반복 종료</div>
                 <button
                   type="button"
                   onClick={() => openSingleDateModal('end')}
@@ -997,9 +997,9 @@ function SchedulePanel({
 
           {!editingEventId && createTab === 'period' && (
             <>
-              <div className={cn('mb-2 rounded-xl border p-2', isDark ? 'border-brand-dark/30 bg-slate-900/70' : 'border-brand-dark/25 bg-white/70')}>
+              <div className={cn('mb-2 rounded-xl border p-2', isDark ? 'border-brand-dark/30 bg-slate-900/70' : 'border-[rgba(var(--color-brand-dark-rgb),0.25)] bg-white/70')}>
                 <div className={cn('flex gap-2', isNarrowLayout ? 'flex-col items-stretch' : 'flex-row items-center justify-between')}>
-                  <div className={cn('min-w-0 text-xs font-semibold leading-snug', isDark ? 'text-blue-200' : 'text-brand-dark')}>
+                  <div className={cn('min-w-0 text-xs font-semibold leading-snug', isDark ? 'text-blue-200' : 'text-[var(--color-brand-dark)]')}>
                     선택 기간: {formatDateLabel(periodRange.startDate, isNarrowLayout)} ~ {formatDateLabel(periodRange.endDate, isNarrowLayout)}
                   </div>
                   <button
@@ -1009,7 +1009,7 @@ function SchedulePanel({
                       'inline-flex shrink-0 items-center gap-1 self-start whitespace-nowrap rounded-md border px-2.5 py-1.5 text-xs font-semibold outline-none focus:outline-none',
                       isDark
                         ? 'border-brand-dark/35 bg-brand-dark/10 text-blue-200 hover:bg-brand-dark/20'
-                        : 'border-brand-dark/30 bg-white text-brand-dark hover:bg-brand-dark/10'
+                        : 'border-[rgba(var(--color-brand-dark-rgb),0.3)] bg-white text-[var(--color-brand-dark)] hover:bg-[rgba(var(--color-brand-dark-rgb),0.1)]'
                     )}
                     aria-label="기간 캘린더 열기"
                   >
@@ -1034,7 +1034,7 @@ function SchedulePanel({
                     <ClockIcon className={pickerIconColorClass} />
                   </span>
                 </button>
-                <span className={cn('text-sm font-medium', isDark ? 'text-brand-light' : 'text-brand-dark')}>~</span>
+                <span className={cn('text-sm font-medium', isDark ? 'text-brand-light' : 'text-[var(--color-brand-dark)]')}>~</span>
                 <button
                   type="button"
                   onClick={() => openTimeModal('end', 'period')}
@@ -1080,7 +1080,7 @@ function SchedulePanel({
                     'mb-0 w-full appearance-none pr-8',
                     isDark
                       ? 'border-brand-dark/30 bg-slate-900 text-slate-100'
-                      : 'border-brand-dark/25 bg-white text-slate-700'
+                      : 'border-[rgba(var(--color-brand-dark-rgb),0.25)] bg-white text-slate-700'
                   )}
                 >
                   <option value="daily">매일</option>
@@ -1096,7 +1096,7 @@ function SchedulePanel({
                   strokeLinejoin="round"
                   className={cn(
                     'pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2',
-                    isDark ? 'text-slate-300' : 'text-slate-500'
+                    pickerIconColorClass
                   )}
                   aria-hidden
                 >
@@ -1106,7 +1106,7 @@ function SchedulePanel({
               <span
                 className={cn(
                   'text-xs font-semibold',
-                  isDark ? 'text-brand-light' : 'text-brand-dark'
+                  isDark ? 'text-brand-light' : 'text-[var(--color-brand-dark)]'
                 )}
               >
                 종료일
@@ -1120,7 +1120,7 @@ function SchedulePanel({
                   'mb-0 min-w-[180px] flex-1 focus:ring-0',
                   isDark
                     ? 'border-brand-dark/30 bg-slate-900 text-slate-100'
-                    : 'border-brand-dark/25 bg-white text-slate-700'
+                    : 'border-[rgba(var(--color-brand-dark-rgb),0.25)] bg-white text-slate-700'
                 )}
               />
             </div>
@@ -1135,7 +1135,7 @@ function SchedulePanel({
               inputBase,
               isDark
                 ? 'border-brand-dark/30 bg-slate-900 text-slate-100 placeholder:text-slate-500'
-                : 'border-brand-dark/25 bg-white text-slate-700 placeholder:text-slate-400'
+                : 'border-[rgba(var(--color-brand-dark-rgb),0.25)] bg-white text-slate-700 placeholder:text-slate-400'
             )}
           />
 
@@ -1150,7 +1150,7 @@ function SchedulePanel({
                     'text-white',
                     !useCustomAccent && (isDark
                       ? 'bg-brand-dark hover:bg-brand-light'
-                      : 'bg-brand-dark hover:bg-brand-light')
+                      : 'bg-[var(--color-brand-dark)] hover:bg-[color-mix(in_srgb,var(--color-brand-dark),white_15%)]')
                   )}
                   style={useCustomAccent ? { background: orgTheme.accent } : undefined}
                 >
@@ -1164,7 +1164,7 @@ function SchedulePanel({
                     'border',
                     isDark
                       ? 'border-brand-dark/40 bg-transparent text-blue-200 hover:bg-brand-dark/10'
-                      : 'border-brand-dark/30 bg-white text-brand-dark hover:bg-brand-dark/10'
+                      : 'border-[rgba(var(--color-brand-dark-rgb),0.3)] bg-white text-[var(--color-brand-dark)] hover:bg-[rgba(var(--color-brand-dark-rgb),0.1)]'
                   )}
                 >
                   취소
@@ -1197,7 +1197,7 @@ function SchedulePanel({
                   'text-white',
                   !useCustomAccent && (isDark
                     ? 'bg-brand-dark hover:bg-brand-light'
-                    : 'bg-brand-dark hover:bg-brand-light')
+                    : 'bg-[var(--color-brand-dark)] hover:bg-[color-mix(in_srgb,var(--color-brand-dark),white_15%)]')
                 )}
                 style={useCustomAccent ? { background: orgTheme.accent } : undefined}
               >
@@ -1211,7 +1211,7 @@ function SchedulePanel({
           <h5
             className={cn(
               'text-sm font-semibold',
-              isDark ? 'text-blue-200' : 'text-brand-dark'
+              isDark ? 'text-blue-200' : 'text-[var(--color-brand-dark)]'
             )}
           >
             선택한 날짜 일정
@@ -1219,7 +1219,7 @@ function SchedulePanel({
           <span
             className={cn(
               'text-xs font-medium',
-              isDark ? 'text-brand-light' : 'text-brand-dark'
+              isDark ? 'text-brand-light' : 'text-[var(--color-brand-dark)]'
             )}
           >
             {selectedEvents.length}건
@@ -1230,7 +1230,7 @@ function SchedulePanel({
           <p
             className={cn(
               'rounded-xl px-4 py-3 text-sm',
-              isDark ? 'bg-brand-dark/15 text-blue-200' : 'bg-brand-dark/10 text-brand-dark'
+              isDark ? 'bg-brand-dark/15 text-blue-200' : 'bg-[rgba(var(--color-brand-dark-rgb),0.1)] text-[var(--color-brand-dark)]'
             )}
           >
             선택한 날짜에 일정이 없습니다.
@@ -1251,7 +1251,7 @@ function SchedulePanel({
                   <strong
                     className={cn(
                       'mb-1 block truncate text-sm font-semibold',
-                      isDark ? 'text-blue-200' : 'text-brand-dark'
+                      isDark ? 'text-blue-200' : 'text-[var(--color-brand-dark)]'
                     )}
                   >
                     {ev.title}
@@ -1259,7 +1259,7 @@ function SchedulePanel({
                   <span
                     className={cn(
                       'mb-1 block text-xs leading-relaxed whitespace-nowrap overflow-hidden text-ellipsis',
-                      isDark ? 'text-brand-light' : 'text-brand-dark'
+                      isDark ? 'text-brand-light' : 'text-[var(--color-brand-dark)]'
                     )}
                   >
                     {new Date(ev.startAt).toLocaleString('ko-KR')} ~ {new Date(ev.endAt).toLocaleString('ko-KR')}
@@ -1284,7 +1284,7 @@ function SchedulePanel({
                       'px-3 py-1.5 text-xs text-white',
                       !useCustomAccent && (isDark
                         ? 'bg-brand-dark hover:bg-brand-light'
-                        : 'bg-brand-dark hover:bg-brand-light')
+                        : 'bg-[var(--color-brand-dark)] hover:bg-[color-mix(in_srgb,var(--color-brand-dark),white_15%)]')
                     )}
                     style={useCustomAccent ? { background: orgTheme.accent } : undefined}
                   >
@@ -1320,7 +1320,7 @@ function SchedulePanel({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-3 flex items-center justify-between gap-2">
-              <div className={cn('text-sm font-semibold', isDark ? 'text-blue-200' : 'text-brand-dark')}>
+              <div className={cn('text-sm font-semibold', isDark ? 'text-blue-200' : 'text-[var(--color-brand-dark)]')}>
                 {singleDateModal.target === 'end' ? '종료일 선택' : '시작일 선택'}
               </div>
               <button
@@ -1336,7 +1336,7 @@ function SchedulePanel({
             <div className="mb-3 flex items-center justify-end gap-2">
               <button
                 type="button"
-                className={cn('flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold transition-colors text-white', !useCustomAccent && (isDark ? 'bg-brand-dark hover:bg-brand-light' : 'bg-brand-dark hover:bg-brand-light'))}
+                className={cn('flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold transition-colors text-white', !useCustomAccent && (isDark ? 'bg-brand-dark hover:bg-brand-light' : 'bg-[var(--color-brand-dark)] hover:bg-[color-mix(in_srgb,var(--color-brand-dark),white_15%)]'))}
                 style={useCustomAccent ? { background: orgTheme.accent } : undefined}
                 onClick={() => setSingleDateModal((prev) => ({ ...prev, baseMonth: addMonths(prev.baseMonth, -1) }))}
                 aria-label="날짜 이전 달"
@@ -1345,7 +1345,7 @@ function SchedulePanel({
               </button>
               <button
                 type="button"
-                className={cn('flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold transition-colors text-white', !useCustomAccent && (isDark ? 'bg-brand-dark hover:bg-brand-light' : 'bg-brand-dark hover:bg-brand-light'))}
+                className={cn('flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold transition-colors text-white', !useCustomAccent && (isDark ? 'bg-brand-dark hover:bg-brand-light' : 'bg-[var(--color-brand-dark)] hover:bg-[color-mix(in_srgb,var(--color-brand-dark),white_15%)]'))}
                 style={useCustomAccent ? { background: orgTheme.accent } : undefined}
                 onClick={() => setSingleDateModal((prev) => ({ ...prev, baseMonth: addMonths(prev.baseMonth, 1) }))}
                 aria-label="날짜 다음 달"
@@ -1373,7 +1373,7 @@ function SchedulePanel({
           >
             <div className="mb-3 flex items-center justify-between gap-2">
               <div>
-                <div className={cn('text-sm font-semibold', isDark ? 'text-blue-200' : 'text-brand-dark')}>
+                <div className={cn('text-sm font-semibold', isDark ? 'text-blue-200' : 'text-[var(--color-brand-dark)]')}>
                   시간 선택
                 </div>
                 <div className={cn('text-xs', isDark ? 'text-slate-400' : 'text-slate-500')}>
@@ -1393,7 +1393,7 @@ function SchedulePanel({
               </button>
             </div>
 
-            <div className={cn('mb-3 rounded-xl p-3 text-center text-sm font-semibold', isDark ? 'bg-brand-dark/15 text-blue-200' : 'bg-brand-dark/10 text-brand-dark')}>
+            <div className={cn('mb-3 rounded-xl p-3 text-center text-sm font-semibold', isDark ? 'bg-brand-dark/15 text-blue-200' : 'bg-[rgba(var(--color-brand-dark-rgb),0.1)] text-[var(--color-brand-dark)]')}>
               {formatTimeLabel(`${String(timeModal.draftHour).padStart(2, '0')}:${String(timeModal.draftMinute).padStart(2, '0')}`)}
             </div>
 
@@ -1492,7 +1492,7 @@ function SchedulePanel({
                 }}
                 className={cn(
                   'rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors',
-                  isDark ? 'bg-brand-dark/15 text-blue-200 hover:bg-brand-dark/25' : 'bg-brand-dark/10 text-brand-dark hover:bg-brand-dark/20'
+                  isDark ? 'bg-brand-dark/15 text-blue-200 hover:bg-brand-dark/25' : 'bg-[rgba(var(--color-brand-dark-rgb),0.1)] text-[var(--color-brand-dark)] hover:bg-[rgba(var(--color-brand-dark-rgb),0.2)]'
                 )}
               >
                 지금
@@ -1508,7 +1508,7 @@ function SchedulePanel({
                   'border',
                   isDark
                     ? 'border-brand-dark/40 bg-transparent text-blue-200 hover:bg-brand-dark/10'
-                    : 'border-brand-dark/30 bg-white text-brand-dark hover:bg-brand-dark/10'
+                    : 'border-[rgba(var(--color-brand-dark-rgb),0.3)] bg-white text-[var(--color-brand-dark)] hover:bg-[rgba(var(--color-brand-dark-rgb),0.1)]'
                 )}
               >
                 취소
@@ -1521,7 +1521,7 @@ function SchedulePanel({
                   'text-white',
                   !useCustomAccent && (isDark
                     ? 'bg-brand-dark hover:bg-brand-light'
-                    : 'bg-brand-dark hover:bg-brand-light')
+                    : 'bg-[var(--color-brand-dark)] hover:bg-[color-mix(in_srgb,var(--color-brand-dark),white_15%)]')
                 )}
                 style={useCustomAccent ? { background: orgTheme.accent } : undefined}
               >
@@ -1543,10 +1543,10 @@ function SchedulePanel({
           >
             <div className="mb-3 flex items-center justify-between gap-2">
               <div>
-                <div className={cn('text-sm font-semibold', isDark ? 'text-blue-200' : 'text-brand-dark')}>
+                <div className={cn('text-sm font-semibold', isDark ? 'text-blue-200' : 'text-[var(--color-brand-dark)]')}>
                   출발일/도착일을 선택해 주세요
                 </div>
-                <div className={cn('text-xs', isDark ? 'text-brand-light' : 'text-brand-dark')}>
+                <div className={cn('text-xs', isDark ? 'text-brand-light' : 'text-[var(--color-brand-dark)]')}>
                   {draftRangeAnchorDate ? '종료일을 선택해 주세요' : '시작일을 먼저 선택해 주세요'}
                 </div>
               </div>
@@ -1563,7 +1563,7 @@ function SchedulePanel({
             <div className="mb-3 flex items-center justify-end gap-2">
               <button
                 type="button"
-                className={cn('flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold transition-colors text-white', !useCustomAccent && (isDark ? 'bg-brand-dark hover:bg-brand-light' : 'bg-brand-dark hover:bg-brand-light'))}
+                className={cn('flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold transition-colors text-white', !useCustomAccent && (isDark ? 'bg-brand-dark hover:bg-brand-light' : 'bg-[var(--color-brand-dark)] hover:bg-[color-mix(in_srgb,var(--color-brand-dark),white_15%)]'))}
                 style={useCustomAccent ? { background: orgTheme.accent } : undefined}
                 onClick={() => setDraftRangeBaseMonth((m) => addMonths(m, -1))}
                 aria-label="기간 이전 달"
@@ -1572,7 +1572,7 @@ function SchedulePanel({
               </button>
               <button
                 type="button"
-                className={cn('flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold transition-colors text-white', !useCustomAccent && (isDark ? 'bg-brand-dark hover:bg-brand-light' : 'bg-brand-dark hover:bg-brand-light'))}
+                className={cn('flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold transition-colors text-white', !useCustomAccent && (isDark ? 'bg-brand-dark hover:bg-brand-light' : 'bg-[var(--color-brand-dark)] hover:bg-[color-mix(in_srgb,var(--color-brand-dark),white_15%)]'))}
                 style={useCustomAccent ? { background: orgTheme.accent } : undefined}
                 onClick={() => setDraftRangeBaseMonth((m) => addMonths(m, 1))}
                 aria-label="기간 다음 달"
@@ -1587,7 +1587,7 @@ function SchedulePanel({
             </div>
 
             <div className="mb-3 flex items-center justify-between gap-2">
-              <span className={cn('min-w-0 text-xs font-medium leading-snug', isDark ? 'text-blue-200' : 'text-brand-dark')}>
+              <span className={cn('min-w-0 text-xs font-medium leading-snug', isDark ? 'text-blue-200' : 'text-[var(--color-brand-dark)]')}>
                 선택 기간: {formatDateLabel(draftPeriodRange.startDate, isNarrowLayout)} ~ {formatDateLabel(draftPeriodRange.endDate, isNarrowLayout)}
               </span>
             </div>
@@ -1601,7 +1601,7 @@ function SchedulePanel({
                   'border',
                   isDark
                     ? 'border-brand-dark/40 bg-transparent text-blue-200 hover:bg-brand-dark/10'
-                    : 'border-brand-dark/30 bg-white text-brand-dark hover:bg-brand-dark/10'
+                    : 'border-[rgba(var(--color-brand-dark-rgb),0.3)] bg-white text-[var(--color-brand-dark)] hover:bg-[rgba(var(--color-brand-dark-rgb),0.1)]'
                 )}
               >
                 취소
@@ -1614,7 +1614,7 @@ function SchedulePanel({
                   'text-white',
                   !useCustomAccent && (isDark
                     ? 'bg-brand-dark hover:bg-brand-light'
-                    : 'bg-brand-dark hover:bg-brand-light')
+                    : 'bg-[var(--color-brand-dark)] hover:bg-[color-mix(in_srgb,var(--color-brand-dark),white_15%)]')
                 )}
                 style={useCustomAccent ? { background: orgTheme.accent } : undefined}
               >
