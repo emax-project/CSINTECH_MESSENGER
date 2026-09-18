@@ -10,8 +10,8 @@ const ACTIVE_BLUE = '#5B8DEF';
 const INACTIVE_GRAY = '#c5c9d0';
 const FOLDER_BLUE = '#5B8DEF';
 
-function FolderIcon({ size = 15, active = true, activeColor }: { size?: number; active?: boolean; activeColor?: string }) {
-  const color = active ? (activeColor ?? FOLDER_BLUE) : INACTIVE_GRAY;
+function FolderIcon({ size = 15, active = true }: { size?: number; active?: boolean }) {
+  const color = active ? FOLDER_BLUE : INACTIVE_GRAY;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill={color} aria-hidden style={{ flexShrink: 0 }}>
       <path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" />
@@ -154,7 +154,6 @@ function OrgUserRow({
   orgGroupId,
   hasStatusIcon,
   renderStatusIcon,
-  accentColor,
 }: {
   u: OrgUser;
   isDark: boolean;
@@ -173,8 +172,6 @@ function OrgUserRow({
   orgGroupId?: string;
   hasStatusIcon: (status?: string | null) => boolean;
   renderStatusIcon: (status: string, size?: number) => JSX.Element | null;
-  /** 선택 시 배경/체크박스 강조색 테마 (라이트 모드 커스텀 테마일 때만 전달됨) */
-  accentColor?: { bg: string; checkbox: string };
 }) {
   const isMe = String(u.id) === String(myId) || u.email === myEmail;
   const devices = onlinePresence[String(u.id)];
@@ -207,7 +204,6 @@ function OrgUserRow({
             ? (isDark ? 'bg-brand-dark/20' : 'bg-brand-dark/[0.10]')
             : (isDark ? 'hover:bg-slate-800/70' : 'hover:bg-[#f3f6fa]'),
         )}
-        style={selected && accentColor ? { background: accentColor.bg } : undefined}
         onContextMenu={openContextMenu}
       >
         <label className="flex shrink-0 cursor-pointer items-center" onClick={(e) => e.stopPropagation()}>
@@ -216,7 +212,6 @@ function OrgUserRow({
             checked={selected}
             onChange={() => onToggleSelect(u.id)}
             className="h-3.5 w-3.5 cursor-pointer accent-brand"
-            style={accentColor ? { accentColor: accentColor.checkbox } : undefined}
           />
         </label>
         {u.statusMessage && hasStatusIcon(u.statusMessage) && (
@@ -365,13 +360,6 @@ function OrgTree({
     .map((id) => usersById.get(id))
     .filter(Boolean) as OrgUser[];
 
-  // 조직도 강조색 테마. 친구/내 그룹 탭을 포함해 이 컴포넌트 전체에서 쓴다.
-  // 파스텔 배경은 라이트 모드 전제로 만들어져 있어 다크 모드에서는 테마
-  // 선택과 무관하게 기존 브랜드 블루 스타일을 그대로 쓴다.
-  const orgTheme = getOrgTheme(accentTheme);
-  const useCustomAccent = !isDark && orgTheme.id !== 'default';
-  const rowAccentColor = useCustomAccent ? { bg: orgTheme.activeBg, checkbox: orgTheme.accent } : undefined;
-
   if (orgLoading && view !== 'groups') {
     return <p className={cn('p-4 text-[13px]', isDark ? 'text-slate-400' : 'text-slate-500')}>로딩 중...</p>;
   }
@@ -404,7 +392,6 @@ function OrgTree({
     onUserContextMenu,
     hasStatusIcon,
     renderStatusIcon,
-    accentColor: rowAccentColor,
   };
 
   if (view === 'friends') {
@@ -473,20 +460,17 @@ function OrgTree({
                   checked={allSelected}
                   onChange={(e) => toggleSelectMany(memberIds, e.target.checked)}
                   className="h-3.5 w-3.5 cursor-pointer accent-brand"
-                  style={useCustomAccent ? { accentColor: orgTheme.accent } : undefined}
                 />
-                <FolderIcon active={groupOpen} activeColor={useCustomAccent ? orgTheme.accent : undefined} />
+                <FolderIcon active={groupOpen} />
                 <button
                   type="button"
                   onClick={() => onToggleTree(groupKey)}
                   className={cn(
                     'min-w-0 flex-1 truncate border-none bg-transparent p-0 text-left text-[13px] font-semibold cursor-pointer',
-                    !(groupOpen && useCustomAccent) &&
-                      (groupOpen
-                        ? (isDark ? 'text-brand-light' : 'text-brand-dark')
-                        : (isDark ? 'text-slate-100' : 'text-slate-900')),
+                    groupOpen
+                      ? (isDark ? 'text-brand-light' : 'text-brand-dark')
+                      : (isDark ? 'text-slate-100' : 'text-slate-900'),
                   )}
-                  style={groupOpen && useCustomAccent ? { color: orgTheme.accent } : undefined}
                 >
                   {group.name}
                 </button>
@@ -500,9 +484,8 @@ function OrgTree({
                     onClick={() => onCreateChatFromOrgGroup(group)}
                     className={cn(
                       'shrink-0 border-none bg-transparent px-1 text-[11px] font-semibold cursor-pointer',
-                      !useCustomAccent && (isDark ? 'text-brand-light' : 'text-brand-dark'),
+                      isDark ? 'text-brand-light' : 'text-brand-dark',
                     )}
-                    style={useCustomAccent ? { color: orgTheme.accent } : undefined}
                   >
                     채팅
                   </button>
@@ -560,6 +543,11 @@ function OrgTree({
     return <p className={cn('p-4 text-[13px]', isDark ? 'text-slate-400' : 'text-slate-500')}>표시할 조직이 없습니다.</p>;
   }
 
+  // 선택 부서 강조색 테마. 파스텔 배경은 라이트 모드 전제로 만들어져 있어
+  // 다크 모드에서는 테마 선택과 무관하게 기존 브랜드 블루 스타일을 그대로 쓴다.
+  const orgTheme = getOrgTheme(accentTheme);
+  const useCustomAccent = !isDark && orgTheme.id !== 'default';
+
   /**
    * 부서는 하위 부서를 가질 수 있으므로 재귀로 그린다.
    * 체크박스는 하위 부서 인원까지 포함해 한 번에 선택되게 한다.
@@ -599,9 +587,8 @@ function OrgTree({
             checked={deptAllSelected}
             onChange={(e) => toggleSelectMany(deptIds, e.target.checked)}
             className="h-3.5 w-3.5 cursor-pointer accent-brand"
-            style={useCustomAccent ? { accentColor: orgTheme.accent } : undefined}
           />
-          <FolderIcon active={deptOpen || isSelectedDept} activeColor={useCustomAccent ? orgTheme.accent : undefined} />
+          <FolderIcon active={deptOpen || isSelectedDept} />
           <button
             type="button"
             onClick={() => {
@@ -689,20 +676,17 @@ function OrgTree({
                 checked={companyAllSelected}
                 onChange={(e) => toggleSelectMany(companyUserIds, e.target.checked)}
                 className="h-3.5 w-3.5 cursor-pointer accent-brand"
-                style={useCustomAccent ? { accentColor: orgTheme.accent } : undefined}
               />
-              <FolderIcon active={companyOpen} activeColor={useCustomAccent ? orgTheme.accent : undefined} />
+              <FolderIcon active={companyOpen} />
               <button
                 type="button"
                 onClick={() => onToggleTree(companyKey)}
                 className={cn(
                   'min-w-0 flex-1 truncate border-none bg-transparent p-0 text-left text-[13px] font-bold cursor-pointer',
-                  !(companyOpen && useCustomAccent) &&
-                    (companyOpen
-                      ? (isDark ? 'text-brand-light' : 'text-brand-dark')
-                      : (isDark ? 'text-slate-100' : 'text-slate-900')),
+                  companyOpen
+                    ? (isDark ? 'text-brand-light' : 'text-brand-dark')
+                    : (isDark ? 'text-slate-100' : 'text-slate-900'),
                 )}
-                style={companyOpen && useCustomAccent ? { color: orgTheme.accent } : undefined}
               >
                 {company.name}
                 <span className={cn('ml-0.5 font-normal tabular-nums', isDark ? 'text-slate-500' : 'text-slate-400')}>
