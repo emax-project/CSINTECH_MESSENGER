@@ -7,6 +7,7 @@ import { cn } from '../../../utils/cn';
 import { useAuthStore } from '../../../store';
 import { usersApi, authApi } from '../../../api';
 import { formatJobTitle } from '../../../utils/orgTree';
+import { ORG_THEMES, type OrgThemeId } from '../../../utils/orgTheme';
 import UIModal from '../../../components/ui/UIModal';
 import AdminSection from './AdminSection';
 import PasswordChangeModal from './PasswordChangeModal';
@@ -166,6 +167,8 @@ type SettingsPanelProps = {
   clearSnooze: () => void;
   toggleNotificationSound: () => void;
   toggleDark: () => void;
+  accentTheme: OrgThemeId;
+  onAccentThemeChange: (id: OrgThemeId) => void;
   hasElectron: boolean;
   canCheckUpdates: boolean;
   appVersion: string | null;
@@ -215,6 +218,8 @@ function SettingsPanel({
   clearSnooze,
   toggleNotificationSound,
   toggleDark,
+  accentTheme,
+  onAccentThemeChange,
   hasElectron,
   canCheckUpdates,
   appVersion,
@@ -423,6 +428,48 @@ function SettingsPanel({
           <button type="button" onClick={toggleDark} style={{ width: 48, height: 28, borderRadius: 14, border: 'none', background: isDark ? '#171717' : '#e2e8f0', cursor: 'pointer', position: 'relative' as const, padding: 0, flexShrink: 0 }}>
             <span style={{ position: 'absolute' as const, top: 3, left: isDark ? 23 : 3, width: 22, height: 22, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
           </button>
+        </div>
+
+        <div style={{ padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc', display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: isDark ? '#e2e8f0' : '#0f172a' }}>조직도 색상 테마</div>
+          <div style={{ fontSize: 12, color: isDark ? '#94a3b8' : '#64748b' }}>
+            {isDark
+              ? '다크 모드에서는 항상 기본 색상이 적용됩니다.'
+              : '조직도 상단 영역과 선택한 팀/부서 강조색을 바꿉니다. 나만 보이는 화면 설정이에요.'}
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8 }}>
+            {ORG_THEMES.map((t) => {
+              const selected = accentTheme === t.id;
+              const swatchBg = t.id === 'default' ? 'var(--color-brand-dark)' : t.accent;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => onAccentThemeChange(t.id)}
+                  title={t.label}
+                  disabled={isDark}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '6px 10px',
+                    borderRadius: 999,
+                    border: selected ? `2px solid ${swatchBg}` : `1px solid ${isDark ? '#475569' : '#e2e8f0'}`,
+                    background: isDark ? '#1e293b' : '#fff',
+                    cursor: isDark ? 'default' : 'pointer',
+                    opacity: isDark ? 0.5 : 1,
+                    fontSize: 12,
+                    fontWeight: selected ? 700 : 500,
+                    color: isDark ? '#e2e8f0' : '#334155',
+                  }}
+                >
+                  <span style={{ width: 14, height: 14, borderRadius: '50%', background: swatchBg, flexShrink: 0 }} />
+                  {t.label}
+                  {selected && <span style={{ color: swatchBg }}>✓</span>}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div style={{ padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc', display: 'flex', flexDirection: 'column' as const, gap: 10 }}>

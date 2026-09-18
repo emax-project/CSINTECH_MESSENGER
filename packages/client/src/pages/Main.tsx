@@ -140,6 +140,8 @@ export default function Main() {
   const logout = useAuthStore((s) => s.logout);
   const isDark = useThemeStore((s) => s.isDark);
   const toggleDark = useThemeStore((s) => s.toggleDark);
+  const accentTheme = useThemeStore((s) => s.accentTheme) as import('../utils/orgTheme').OrgThemeId;
+  const setAccentTheme = useThemeStore((s) => s.setAccentTheme);
 
   useEffect(() => {
     window.electronAPI?.setTitleBarTheme?.(isDark);
@@ -1116,6 +1118,7 @@ export default function Main() {
           <div className="flex-1 min-h-0 min-w-0 flex flex-col">
             <RightContentRouter
               isDark={isDark}
+              accentTheme={accentTheme}
               isNarrowLayout={isNarrowLayout}
               activePanel={activePanel}
               selectedRoomId={selectedRoomId}
@@ -1225,6 +1228,8 @@ export default function Main() {
                 clearSnooze,
                 toggleNotificationSound,
                 toggleDark,
+                accentTheme,
+                onAccentThemeChange: setAccentTheme,
                 hasElectron,
                 canCheckUpdates,
                 appVersion,

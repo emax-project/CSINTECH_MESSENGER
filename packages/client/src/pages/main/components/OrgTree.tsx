@@ -4,6 +4,7 @@ import type { OrgCompany, OrgDepartment, OrgGroup, OrgUser } from '../../../api'
 import type { OnlinePresenceMap } from '../../../utils/presence';
 import { cn } from '../../../utils/cn';
 import { allOrgUsers, companyUsers, defaultOpenDepartmentIds, departmentUsers, formatJobTitle } from '../../../utils/orgTree';
+import { getOrgTheme, type OrgThemeId } from '../../../utils/orgTheme';
 
 const ACTIVE_BLUE = '#5B8DEF';
 const INACTIVE_GRAY = '#c5c9d0';
@@ -102,6 +103,8 @@ function FriendStar({
 
 export type OrgTreeProps = {
   isDark: boolean;
+  /** 선택 부서 배경/텍스트 강조색 테마. 라이트 모드에서만 적용된다. */
+  accentTheme?: OrgThemeId;
   orgLoading: boolean;
   orgError: boolean;
   orgTree: OrgCompany[];
@@ -259,6 +262,7 @@ function detectSelfMobile() {
 
 function OrgTree({
   isDark,
+  accentTheme = 'default',
   orgLoading,
   orgError,
   orgTree,
@@ -539,6 +543,11 @@ function OrgTree({
     return <p className={cn('p-4 text-[13px]', isDark ? 'text-slate-400' : 'text-slate-500')}>표시할 조직이 없습니다.</p>;
   }
 
+  // 선택 부서 강조색 테마. 파스텔 배경은 라이트 모드 전제로 만들어져 있어
+  // 다크 모드에서는 테마 선택과 무관하게 기존 브랜드 블루 스타일을 그대로 쓴다.
+  const orgTheme = getOrgTheme(accentTheme);
+  const useCustomAccent = !isDark && orgTheme.id !== 'default';
+
   /**
    * 부서는 하위 부서를 가질 수 있으므로 재귀로 그린다.
    * 체크박스는 하위 부서 인원까지 포함해 한 번에 선택되게 한다.
@@ -560,8 +569,9 @@ function OrgTree({
         <div
           className={cn(
             'flex items-center gap-1.5 px-1 py-0.5 rounded',
-            isSelectedDept && (isDark ? 'bg-brand-dark/20' : 'bg-brand-dark/[0.08]'),
+            isSelectedDept && !useCustomAccent && (isDark ? 'bg-brand-dark/20' : 'bg-brand-dark/[0.08]'),
           )}
+          style={isSelectedDept && useCustomAccent ? { background: orgTheme.activeBg } : undefined}
           onContextMenu={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -587,10 +597,12 @@ function OrgTree({
             }}
             className={cn(
               'min-w-0 flex-1 truncate border-none bg-transparent p-0 text-left text-[13px] font-semibold cursor-pointer',
-              isSelectedDept
-                ? (isDark ? 'text-brand-light' : 'text-brand-dark')
-                : (isDark ? 'text-slate-300' : 'text-slate-600'),
+              !(isSelectedDept && useCustomAccent) &&
+                (isSelectedDept
+                  ? (isDark ? 'text-brand-light' : 'text-brand-dark')
+                  : (isDark ? 'text-slate-300' : 'text-slate-600')),
             )}
+            style={isSelectedDept && useCustomAccent ? { color: orgTheme.activeText } : undefined}
           >
             {dept.name}
             <span className={cn('ml-0.5 font-normal tabular-nums', isDark ? 'text-slate-500' : 'text-slate-400')}>

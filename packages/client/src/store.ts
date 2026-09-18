@@ -59,6 +59,9 @@ export const useAuthStore = create<AuthState>()(
 type ThemeState = {
   isDark: boolean;
   toggleDark: () => void;
+  /** 조직도 상단 영역·선택 부서 강조색 테마. 'default'는 기존 파란색을 그대로 씀. */
+  accentTheme: string;
+  setAccentTheme: (id: string) => void;
 };
 
 export const useThemeStore = create<ThemeState>()(
@@ -66,6 +69,8 @@ export const useThemeStore = create<ThemeState>()(
     (set) => ({
       isDark: false,
       toggleDark: () => set((s) => ({ isDark: !s.isDark })),
+      accentTheme: 'default',
+      setAccentTheme: (id) => set({ accentTheme: id }),
     }),
     { name: 'theme' }
   )

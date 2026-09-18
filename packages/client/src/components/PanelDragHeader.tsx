@@ -120,9 +120,10 @@ type PanelTitleRowProps = {
   right?: ReactNode;
   compact?: boolean;
   className?: string;
+  style?: CSSProperties;
 };
 
-export function PanelTitleRow({ isDark, title, left, right, compact, className }: PanelTitleRowProps) {
+export function PanelTitleRow({ isDark, title, left, right, compact, className, style }: PanelTitleRowProps) {
   return (
     <div
       className={cn(
@@ -131,6 +132,7 @@ export function PanelTitleRow({ isDark, title, left, right, compact, className }
         compact && 'h-[44px] min-h-[44px]',
         className,
       )}
+      style={style}
     >
       {left ? <div className="flex shrink-0 items-center">{left}</div> : null}
       <PanelDragHeader className="flex min-h-0 min-w-0 flex-1 items-center gap-2 self-stretch">

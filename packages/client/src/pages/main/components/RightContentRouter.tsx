@@ -31,6 +31,7 @@ type EventFormState = { title: string; startAt: string; endAt: string; descripti
 
 type RightContentRouterProps = {
   isDark: boolean;
+  accentTheme?: import('../../../utils/orgTheme').OrgThemeId;
   isNarrowLayout: boolean;
   activePanel: ActivePanel;
   selectedRoomId?: string;
@@ -121,6 +122,8 @@ type RightContentRouterProps = {
     clearSnooze: () => void;
     toggleNotificationSound: () => void;
     toggleDark: () => void;
+    accentTheme: import('../../../utils/orgTheme').OrgThemeId;
+    onAccentThemeChange: (id: import('../../../utils/orgTheme').OrgThemeId) => void;
     hasElectron: boolean;
     canCheckUpdates: boolean;
     appVersion: string | null;
@@ -168,6 +171,7 @@ type RightContentRouterProps = {
 
 function RightContentRouter({
   isDark,
+  accentTheme = 'default',
   isNarrowLayout,
   activePanel,
   selectedRoomId,
@@ -194,6 +198,7 @@ function RightContentRouter({
         <Suspense fallback={<PanelLoadingFallback />}>
           <OrgPanel
             isDark={isDark}
+            accentTheme={accentTheme}
             panelWrapStyle={panelWrapStyle}
             searchQuery={orgProps.searchQuery}
             onSearchQueryChange={orgProps.onSearchQueryChange}
@@ -315,6 +320,8 @@ function RightContentRouter({
             clearSnooze={settingsProps.clearSnooze}
             toggleNotificationSound={settingsProps.toggleNotificationSound}
             toggleDark={settingsProps.toggleDark}
+            accentTheme={settingsProps.accentTheme}
+            onAccentThemeChange={settingsProps.onAccentThemeChange}
             hasElectron={settingsProps.hasElectron}
             canCheckUpdates={settingsProps.canCheckUpdates}
             appVersion={settingsProps.appVersion}
