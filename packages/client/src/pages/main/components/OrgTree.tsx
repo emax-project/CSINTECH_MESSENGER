@@ -692,13 +692,21 @@ function OrgTree({
                 onClick={() => onToggleTree(companyKey)}
                 className={cn(
                   'min-w-0 flex-1 truncate border-none bg-transparent p-0 text-left text-[13px] font-bold cursor-pointer',
-                  companyOpen
-                    ? (isDark ? 'text-brand-light' : 'text-brand-dark')
-                    : (isDark ? 'text-slate-100' : 'text-slate-900'),
+                  !(companyOpen && useCustomAccent) &&
+                    (companyOpen
+                      ? (isDark ? 'text-brand-light' : 'text-brand-dark')
+                      : (isDark ? 'text-slate-100' : 'text-slate-900')),
                 )}
+                style={companyOpen && useCustomAccent ? { color: orgTheme.accent } : undefined}
               >
                 {company.name}
-                <span className={cn('ml-0.5 font-normal tabular-nums', isDark ? 'text-slate-500' : 'text-slate-400')}>
+                <span
+                  className={cn(
+                    'ml-0.5 font-normal tabular-nums',
+                    !(companyOpen && useCustomAccent) && (isDark ? 'text-slate-500' : 'text-slate-400'),
+                  )}
+                  style={companyOpen && useCustomAccent ? { color: orgTheme.accent } : undefined}
+                >
                   ({memberCount})
                 </span>
               </button>
