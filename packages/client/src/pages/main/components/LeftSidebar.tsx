@@ -8,8 +8,9 @@ import {
 } from '../../../utils/electronChrome';
 import { openGroupware } from '../../../utils/groupware';
 import { cn } from '../../../utils/cn';
-import { useAuthStore } from '../../../store';
+import { useAuthStore, useThemeStore } from '../../../store';
 import { getBaseUrl, type UserAffiliation } from '../../../api';
+import { getOrgTheme } from '../../../utils/orgTheme';
 import ProfileMenu from './ProfileMenu';
 
 type ActivePanel = 'none' | 'notifications' | 'memo' | 'rooms' | 'schedule' | 'settings' | 'notepad';
@@ -39,8 +40,8 @@ type LeftSidebarProps = {
 };
 
 /** 조직도 메뉴 아이콘. 회사 CI 대신 조직 계층 구조를 직관적으로 드러내는 트리 모양을 쓴다. */
-function OrgTreeIcon({ isDark }: { isDark: boolean }) {
-  const color = isDark ? '#e2e8f0' : '#334155';
+function OrgTreeIcon({ isDark, active = false }: { isDark: boolean; active?: boolean }) {
+  const color = active ? (isDark ? 'var(--color-brand-light)' : '#0F172A') : (isDark ? '#e2e8f0' : '#334155');
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <rect x="9" y="3" width="6" height="5" rx="1.2" />
@@ -64,8 +65,18 @@ function NotepadIcon() {
 }
 
 function Badge({ children }: { children: string }) {
+  const isDark = useThemeStore((s) => s.isDark);
+  const accentTheme = useThemeStore((s) => s.accentTheme);
+  const orgTheme = getOrgTheme(accentTheme);
+  const useCustomAccent = !isDark && orgTheme.id !== 'default';
   return (
-    <span className="absolute top-0.5 right-0.5 min-w-4 h-4 px-0.5 rounded-full bg-brand text-white font-bold flex items-center justify-center text-[10px]">
+    <span
+      className={cn(
+        'absolute top-0.5 right-0.5 min-w-4 h-4 px-0.5 rounded-full text-white font-bold flex items-center justify-center text-[10px]',
+        !useCustomAccent && 'bg-brand',
+      )}
+      style={useCustomAccent ? { background: orgTheme.accent } : undefined}
+    >
       {children}
     </span>
   );
@@ -111,7 +122,10 @@ function LeftSidebar({
     alignItems: 'center',
     justifyContent: 'center',
     background: active ? (isDark ? '#334155' : '#f1f5f9') : 'transparent',
-    color: active ? (isDark ? 'var(--color-brand-light)' : 'var(--color-brand-dark)') : (isDark ? '#94a3b8' : '#64748b'),
+    // 좌측 사이드바는 기존 디자인을 그대로 유지하되, 선택된 아이콘만 진한 검정으로
+    // 표현해 선택 상태를 더 명확히 드러낸다(다크 모드는 대비를 위해 기존 밝은
+    // 브랜드색 유지).
+    color: active ? (isDark ? 'var(--color-brand-light)' : '#0F172A') : (isDark ? '#94a3b8' : '#64748b'),
   });
 
   const avatarSrc = user?.avatarUrl
@@ -141,7 +155,7 @@ function LeftSidebar({
         style={macDrag ? electronNoDragStyle : undefined}
         title="조직도"
       >
-        <OrgTreeIcon isDark={isDark} />
+        <OrgTreeIcon isDark={isDark} active={activePanel === 'none'} />
       </button>
 
       <div className={cn('w-8 h-px my-1', isDark ? 'bg-slate-600' : 'bg-slate-200')} />

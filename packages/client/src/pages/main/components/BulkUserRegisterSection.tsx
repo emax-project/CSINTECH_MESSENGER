@@ -8,6 +8,7 @@ import {
   type JobTitleItem,
   type OrgCompany,
 } from '../../../api';
+import { useAccentStyles } from '../../../hooks/useAccentStyles';
 import { cn } from '../../../utils/cn';
 import { departmentPaths } from '../../../utils/orgTree';
 import UIComboBox from '../../../components/ui/UIComboBox';
@@ -170,6 +171,7 @@ function BulkUserRegisterSection({
   isNarrowLayout = false,
   embedded = false,
 }: BulkUserRegisterSectionProps) {
+  const accent = useAccentStyles(isDark);
   const queryClient = useQueryClient();
   const [defaultPassword, setDefaultPassword] = useState('123456');
   const [rows, setRows] = useState<FormRow[]>(() => [emptyRow()]);
@@ -453,16 +455,17 @@ function BulkUserRegisterSection({
       )}
 
       <div className={cn('flex flex-wrap gap-2', isNarrowLayout && 'flex-col')}>
-        <button type="button" onClick={addRow} className={secondaryBtnCls}>
+        <button type="button" onClick={addRow} className={secondaryBtnCls} style={accent.secondaryStyle}>
           + {isNarrowLayout ? '사람 추가' : '행 추가'}
         </button>
 
         {!isNarrowLayout && (
           <>
-            <button type="button" onClick={downloadTemplate} className={secondaryBtnCls}>
+            <button type="button" onClick={downloadTemplate} className={secondaryBtnCls} style={accent.secondaryStyle}>
               CSV 템플릿
             </button>
             <label
+              style={accent.secondaryStyle}
               className={cn(
                 secondaryBtnCls,
                 'inline-flex items-center justify-center',
@@ -493,10 +496,11 @@ function BulkUserRegisterSection({
               PC에서 만든 CSV를 가져올 수 있습니다. 모바일에서는 직접 입력이 더 편합니다.
             </p>
             <div className="flex gap-2">
-              <button type="button" onClick={downloadTemplate} className={secondaryBtnCls}>
+              <button type="button" onClick={downloadTemplate} className={secondaryBtnCls} style={accent.secondaryStyle}>
                 템플릿
               </button>
               <label
+                style={accent.secondaryStyle}
                 className={cn(
                   secondaryBtnCls,
                   'inline-flex items-center justify-center',
@@ -525,6 +529,7 @@ function BulkUserRegisterSection({
       <button
         type="button"
         className={primaryBtnCls}
+        style={accent.primaryStyle}
         disabled={submitting || filledCount === 0}
         onClick={() => void onSubmit()}
       >

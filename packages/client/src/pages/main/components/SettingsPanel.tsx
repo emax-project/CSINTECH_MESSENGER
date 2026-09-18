@@ -7,7 +7,9 @@ import { cn } from '../../../utils/cn';
 import { useAuthStore } from '../../../store';
 import { usersApi, authApi } from '../../../api';
 import { formatJobTitle } from '../../../utils/orgTree';
+import { ORG_THEMES, type OrgThemeId } from '../../../utils/orgTheme';
 import UIModal from '../../../components/ui/UIModal';
+import { useAccentStyles } from '../../../hooks/useAccentStyles';
 import AdminSection from './AdminSection';
 import PasswordChangeModal from './PasswordChangeModal';
 
@@ -15,6 +17,7 @@ type StatusOption = { id: string; label: string };
 
 /** 연락처 수정 모달 */
 function ProfileEditModal({ isDark, onClose }: { isDark: boolean; onClose: () => void }) {
+  const accent = useAccentStyles(isDark);
   const authUser = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
   const [phone, setPhone] = useState(authUser?.phone ?? '');
@@ -59,7 +62,7 @@ function ProfileEditModal({ isDark, onClose }: { isDark: boolean; onClose: () =>
             onKeyDown={(e) => { if (e.key === 'Enter') void save(); }}
             placeholder="010-1234-5678"
             maxLength={50}
-            style={inputStyle}
+            style={{ ...inputStyle, ...accent.inputStyle }}
           />
         </div>
         <div>
@@ -71,7 +74,7 @@ function ProfileEditModal({ isDark, onClose }: { isDark: boolean; onClose: () =>
             onKeyDown={(e) => { if (e.key === 'Enter') void save(); }}
             placeholder="02-1234-5678"
             maxLength={30}
-            style={inputStyle}
+            style={{ ...inputStyle, ...accent.inputStyle }}
           />
         </div>
         <div>
@@ -83,7 +86,7 @@ function ProfileEditModal({ isDark, onClose }: { isDark: boolean; onClose: () =>
             onKeyDown={(e) => { if (e.key === 'Enter') void save(); }}
             placeholder="1234"
             maxLength={30}
-            style={inputStyle}
+            style={{ ...inputStyle, ...accent.inputStyle }}
           />
         </div>
         {error && <div style={{ fontSize: 12, color: '#ef4444' }}>{error}</div>}
@@ -91,6 +94,7 @@ function ProfileEditModal({ isDark, onClose }: { isDark: boolean; onClose: () =>
           <button
             type="button"
             className="flex-1 px-4 py-2 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[13px] font-semibold cursor-pointer disabled:opacity-60"
+            style={accent.primaryStyle}
             disabled={saving}
             onClick={() => void save()}
           >
@@ -101,7 +105,7 @@ function ProfileEditModal({ isDark, onClose }: { isDark: boolean; onClose: () =>
             onClick={onClose}
             className={cn(
               'px-4 py-2 rounded-lg border text-[13px] font-semibold cursor-pointer',
-              isDark ? 'border-slate-600 bg-transparent text-slate-200' : 'border-slate-200 bg-transparent text-slate-700',
+              isDark ? 'border-slate-600 bg-transparent text-slate-200' : accent.custom ? 'border-[var(--color-brand-dark)] bg-transparent text-[var(--color-brand-dark)]' : 'border-slate-200 bg-transparent text-slate-700',
             )}
           >
             취소
@@ -114,6 +118,7 @@ function ProfileEditModal({ isDark, onClose }: { isDark: boolean; onClose: () =>
 
 /** 아바타 카드 안에 들어가는 내 정보 수정 버튼들. */
 function ProfileActions({ isDark }: { isDark: boolean }) {
+  const accent = useAccentStyles(isDark);
   const [editOpen, setEditOpen] = useState(false);
   const [pwOpen, setPwOpen] = useState(false);
 
@@ -135,7 +140,7 @@ function ProfileActions({ isDark }: { isDark: boolean }) {
     <>
       <button
         type="button"
-        style={btnStyle}
+        style={{ ...btnStyle, ...accent.secondaryStyle }}
         className="transition-colors hover:brightness-95"
         onClick={() => setEditOpen(true)}
       >
@@ -143,7 +148,7 @@ function ProfileActions({ isDark }: { isDark: boolean }) {
       </button>
       <button
         type="button"
-        style={btnStyle}
+        style={{ ...btnStyle, ...accent.secondaryStyle }}
         className="transition-colors hover:brightness-95"
         onClick={() => setPwOpen(true)}
       >
@@ -166,6 +171,8 @@ type SettingsPanelProps = {
   clearSnooze: () => void;
   toggleNotificationSound: () => void;
   toggleDark: () => void;
+  accentTheme: OrgThemeId;
+  onAccentThemeChange: (id: OrgThemeId) => void;
   hasElectron: boolean;
   canCheckUpdates: boolean;
   appVersion: string | null;
@@ -215,6 +222,8 @@ function SettingsPanel({
   clearSnooze,
   toggleNotificationSound,
   toggleDark,
+  accentTheme,
+  onAccentThemeChange,
   hasElectron,
   canCheckUpdates,
   appVersion,
@@ -253,19 +262,26 @@ function SettingsPanel({
   onQuit,
 }: SettingsPanelProps) {
   const wrap = panelWrapStyle(760);
+  const accent = useAccentStyles(isDark, accentTheme);
+  const toggleColor = accent.custom ? accent.theme.accent : '#171717';
   return (
     <div className={wrap.className} style={wrap.style}>
-      <PanelTitleRow isDark={isDark} title="설정" className={panelTitleRowBg(isDark)} />
+      <PanelTitleRow
+        isDark={isDark}
+        title="설정"
+        className={accent.custom ? '[&_h3]:text-[var(--color-brand-dark)] border-[rgba(var(--color-brand-dark-rgb),0.2)]' : panelTitleRowBg(isDark)}
+        style={accent.custom ? { background: accent.theme.headerBg } : undefined}
+      />
       <div className="flex-1 min-h-0 overflow-auto flex flex-col gap-3" style={{ padding: isNarrowLayout ? 14 : 24 }}>
         <div
           style={{
             position: 'relative',
             padding: '26px 20px 20px',
             borderRadius: 14,
-            border: `1px solid ${isDark ? '#3f4d63' : '#e3e9fb'}`,
+            border: `1px solid ${isDark ? '#3f4d63' : accent.custom ? accent.theme.activeBg : '#e3e9fb'}`,
             background: isDark
               ? 'linear-gradient(160deg, #3a4759 0%, #2f3a4b 100%)'
-              : 'linear-gradient(160deg, #f6f8ff 0%, #eaf0fd 100%)',
+              : accent.custom ? `linear-gradient(160deg, ${accent.theme.headerBg} 0%, ${accent.theme.activeBg} 100%)` : 'linear-gradient(160deg, #f6f8ff 0%, #eaf0fd 100%)',
             display: 'flex',
             flexDirection: 'column' as const,
             alignItems: 'center',
@@ -279,7 +295,7 @@ function SettingsPanel({
                 width: 88,
                 height: 88,
                 borderRadius: 24,
-                background: isDark ? '#4a5769' : '#dfe6f5',
+                background: isDark ? '#4a5769' : accent.custom ? accent.theme.activeBg : '#dfe6f5',
                 overflow: 'hidden',
                 display: 'flex',
                 alignItems: 'center',
@@ -295,10 +311,10 @@ function SettingsPanel({
                   name={user.name || ''}
                   avatarUrlPath={user.avatarUrl}
                   imgStyle={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 24 }}
-                  initialStyle={{ fontSize: 34, fontWeight: 700, color: isDark ? '#e2e8f0' : 'rgba(60,30,30,0.85)' }}
+                  initialStyle={{ fontSize: 34, fontWeight: 700, color: isDark ? '#e2e8f0' : accent.custom ? accent.theme.activeText : 'rgba(60,30,30,0.85)' }}
                 />
               ) : (
-                <span style={{ fontSize: 34, fontWeight: 700, color: isDark ? '#e2e8f0' : 'rgba(60,30,30,0.85)' }}>
+                <span style={{ fontSize: 34, fontWeight: 700, color: isDark ? '#e2e8f0' : accent.custom ? accent.theme.activeText : 'rgba(60,30,30,0.85)' }}>
                   {user?.name?.trim()[0]?.toUpperCase() || '?'}
                 </span>
               )}
@@ -314,7 +330,7 @@ function SettingsPanel({
                 bottom: -2,
                 width: 30,
                 height: 30,
-                background: isDark ? '#e2e8f0' : '#171717',
+                background: isDark ? '#e2e8f0' : toggleColor,
                 color: isDark ? '#1e293b' : '#fff',
                 boxShadow: '0 2px 8px rgba(0,0,0,0.22)',
               }}
@@ -395,25 +411,25 @@ function SettingsPanel({
 
         {user?.isAdmin && <AdminSection isDark={isDark} isNarrowLayout={isNarrowLayout} currentUserId={user?.id} />}
 
-        {notificationsSnoozedUntil > Date.now() && <div style={{ padding: '6px 10px', borderRadius: 999, background: isDark ? '#171717' : '#0f172a', color: '#fff', fontSize: 11, fontWeight: 700, alignSelf: 'flex-start' }}>알림 일시 중지 중</div>}
+        {notificationsSnoozedUntil > Date.now() && <div style={{ padding: '6px 10px', borderRadius: 999, background: isDark ? '#171717' : accent.custom ? accent.theme.accent : '#0f172a', color: '#fff', fontSize: 11, fontWeight: 700, alignSelf: 'flex-start' }}>알림 일시 중지 중</div>}
         <div style={{ padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc', display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: isDark ? '#e2e8f0' : '#0f172a' }}>알림 일시 중지</div>
           {notificationsSnoozedUntil > Date.now() ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 8, fontSize: 12, color: isDark ? '#64748b' : '#64748b' }}>
               <span>해제: {new Date(notificationsSnoozedUntil).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
-              <button type="button" className="px-4 py-2 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[13px] font-semibold cursor-pointer" onClick={clearSnooze}>해제</button>
+              <button type="button" className="px-4 py-2 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[13px] font-semibold cursor-pointer" style={accent.primaryStyle} onClick={clearSnooze}>해제</button>
             </div>
           ) : (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
-              <button type="button" className="px-4 py-2 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[13px] font-semibold cursor-pointer" onClick={() => snoozeNotifications(10)}>10분</button>
-              <button type="button" className="px-4 py-2 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[13px] font-semibold cursor-pointer" onClick={() => snoozeNotifications(60)}>1시간</button>
+              <button type="button" className="px-4 py-2 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[13px] font-semibold cursor-pointer" style={accent.primaryStyle} onClick={() => snoozeNotifications(10)}>10분</button>
+              <button type="button" className="px-4 py-2 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[13px] font-semibold cursor-pointer" style={accent.primaryStyle} onClick={() => snoozeNotifications(60)}>1시간</button>
             </div>
           )}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 10, padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc' }}>
           <span style={{ fontSize: 14, fontWeight: 500, color: isDark ? '#e2e8f0' : '#0f172a' }}>알림 소리</span>
-          <button type="button" onClick={toggleNotificationSound} style={{ width: 48, height: 28, borderRadius: 14, border: 'none', background: notificationSoundEnabled ? '#171717' : (isDark ? '#475569' : '#e2e8f0'), cursor: 'pointer', position: 'relative' as const, padding: 0, flexShrink: 0 }}>
+          <button type="button" onClick={toggleNotificationSound} style={{ width: 48, height: 28, borderRadius: 14, border: 'none', background: notificationSoundEnabled ? toggleColor : (isDark ? '#475569' : '#e2e8f0'), cursor: 'pointer', position: 'relative' as const, padding: 0, flexShrink: 0 }}>
             <span style={{ position: 'absolute' as const, top: 3, left: notificationSoundEnabled ? 23 : 3, width: 22, height: 22, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
           </button>
         </div>
@@ -426,12 +442,54 @@ function SettingsPanel({
         </div>
 
         <div style={{ padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc', display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: isDark ? '#e2e8f0' : '#0f172a' }}>조직도 색상 테마</div>
+          <div style={{ fontSize: 12, color: isDark ? '#94a3b8' : '#64748b' }}>
+            {isDark
+              ? '다크 모드에서는 항상 기본 색상이 적용됩니다.'
+              : '조직도와 일정, 메모장, 설정 등의 강조색을 바꿉니다. 나만 보이는 화면 설정이에요.'}
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8 }}>
+            {ORG_THEMES.map((t) => {
+              const selected = accentTheme === t.id;
+              const swatchBg = t.id === 'default' ? '#000F9F' : t.accent;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => onAccentThemeChange(t.id)}
+                  title={t.label}
+                  disabled={isDark}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '6px 10px',
+                    borderRadius: 999,
+                    border: selected ? `2px solid ${swatchBg}` : `1px solid ${isDark ? '#475569' : '#e2e8f0'}`,
+                    background: isDark ? '#1e293b' : '#fff',
+                    cursor: isDark ? 'default' : 'pointer',
+                    opacity: isDark ? 0.5 : 1,
+                    fontSize: 12,
+                    fontWeight: selected ? 700 : 500,
+                    color: isDark ? '#e2e8f0' : '#334155',
+                  }}
+                >
+                  <span style={{ width: 14, height: 14, borderRadius: '50%', background: swatchBg, flexShrink: 0 }} />
+                  {t.label}
+                  {selected && <span style={{ color: swatchBg }}>✓</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div style={{ padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc', display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: isDark ? '#e2e8f0' : '#0f172a' }}>자리비움 자동 전환</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const }}>
             <select
               value={awayMinutes}
               onChange={(e) => onAwayMinutesChange?.(Number(e.target.value))}
-              className={cn('rounded-lg border px-2.5 py-1.5 text-[13px] font-semibold', isDark ? 'border-slate-600 bg-slate-800 text-slate-200' : 'border-slate-200 bg-white text-slate-800')}
+              className={cn('rounded-lg border px-2.5 py-1.5 text-[13px] font-semibold', isDark ? 'border-slate-600 bg-slate-800 text-slate-200' : accent.custom ? 'border-[rgba(var(--color-brand-dark-rgb),0.3)] bg-white text-slate-900 focus:border-[var(--color-brand-dark)]' : 'border-slate-200 bg-white text-slate-800')}
             >
               {[5, 10, 15, 30, 60].map((m) => (
                 <option key={m} value={m}>{m}분</option>
@@ -448,14 +506,14 @@ function SettingsPanel({
               {downloadPath || '브라우저 기본 다운로드 폴더'}
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
-              <button type="button" className="px-3 py-1.5 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[12px] font-bold cursor-pointer" onClick={onPickDownloadPath}>폴더 선택</button>
+              <button type="button" className="px-3 py-1.5 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[12px] font-bold cursor-pointer" style={accent.primaryStyle} onClick={onPickDownloadPath}>폴더 선택</button>
               {downloadPath && (
-                <button type="button" className={cn('px-3 py-1.5 rounded-lg text-[12px] font-bold cursor-pointer border', isDark ? 'border-slate-600 bg-slate-800 text-slate-200' : 'border-slate-200 bg-white text-slate-700')} onClick={onClearDownloadPath}>초기화</button>
+                <button type="button" className={cn('px-3 py-1.5 rounded-lg text-[12px] font-bold cursor-pointer border', isDark ? 'border-slate-600 bg-slate-800 text-slate-200' : accent.custom ? 'border-[var(--color-brand-dark)] bg-white text-[var(--color-brand-dark)]' : 'border-slate-200 bg-white text-slate-700')} onClick={onClearDownloadPath}>초기화</button>
               )}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: isDark ? '#e2e8f0' : '#0f172a' }}>다른 이름으로 저장</span>
-              <button type="button" onClick={onToggleAskSaveAs} style={{ width: 48, height: 28, borderRadius: 14, border: 'none', background: askSaveAs ? '#171717' : (isDark ? '#475569' : '#e2e8f0'), cursor: 'pointer', position: 'relative' as const, padding: 0, flexShrink: 0 }} aria-pressed={askSaveAs}>
+              <button type="button" onClick={onToggleAskSaveAs} style={{ width: 48, height: 28, borderRadius: 14, border: 'none', background: askSaveAs ? toggleColor : (isDark ? '#475569' : '#e2e8f0'), cursor: 'pointer', position: 'relative' as const, padding: 0, flexShrink: 0 }} aria-pressed={askSaveAs}>
                 <span style={{ position: 'absolute' as const, top: 3, left: askSaveAs ? 23 : 3, width: 22, height: 22, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
               </button>
             </div>
@@ -483,6 +541,7 @@ function SettingsPanel({
               <button
                 type="button"
                 className="self-start px-4 py-2 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[13px] font-semibold cursor-pointer"
+                style={accent.primaryStyle}
                 onClick={handleOpenReleasesPage}
               >
                 GitHub 릴리즈 페이지
@@ -499,15 +558,15 @@ function SettingsPanel({
                   {updateStatus === 'error' && updateError && ` · ${updateError}`}
                 </span>
                 {updateStatus !== 'ready' ? (
-                  <button type="button" className="px-4 py-2 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[13px] font-semibold cursor-pointer" disabled={updateStatus === 'checking'} onClick={() => void handleCheckForUpdates()}>
+                  <button type="button" className="px-4 py-2 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[13px] font-semibold cursor-pointer" style={accent.primaryStyle} disabled={updateStatus === 'checking'} onClick={() => void handleCheckForUpdates()}>
                     {updateStatus === 'checking' ? '확인 중...' : '업데이트 확인'}
                   </button>
                 ) : requiresManualInstall ? (
-                  <button type="button" className="px-4 py-2 border-none rounded-lg bg-[#16a34a] text-white text-[13px] font-semibold cursor-pointer" onClick={() => void handleOpenUpdateDownload()}>
+                  <button type="button" className="px-4 py-2 border-none rounded-lg bg-[#16a34a] text-white text-[13px] font-semibold cursor-pointer" style={accent.primaryStyle} onClick={() => void handleOpenUpdateDownload()}>
                     DMG 다운로드
                   </button>
                 ) : (
-                  <button type="button" className="px-4 py-2 border-none rounded-lg bg-[#16a34a] text-white text-[13px] font-semibold cursor-pointer" onClick={() => void handleQuitAndInstall()}>
+                  <button type="button" className="px-4 py-2 border-none rounded-lg bg-[#16a34a] text-white text-[13px] font-semibold cursor-pointer" style={accent.primaryStyle} onClick={() => void handleQuitAndInstall()}>
                     지금 재시작하여 업데이트
                   </button>
                 )}
@@ -534,16 +593,16 @@ function SettingsPanel({
                   style={{
                     display: 'flex', alignItems: 'center', gap: 10,
                     padding: '8px 10px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                    background: isSelected ? (isDark ? 'rgba(23,23,23,0.12)' : 'rgba(23,23,23,0.06)') : 'transparent',
+                    background: isSelected ? (isDark ? 'rgba(23,23,23,0.12)' : accent.custom ? accent.theme.activeBg : 'rgba(23,23,23,0.06)') : 'transparent',
                     width: '100%', textAlign: 'left' as const,
                   }}
                 >
                   <span style={{
                     width: 16, height: 16, borderRadius: '50%', flexShrink: 0,
-                    border: `2px solid ${isSelected ? '#0f172a' : (isDark ? '#64748b' : '#cbd5e1')}`,
+                    border: `2px solid ${isSelected ? (accent.custom ? accent.theme.accent : '#0f172a') : (isDark ? '#64748b' : '#cbd5e1')}`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>
-                    {isSelected && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#0f172a', display: 'block' }} />}
+                    {isSelected && <span style={{ width: 8, height: 8, borderRadius: '50%', background: accent.custom ? accent.theme.accent : '#0f172a', display: 'block' }} />}
                   </span>
                   {opt.id ? renderStatusIcon(opt.id, 18) : <span style={{ width: 18, height: 18, display: 'block' }} />}
                   <span style={{ fontSize: 13, color: isDark ? '#cbd5e1' : '#334155', fontWeight: isSelected ? 700 : 500 }}>{opt.label}</span>
@@ -558,7 +617,7 @@ function SettingsPanel({
               onChange={(e) => onStatusNoteChange?.(e.target.value)}
               placeholder="상태 메시지 입력"
               maxLength={200}
-              className={cn('rounded-lg border px-3 py-2 text-[13px] font-medium outline-none', isDark ? 'border-slate-600 bg-slate-800 text-slate-100' : 'border-slate-200 bg-white text-slate-900')}
+              className={cn('rounded-lg border px-3 py-2 text-[13px] font-medium outline-none', isDark ? 'border-slate-600 bg-slate-800 text-slate-100' : accent.custom ? 'border-[rgba(var(--color-brand-dark-rgb),0.3)] bg-white text-slate-900 focus:border-[var(--color-brand-dark)]' : 'border-slate-200 bg-white text-slate-900')}
             />
             <label style={{ fontSize: 12, fontWeight: 700, color: isDark ? '#94a3b8' : '#64748b' }}>사내 내선번호</label>
             <input
@@ -566,7 +625,7 @@ function SettingsPanel({
               onChange={(e) => onExtensionChange?.(e.target.value)}
               placeholder="내선번호"
               maxLength={30}
-              className={cn('rounded-lg border px-3 py-2 text-[13px] font-medium outline-none', isDark ? 'border-slate-600 bg-slate-800 text-slate-100' : 'border-slate-200 bg-white text-slate-900')}
+              className={cn('rounded-lg border px-3 py-2 text-[13px] font-medium outline-none', isDark ? 'border-slate-600 bg-slate-800 text-slate-100' : accent.custom ? 'border-[rgba(var(--color-brand-dark-rgb),0.3)] bg-white text-slate-900 focus:border-[var(--color-brand-dark)]' : 'border-slate-200 bg-white text-slate-900')}
             />
             <label style={{ fontSize: 12, fontWeight: 700, color: isDark ? '#94a3b8' : '#64748b' }}>자리 전화번호</label>
             <input
@@ -574,12 +633,13 @@ function SettingsPanel({
               onChange={(e) => onDeskPhoneChange?.(e.target.value)}
               placeholder="자리 전화번호"
               maxLength={30}
-              className={cn('rounded-lg border px-3 py-2 text-[13px] font-medium outline-none', isDark ? 'border-slate-600 bg-slate-800 text-slate-100' : 'border-slate-200 bg-white text-slate-900')}
+              className={cn('rounded-lg border px-3 py-2 text-[13px] font-medium outline-none', isDark ? 'border-slate-600 bg-slate-800 text-slate-100' : accent.custom ? 'border-[rgba(var(--color-brand-dark-rgb),0.3)] bg-white text-slate-900 focus:border-[var(--color-brand-dark)]' : 'border-slate-200 bg-white text-slate-900')}
             />
             <button
               type="button"
               onClick={onSaveStatusProfile}
               className="self-start px-3 py-1.5 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[12px] font-bold cursor-pointer"
+              style={accent.primaryStyle}
             >
               메시지·내선·전화 저장
             </button>
@@ -588,11 +648,11 @@ function SettingsPanel({
 
         <div style={{ padding: '10px 12px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc', color: isDark ? '#94a3b8' : '#334155', fontSize: 13 }}>알림 상태: {notificationStatus}</div>
 
-        {hasElectron && <button type="button" className={cn('w-full px-4 py-3 border-none rounded-[10px] text-sm font-semibold cursor-pointer', isDark ? 'bg-slate-700 text-slate-200' : 'bg-slate-100 text-slate-800')} onClick={onTestNotification}>알림 테스트</button>}
-        {!hasElectron && <button type="button" className={cn('w-full px-4 py-3 border-none rounded-[10px] text-sm font-semibold cursor-pointer', isDark ? 'bg-slate-700 text-slate-200' : 'bg-slate-100 text-slate-800')} onClick={() => void onRequestNotificationPermission()}>알림 권한 요청</button>}
+        {hasElectron && <button type="button" className={cn('w-full px-4 py-3 border-none rounded-[10px] text-sm font-semibold cursor-pointer', isDark ? 'bg-slate-700 text-slate-200' : accent.custom ? 'bg-[rgba(var(--color-brand-dark-rgb),0.1)] text-[var(--color-brand-dark)] hover:bg-[rgba(var(--color-brand-dark-rgb),0.15)]' : 'bg-slate-100 text-slate-800')} onClick={onTestNotification}>알림 테스트</button>}
+        {!hasElectron && <button type="button" className={cn('w-full px-4 py-3 border-none rounded-[10px] text-sm font-semibold cursor-pointer', isDark ? 'bg-slate-700 text-slate-200' : accent.custom ? 'bg-[rgba(var(--color-brand-dark-rgb),0.1)] text-[var(--color-brand-dark)] hover:bg-[rgba(var(--color-brand-dark-rgb),0.15)]' : 'bg-slate-100 text-slate-800')} onClick={() => void onRequestNotificationPermission()}>알림 권한 요청</button>}
         <button type="button" className={cn('w-full px-4 py-3 border-none rounded-[10px] text-sm font-semibold cursor-pointer text-[#c62828]', isDark ? 'bg-slate-700' : 'bg-slate-100')} onClick={onLogout}>로그아웃</button>
         {onQuit && (
-          <button type="button" className={cn('w-full px-4 py-3 border-none rounded-[10px] text-sm font-semibold cursor-pointer', isDark ? 'bg-slate-700 text-slate-200' : 'bg-slate-100 text-slate-800')} onClick={onQuit}>프로그램 종료</button>
+          <button type="button" className={cn('w-full px-4 py-3 border-none rounded-[10px] text-sm font-semibold cursor-pointer', isDark ? 'bg-slate-700 text-slate-200' : accent.custom ? 'bg-[rgba(var(--color-brand-dark-rgb),0.1)] text-[var(--color-brand-dark)] hover:bg-[rgba(var(--color-brand-dark-rgb),0.15)]' : 'bg-slate-100 text-slate-800')} onClick={onQuit}>프로그램 종료</button>
         )}
       </div>
     </div>

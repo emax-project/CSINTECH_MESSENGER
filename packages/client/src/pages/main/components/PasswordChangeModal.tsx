@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useAccentStyles } from '../../../hooks/useAccentStyles';
 import { cn } from '../../../utils/cn';
 import { authApi, type PasswordPolicy } from '../../../api';
 import UIModal from '../../../components/ui/UIModal';
@@ -38,6 +39,7 @@ type Props = {
 };
 
 export default function PasswordChangeModal({ isDark, onClose, onSuccess, forced = false }: Props) {
+  const accent = useAccentStyles(isDark);
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -107,7 +109,7 @@ export default function PasswordChangeModal({ isDark, onClose, onSuccess, forced
             value={current}
             autoComplete="current-password"
             onChange={(e) => { setCurrent(e.target.value); setError(null); }}
-            style={inputStyle}
+            style={{ ...inputStyle, ...accent.inputStyle }}
           />
         </div>
         <div>
@@ -118,7 +120,7 @@ export default function PasswordChangeModal({ isDark, onClose, onSuccess, forced
             autoComplete="new-password"
             placeholder={policy.hint}
             onChange={(e) => { setNext(e.target.value); setError(null); }}
-            style={inputStyle}
+            style={{ ...inputStyle, ...accent.inputStyle }}
           />
         </div>
         <div>
@@ -129,7 +131,7 @@ export default function PasswordChangeModal({ isDark, onClose, onSuccess, forced
             autoComplete="new-password"
             onChange={(e) => { setConfirm(e.target.value); setError(null); }}
             onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }}
-            style={inputStyle}
+            style={{ ...inputStyle, ...accent.inputStyle }}
           />
         </div>
         {error && <div style={{ fontSize: 12, color: '#ef4444' }}>{error}</div>}
@@ -138,6 +140,7 @@ export default function PasswordChangeModal({ isDark, onClose, onSuccess, forced
           <button
             type="button"
             className="flex-1 px-4 py-2 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[13px] font-semibold cursor-pointer disabled:opacity-60"
+            style={accent.primaryStyle}
             disabled={saving || done || !current || !next || !confirm}
             onClick={() => void submit()}
           >
@@ -149,7 +152,7 @@ export default function PasswordChangeModal({ isDark, onClose, onSuccess, forced
               onClick={onClose}
               className={cn(
                 'px-4 py-2 rounded-lg border text-[13px] font-semibold cursor-pointer',
-                isDark ? 'border-slate-600 bg-transparent text-slate-200' : 'border-slate-200 bg-transparent text-slate-700',
+                isDark ? 'border-slate-600 bg-transparent text-slate-200' : accent.custom ? 'border-[var(--color-brand-dark)] bg-transparent text-[var(--color-brand-dark)]' : 'border-slate-200 bg-transparent text-slate-700',
               )}
             >
               닫기

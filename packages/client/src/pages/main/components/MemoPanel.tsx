@@ -9,6 +9,8 @@ import {
   usePanelNoDrag,
 } from '../../../components/PanelDragHeader';
 import { cn } from '../../../utils/cn';
+import { useThemeStore } from '../../../store';
+import { getOrgTheme } from '../../../utils/orgTheme';
 
 export type { MemoItem };
 
@@ -44,12 +46,16 @@ function MemoDetail({
   const isInbox = tab === 'inbox';
   const fromLabel = isInbox ? memo.sender.name : formatRecipients(memo);
   const metaLabel = isInbox ? '보낸 사람' : '받는 사람';
+  const accentTheme = useThemeStore((s) => s.accentTheme);
+  const orgTheme = getOrgTheme(accentTheme);
+  const useCustomAccent = !isDark && orgTheme.id !== 'default';
 
   return (
     <div className="flex flex-1 min-h-0 flex-col">
       <PanelTitleRow
         isDark={isDark}
-        className={panelTitleRowBg(isDark)}
+        className={useCustomAccent ? undefined : panelTitleRowBg(isDark)}
+        style={useCustomAccent ? { background: orgTheme.headerBg } : undefined}
         left={(
           <button
             type="button"
@@ -130,6 +136,9 @@ function MemoPanel({
   onDelete,
 }: MemoPanelProps) {
   const wrap = panelWrapStyle(820);
+  const accentTheme = useThemeStore((s) => s.accentTheme);
+  const orgTheme = getOrgTheme(accentTheme);
+  const useCustomAccent = !isDark && orgTheme.id !== 'default';
   const { noDragClass, noDragStyle } = usePanelNoDrag();
   const [tab, setTab] = useState<MemoTab>('inbox');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -180,15 +189,18 @@ function MemoPanel({
       <PanelTitleRow
         isDark={isDark}
         title="쪽지"
-        className={panelTitleRowBg(isDark)}
+        className={useCustomAccent ? undefined : panelTitleRowBg(isDark)}
+        style={useCustomAccent ? { background: orgTheme.headerBg } : undefined}
         right={(
           <button
             type="button"
             onClick={onOpenCompose}
             className={cn(
               'shrink-0 border-none rounded-lg px-3 py-1.5 text-[13px] font-semibold cursor-pointer',
-              isDark ? 'bg-brand-dark text-white hover:bg-brand-light' : 'bg-brand-dark text-white hover:bg-brand-light',
+              !useCustomAccent && (isDark ? 'bg-brand-dark text-white hover:bg-brand-light' : 'bg-brand-dark text-white hover:bg-brand-light'),
+              useCustomAccent && 'text-white',
             )}
+            style={useCustomAccent ? { background: orgTheme.accent } : undefined}
           >
             쓰기
           </button>
@@ -204,9 +216,12 @@ function MemoPanel({
               className={cn(
                 'w-full h-full text-sm font-semibold border-none cursor-pointer',
                 tab === key
-                  ? (isDark ? 'text-brand-light border-b-2 border-brand-light bg-slate-800/50' : 'text-brand-dark border-b-2 border-brand-dark bg-brand-dark/5')
+                  ? (useCustomAccent
+                      ? 'border-b-2'
+                      : (isDark ? 'text-brand-light border-b-2 border-brand-light bg-slate-800/50' : 'text-brand-dark border-b-2 border-brand-dark bg-brand-dark/5'))
                   : (isDark ? 'text-slate-400 bg-transparent' : 'text-slate-500 bg-transparent'),
               )}
+              style={tab === key && useCustomAccent ? { color: orgTheme.activeText, borderColor: orgTheme.accent, background: orgTheme.activeBg } : undefined}
             >
               {key === 'inbox' ? '받은쪽지' : '보낸쪽지'}
             </button>
@@ -271,11 +286,16 @@ function MemoPanel({
                     className={cn(
                       'w-full px-5 py-3 border-none text-left cursor-pointer flex items-start gap-3',
                       unread
-                        ? (isDark ? 'bg-[rgba(91,141,239,0.08)]' : 'bg-[rgba(91,141,239,0.04)]')
+                        ? (isDark ? 'bg-[rgba(91,141,239,0.08)]' : 'bg-[rgba(var(--color-brand-dark-rgb),0.04)]')
                         : 'bg-transparent',
                     )}
                   >
-                    {unread && <span className="mt-2 w-1.5 h-1.5 rounded-full bg-brand shrink-0" />}
+                    {unread && (
+                      <span
+                        className={cn('mt-2 w-1.5 h-1.5 rounded-full shrink-0', !useCustomAccent && 'bg-brand')}
+                        style={useCustomAccent ? { background: orgTheme.accent } : undefined}
+                      />
+                    )}
                     <div className="flex-1 min-w-0">
                       <div className={cn('text-sm font-semibold truncate mb-0.5', isDark ? 'text-slate-100' : 'text-slate-900')}>
                         {memo.subject}

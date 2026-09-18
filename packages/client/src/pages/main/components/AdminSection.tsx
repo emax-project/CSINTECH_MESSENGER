@@ -1,5 +1,6 @@
 import { memo, useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useAccentStyles } from '../../../hooks/useAccentStyles';
 import { cn } from '../../../utils/cn';
 import { appSettingsApi } from '../../../api';
 import { useToastStore } from '../../../store';
@@ -23,6 +24,7 @@ const TABS: { key: TabKey; label: string }[] = [
 ];
 
 function SidebarLinkSettings({ isDark }: { isDark: boolean }) {
+  const accent = useAccentStyles(isDark);
   const queryClient = useQueryClient();
   const showToast = useToastStore((s) => s.show);
   const { data } = useQuery({
@@ -80,10 +82,11 @@ function SidebarLinkSettings({ isDark }: { isDark: boolean }) {
           onChange={(e) => setUrl(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') void save(); }}
           placeholder="https://portal.example.com"
-          style={inputStyle}
+          style={{ ...inputStyle, ...accent.inputStyle }}
         />
         <button
           type="button"
+          style={accent.primaryStyle}
           disabled={saving}
           onClick={() => { void save(); }}
           className={cn(
@@ -100,6 +103,7 @@ function SidebarLinkSettings({ isDark }: { isDark: boolean }) {
 
 /** 관리자 전용 도구 묶음. 세로로 쌓지 않고 탭으로 나눠 설정 화면이 길어지지 않게 한다. */
 function AdminSection({ isDark, isNarrowLayout = false, currentUserId }: Props) {
+  const accent = useAccentStyles(isDark);
   const [tab, setTab] = useState<TabKey>('register');
 
   const sectionBg = isDark ? 'bg-slate-700' : 'bg-slate-50';
@@ -129,6 +133,7 @@ function AdminSection({ isDark, isNarrowLayout = false, currentUserId }: Props) 
           <button
             key={key}
             type="button"
+            style={tab === key ? accent.secondaryStyle : undefined}
             role="tab"
             aria-selected={tab === key}
             onClick={() => setTab(key)}

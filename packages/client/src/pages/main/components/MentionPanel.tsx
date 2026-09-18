@@ -43,7 +43,7 @@ function MentionPanel({
                 type="button"
                 className={cn(
                   'px-5 py-3 cursor-pointer flex items-center gap-3 w-full border-none text-left',
-                  !m.readAt ? (isDark ? 'bg-[rgba(91,141,239,0.08)]' : 'bg-[rgba(91,141,239,0.04)]') : 'bg-transparent',
+                  !m.readAt ? (isDark ? 'bg-[rgba(91,141,239,0.08)]' : 'bg-[rgba(var(--color-brand-dark-rgb),0.04)]') : 'bg-transparent',
                 )}
                 onClick={() => void onSelectMention(m)}
               >

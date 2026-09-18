@@ -12,6 +12,7 @@ import {
   changeLdapPassword,
 } from '../lib/ldap.js';
 import { getPasswordPolicy, validatePassword } from '../lib/passwordPolicy.js';
+import { isLocked, recordFailure, recordSuccess } from '../lib/loginAttempts.js';
 
 export const authRouter = Router();
 
@@ -63,6 +64,8 @@ authRouter.post('/register', async (req, res) => {
     if (!email || !password || !name) {
       return res.status(400).json({ error: 'email, password, name required' });
     }
+    const policyError = validatePassword(password);
+    if (policyError) return res.status(400).json({ error: policyError });
     // isAdmin은 순전히 이메일이 ADMIN_EMAIL 목록에 있는지로 결정된다 (lib/admin.js).
     // 공개 가입을 그대로 열어두면 관리자 이메일 주소를 아는 사람이 실제 관리자보다
     // 먼저 가입해 관리자 권한을 선점할 수 있으므로, 관리자 이메일은 셀프 가입을 막고
@@ -124,8 +127,20 @@ authRouter.post('/login', async (req, res) => {
         return res.status(loginErrorStatus(result.reason)).json({ error: loginErrorMessage(result.reason) });
       }
       mustChangePassword = mustChangePassword || !!result.mustChangePassword;
-    } else if (!(await bcrypt.compare(password, user.password))) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+    } else {
+      // 로컬 계정(비 LDAP) 무차별 대입 방어. LDAP 경로는 디렉터리 서버가
+      // 자체적으로 계정을 잠그므로(위 useLdap 분기) 여기서는 다루지 않는다.
+      if (isLocked(user.id)) {
+        return res.status(423).json({ error: loginErrorMessage('ACCOUNT_LOCKED') });
+      }
+      if (!(await bcrypt.compare(password, user.password))) {
+        recordFailure(user.id);
+        if (isLocked(user.id)) {
+          return res.status(423).json({ error: loginErrorMessage('ACCOUNT_LOCKED') });
+        }
+        return res.status(401).json({ error: 'Invalid email or password' });
+      }
+      recordSuccess(user.id);
     }
 
     await prisma.userSession.deleteMany({ where: { userId: user.id } });

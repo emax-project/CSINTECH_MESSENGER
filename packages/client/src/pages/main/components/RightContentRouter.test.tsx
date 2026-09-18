@@ -160,6 +160,8 @@ const baseProps = () => ({
     clearSnooze: vi.fn(),
     toggleNotificationSound: vi.fn(),
     toggleDark: vi.fn(),
+    accentTheme: 'default' as const,
+    onAccentThemeChange: vi.fn(),
     hasElectron: false,
     canCheckUpdates: false,
     appVersion: null,

@@ -10,6 +10,7 @@ import {
   panelTitleRowBg,
 } from '../../../components/PanelDragHeader';
 import { cn } from '../../../utils/cn';
+import { getOrgTheme, type OrgThemeId } from '../../../utils/orgTheme';
 
 type OrgTab = 'org' | 'friends' | 'groups';
 export type OrgSearchField = 'all' | 'name' | 'dept' | 'job' | 'email' | 'extension' | 'phone';
@@ -26,6 +27,8 @@ const SEARCH_FIELD_OPTIONS: { id: OrgSearchField; label: string }[] = [
 
 type OrgPanelProps = {
   isDark: boolean;
+  /** 상단 영역·선택 부서·탭 강조색 테마 (라이트 모드에서만 적용) */
+  accentTheme?: OrgThemeId;
   panelWrapStyle: (maxWidth: number) => { className: string; style: React.CSSProperties };
   searchQuery: string;
   onSearchQueryChange: (value: string) => void;
@@ -64,6 +67,7 @@ type OrgPanelProps = {
 
 function OrgPanel({
   isDark,
+  accentTheme = 'default',
   panelWrapStyle,
   searchQuery,
   onSearchQueryChange,
@@ -105,6 +109,10 @@ function OrgPanel({
   const title =
     tab === 'org' ? '조직도' : tab === 'friends' ? '즐겨찾기(친구)' : '내 그룹';
 
+  // 상단 영역(제목·탭) 배경 + 탭 강조색 테마. 다크 모드는 항상 기존 스타일 유지.
+  const orgTheme = getOrgTheme(accentTheme);
+  const useCustomAccent = !isDark && orgTheme.id !== 'default';
+
   const tabBtn = (id: OrgTab, label: string) => (
     <button
       type="button"
@@ -112,11 +120,12 @@ function OrgPanel({
       className={cn(
         'px-3.5 py-1.5 rounded-full text-[13px] font-semibold border-none cursor-pointer transition-colors',
         tab === id
-          ? 'bg-brand-dark text-white'
+          ? (useCustomAccent ? 'text-white' : 'bg-brand-dark text-white')
           : isDark
             ? 'bg-transparent text-slate-400 hover:bg-slate-700/60 hover:text-slate-200'
             : 'bg-transparent text-slate-500 hover:bg-slate-200/70 hover:text-slate-800',
       )}
+      style={tab === id && useCustomAccent ? { background: orgTheme.accent } : undefined}
     >
       {label}
     </button>
@@ -131,14 +140,17 @@ function OrgPanel({
         isDark={isDark}
         title={title}
         compact
-        className={panelTitleRowBg(isDark)}
+        className={useCustomAccent ? undefined : panelTitleRowBg(isDark)}
+        style={useCustomAccent ? { background: orgTheme.headerBg } : undefined}
       />
 
       <div
         className={cn(
           'flex items-center gap-1 px-3 py-2 border-b',
-          isDark ? 'border-slate-700/80 bg-slate-900' : 'border-slate-200/90 bg-[#f7f8fa]',
+          isDark ? 'border-slate-700/80 bg-slate-900' : (useCustomAccent ? '' : 'border-slate-200/90 bg-[#f7f8fa]'),
+          useCustomAccent && 'border-slate-200/90',
         )}
+        style={useCustomAccent ? { background: orgTheme.headerBg } : undefined}
       >
         <PanelNoDragWrap className="flex flex-wrap items-center gap-1">
           {tabBtn('org', '조직도')}
@@ -236,11 +248,12 @@ function OrgPanel({
             className={cn(
               'shrink-0 flex items-center gap-1.5 px-2.5 py-1 border rounded-2xl text-[11px] font-bold whitespace-nowrap cursor-pointer transition-colors',
               showOnlineOnly
-                ? 'border-brand-dark bg-brand-dark text-white'
+                ? (useCustomAccent ? 'text-white' : 'border-brand-dark bg-brand-dark text-white')
                 : isDark
                   ? 'border-slate-600 bg-slate-800 text-slate-300 hover:border-slate-500'
                   : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-700',
             )}
+            style={showOnlineOnly && useCustomAccent ? { background: orgTheme.accent, borderColor: orgTheme.accent } : undefined}
           >
             <span
               className={cn(
@@ -261,6 +274,7 @@ function OrgPanel({
                   ? 'border-slate-600 bg-slate-800 text-brand-light hover:bg-slate-700'
                   : 'border-slate-200 bg-white text-brand-dark hover:bg-brand-dark/[0.06]',
               )}
+              style={useCustomAccent ? { color: orgTheme.accent } : undefined}
             >
               + 그룹
             </button>
@@ -275,6 +289,7 @@ function OrgPanel({
       )}>
         <OrgTree
           isDark={isDark}
+          accentTheme={accentTheme}
           view={tab}
           viewMode={orgViewMode}
           orgLoading={orgLoading}

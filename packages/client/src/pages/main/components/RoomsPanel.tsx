@@ -9,6 +9,8 @@ import {
   usePanelNoDrag,
 } from '../../../components/PanelDragHeader';
 import { cn } from '../../../utils/cn';
+import { useThemeStore } from '../../../store';
+import { getOrgTheme } from '../../../utils/orgTheme';
 
 type RoomsPanelProps = RoomSectionsProps & {
   panelWrapStyle: (maxWidth: number) => { className: string; style: React.CSSProperties };
@@ -25,12 +27,20 @@ function RoomsPanel({
 }: RoomsPanelProps) {
   const { noDragClass, noDragStyle } = usePanelNoDrag();
   const wrap = panelWrapStyle(820);
+  const accentTheme = useThemeStore((s) => s.accentTheme);
+  const orgTheme = getOrgTheme(accentTheme);
+  const useCustomAccent = !isDark && orgTheme.id !== 'default';
   return (
     <div
       className={cn(wrap.className, isDark ? 'bg-slate-900' : 'bg-white')}
       style={wrap.style}
     >
-      <PanelTitleRow isDark={isDark} title="대화" className={panelTitleRowBg(isDark)} />
+      <PanelTitleRow
+        isDark={isDark}
+        title="대화"
+        className={useCustomAccent ? undefined : panelTitleRowBg(isDark)}
+        style={useCustomAccent ? { background: orgTheme.headerBg } : undefined}
+      />
 
       <PanelToolbarRow isDark={isDark} className={isDark ? 'bg-slate-900/80' : 'bg-white'}>
         <input

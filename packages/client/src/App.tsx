@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, Component, lazy, Suspense, type ReactNode } from 'react';
 import { useThemeStore } from './store';
+import { getOrgTheme, hexToRgbTriplet } from './utils/orgTheme';
 import { BrowserRouter, HashRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useAuthStore } from './store';
 import { authApi } from './api';
@@ -113,6 +114,24 @@ export default function App() {
   const logout = useAuthStore((s) => s.logout);
   const [forcedLogoutMsg, setForcedLogoutMsg] = useState<string | null>(null);
   const isDark = useThemeStore((s) => s.isDark);
+  const accentTheme = useThemeStore((s) => s.accentTheme);
+
+  // 조직도 색상 테마를 --color-brand-dark 커스텀 프로퍼티에 반영해, 이미 이
+  // 변수를 참조하는 대화방(링크·답장 미리보기·멘션 배지·업로드 진행바 등)
+  // 곳곳의 포인트 컬러도 자동으로 테마를 따르게 한다. 독립 채팅창(별도
+  // BrowserWindow/문서)에서도 각자 마운트 시 이 효과가 실행되므로 함께 반영된다.
+  // 다크 모드는 대비 문제로 테마 선택과 무관하게 항상 기존 색을 유지한다.
+  useEffect(() => {
+    const root = document.documentElement;
+    const theme = getOrgTheme(accentTheme);
+    if (!isDark && theme.id !== 'default') {
+      root.style.setProperty('--color-brand-dark', theme.accent);
+      root.style.setProperty('--color-brand-dark-rgb', hexToRgbTriplet(theme.accent));
+    } else {
+      root.style.removeProperty('--color-brand-dark');
+      root.style.removeProperty('--color-brand-dark-rgb');
+    }
+  }, [isDark, accentTheme]);
 
   useEffect(() => {
     if (!token) return;

@@ -140,6 +140,8 @@ export default function Main() {
   const logout = useAuthStore((s) => s.logout);
   const isDark = useThemeStore((s) => s.isDark);
   const toggleDark = useThemeStore((s) => s.toggleDark);
+  const accentTheme = useThemeStore((s) => s.accentTheme);
+  const setAccentTheme = useThemeStore((s) => s.setAccentTheme);
 
   useEffect(() => {
     window.electronAPI?.setTitleBarTheme?.(isDark);
@@ -492,13 +494,16 @@ export default function Main() {
     const me = allOrgUsers(Array.isArray(orgTreeRaw) ? orgTreeRaw : []).find((u) => String(u.id) === String(myId));
     if (me) {
       // 재접속/재로그인 시 이전 상태(자리비움 등)를 그대로 이어받지 않고 '온라인'으로 초기화한다.
-      const prevStatus = me.statusMessage || '온라인';
+      // statusMessage가 비어있는(null) 최초 로그인 상태도 '아직 온라인으로 안 바뀐 상태'로 보고
+      // 반드시 handleSetStatus를 호출해 DB에 '온라인' 문자열을 기록·브로드캐스트해야
+      // 조직도에 온라인 상태 아이콘이 노출된다. (statusMessage가 null이면 아이콘 자체가
+      // 표시되지 않으므로 "이미 온라인"으로 간주해 건너뛰면 안 됨)
       setStatusInput('온라인');
       setStatusNote(me.statusNote || '');
       setExtensionInput(me.extension || '');
       setDeskPhoneInput(me.deskPhone || '');
       statusSyncedRef.current = true;
-      if (prevStatus !== '온라인') void handleSetStatus('온라인');
+      if (me.statusMessage !== '온라인') void handleSetStatus('온라인');
     }
   }, [orgTreeRaw, myId]);
 
@@ -1113,6 +1118,7 @@ export default function Main() {
           <div className="flex-1 min-h-0 min-w-0 flex flex-col">
             <RightContentRouter
               isDark={isDark}
+              accentTheme={accentTheme}
               isNarrowLayout={isNarrowLayout}
               activePanel={activePanel}
               selectedRoomId={selectedRoomId}
@@ -1222,6 +1228,8 @@ export default function Main() {
                 clearSnooze,
                 toggleNotificationSound,
                 toggleDark,
+                accentTheme,
+                onAccentThemeChange: setAccentTheme,
                 hasElectron,
                 canCheckUpdates,
                 appVersion,
