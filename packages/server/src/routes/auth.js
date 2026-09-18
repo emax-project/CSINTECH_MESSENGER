@@ -12,6 +12,7 @@ import {
   changeLdapPassword,
 } from '../lib/ldap.js';
 import { getPasswordPolicy, validatePassword } from '../lib/passwordPolicy.js';
+import { isLocked, recordFailure, recordSuccess } from '../lib/loginAttempts.js';
 
 export const authRouter = Router();
 
@@ -124,8 +125,20 @@ authRouter.post('/login', async (req, res) => {
         return res.status(loginErrorStatus(result.reason)).json({ error: loginErrorMessage(result.reason) });
       }
       mustChangePassword = mustChangePassword || !!result.mustChangePassword;
-    } else if (!(await bcrypt.compare(password, user.password))) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+    } else {
+      // 로컬 계정(비 LDAP) 무차별 대입 방어. LDAP 경로는 디렉터리 서버가
+      // 자체적으로 계정을 잠그므로(위 useLdap 분기) 여기서는 다루지 않는다.
+      if (isLocked(user.id)) {
+        return res.status(423).json({ error: loginErrorMessage('ACCOUNT_LOCKED') });
+      }
+      if (!(await bcrypt.compare(password, user.password))) {
+        recordFailure(user.id);
+        if (isLocked(user.id)) {
+          return res.status(423).json({ error: loginErrorMessage('ACCOUNT_LOCKED') });
+        }
+        return res.status(401).json({ error: 'Invalid email or password' });
+      }
+      recordSuccess(user.id);
     }
 
     await prisma.userSession.deleteMany({ where: { userId: user.id } });
