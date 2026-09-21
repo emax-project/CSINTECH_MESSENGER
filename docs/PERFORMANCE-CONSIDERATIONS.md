@@ -25,17 +25,28 @@
 
 ---
 
-### 1-3. 조직도 트리 (GET /org/tree) — 전체 로드
+### 1-3. 조직도 트리 (GET /org/tree) — ✅ 개선됨 (단계별 로딩)
 
-**위치:** `packages/server/src/routes/org.js` (orgRouter.get('/tree'))
+**위치:** `packages/server/src/routes/org.js`, `packages/client/src/pages/Main.tsx`, `OrgTree.tsx`, `utils/orgTree.ts`
 
-**문제:**
-- 회사·부서·사용자를 **한 번에 전부** 가져옵니다.
-- 회사/부서/사용자 수가 크면 메모리·응답 시간 모두 증가.
+**적용된 개선:**
+- `GET /org/tree?shallow=1` 신설: 회사·부서 구조 + 인원수(`userCount`)만 반환, `users`는 비움.
+  직속(`departmentId`) + 세컨더리 소속(`UserAffiliation`)을 사용자 id 기준으로 중복 제거해 정확히 센다.
+- `GET /org/departments/:id/users` 신설: 부서 하나(하위 부서 제외)의 사용자 목록만 지연 로드.
+- 클라이언트(`Main.tsx`): 기본은 `shallow` 트리만 받고, **실제로 펼쳐져 보이는 부서**(`visibleOpenDepartmentIds`
+  — 조상까지 전부 열려 있어야 대상)의 사용자만 `useQueries`로 병렬 지연 로드해 가벼운 트리에 덧씌운다.
+- 조직 전체를 훑어야 하는 경우(검색어 입력 중, 즐겨찾기 탭에 즐겨찾기한 친구가 있는 경우)엔 기존 전체
+  `GET /org/tree`로 자동 전환 — 검색·즐겨찾기 정확도는 그대로 유지(react-query 캐시로 한 번만 받으면 재사용).
+- `queryClient.invalidateQueries({queryKey:['org']})`가 prefix 매치라 기존 무효화 로직 변경 없이
+  `shallow`/`department-users` 쿼리도 함께 갱신됨.
+- 조직도 로딩과 무관하게 항상 필요한 "내 상태 초기화"(로그인 시 온라인 표시 등)는 조직도 트리에서
+  "나"를 찾던 방식에서 `GET /auth/me` 직접 호출로 변경 — 지연 로딩된 트리에 내 부서가 아직 안 실려도
+  깨지지 않도록 분리함 (`/auth/me` 응답에 `statusNote` 필드 추가).
 
-**개선:**
-- 트리 단계별 로딩: 최상위만 먼저, 부서/사용자는 펼칠 때 요청.
-- 또는 회사/부서별 페이지네이션 + 필요 시 사용자 목록도 제한.
+**남은 것:**
+- InviteModal/MemoComposeModal/UserManageSection/BulkUserRegisterSection(선택·일괄등록 UI)은 원래부터
+  전체 인원이 필요해 기존 `GET /org/tree`(전체)를 그대로 씀 — 대상 아님.
+- 모바일(`packages/mobile`)의 `OrgTreeScreen`은 이번 작업 범위에서 제외, 기존 전체 로드 그대로.
 
 ---
 
@@ -151,7 +162,7 @@
 | 서버 | POST /rooms/:id/read | ✅ 개선됨 (createMany 단일 쿼리) | - |
 | 서버 | GET /events | ✅ 개선됨 (기간 필터 + take 상한 + 인덱스) | - |
 | 서버 | GET /projects/room/:roomId | 🟡 부분 개선됨 (프로젝트 take: 50, 태스크는 여전히 무제한) | 중간 |
-| 서버 | GET /org/tree | 조직 전체 한 번에 로드 | 중간 |
+| 서버 | GET /org/tree | ✅ 개선됨 (shallow + 부서별 지연 로드) | - |
 | 클라이언트 | 채팅 | ✅ 개선됨 (무한 스크롤로 이전 메시지 로드) | - |
 | 클라이언트 | Main | 방/조직 목록 전부 렌더 (가상 스크롤 없음) | 데이터 많을 때 |
 | 클라이언트 | 채팅 (DOM 누적) | 무한 스크롤 도입으로 긴 방일수록 DOM 누적 (2-1 참고) | 데이터 많을 때 |
@@ -159,4 +170,4 @@
 ---
 
 **정리:**  
-GET /rooms·GET /users·소켓 멘션·방 읽음 처리·GET /events는 개선을 마쳤습니다. 다음으로 점검할 것은 **GET /org/tree**(전체 트리 로드)와 **GET /projects/room/:roomId**의 태스크 전체 로드, 그리고 클라이언트의 **가상 스크롤 부재**(Main 목록, 채팅 메시지 DOM 누적)입니다.
+GET /rooms·GET /users·소켓 멘션·방 읽음 처리·GET /events·GET /org/tree는 개선을 마쳤습니다. 다음으로 점검할 것은 **GET /projects/room/:roomId**의 태스크 전체 로드, 클라이언트의 **가상 스크롤 부재**(Main 목록, 채팅 메시지 DOM 누적), 그리고 모바일 앱의 조직도(아직 전체 로드)입니다.

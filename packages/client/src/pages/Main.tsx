@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useMemo, useCallback, useDeferredValue } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Socket } from 'socket.io-client';
 import { useAuthStore, useThemeStore, useToastStore } from '../store';
-import { roomsApi, orgApi, announcementApi, eventsApi, usersApi, mentionsApi, memosApi, foldersApi, orgGroupsApi, authApi, appSettingsApi, type Room, type OrgCompany, type OrgUser, type OrgGroup, type Event, type Folder, type UserAffiliation } from '../api';
+import { roomsApi, orgApi, announcementApi, eventsApi, usersApi, mentionsApi, memosApi, foldersApi, orgGroupsApi, authApi, appSettingsApi, type Room, type OrgCompany, type OrgDepartment, type OrgUser, type OrgGroup, type Event, type Folder, type UserAffiliation } from '../api';
 import MemoComposeModal from '../components/MemoComposeModal';
 import ToastProvider from '../components/ui/ToastProvider';
 import TitleBar, { MacInsetChromeTools } from '../components/TitleBar';
@@ -28,7 +28,7 @@ import { hasUnreadAnnouncements, getNewestUnreadAnnouncement } from './main/comp
 import MainOverlays from './main/components/MainOverlays';
 import PasswordChangeModal from './main/components/PasswordChangeModal';
 import { cn } from '../utils/cn';
-import { companyUsers, filterDepartments, allOrgUsers, flattenDepartments, defaultOpenDepartmentIds } from '../utils/orgTree';
+import { filterDepartments, flattenDepartments, defaultOpenDepartmentIds, companyUserCount, visibleOpenDepartmentIds } from '../utils/orgTree';
 import { APP_MAX_WIDTH, APP_WINDOW_HEIGHT } from '../layout/constants';
 import { presenceFromList, type OnlinePresenceMap } from '../utils/presence';
 import { openChatRoomWindow } from '../utils/chatPopout';
@@ -329,7 +329,67 @@ export default function Main() {
   const chatUnreadCount = useMemo(() => chatRooms.reduce((sum, r) => sum + (r.unreadCount ?? 0), 0), [chatRooms]);
   const totalUnreadCount = topicUnreadCount + chatUnreadCount;
 
-  const { data: orgTreeRaw = [], isLoading: orgLoading, isError: orgError, refetch: refetchOrg } = useQuery<OrgCompany[]>({ queryKey: ['org', 'tree'], queryFn: orgApi.tree });
+  // 조직도: 기본은 부서 구조 + 인원수만 있는 가벼운 트리를 받고, 실제로 펼쳐진 부서의
+  // 사용자 목록만 그때그때 지연 로드한다. 조직 전체를 대상으로 찾아야 하는 경우(검색어가
+  // 있거나, "즐겨찾기(친구)" 탭은 부서를 안 펼쳐도 어디 있는 사람이든 바로 보여야 하므로)엔
+  // 전체 트리를 받아온다(이후로는 캐시돼서 다시 켜도 재요청하지 않음).
+  const hasOrgSearch = !!q;
+  const needsFullOrgTree = hasOrgSearch || orgFriends.size > 0;
+  const {
+    data: orgTreeShallow = [],
+    isLoading: orgShallowLoading,
+    isError: orgShallowError,
+    refetch: refetchOrgShallow,
+  } = useQuery<OrgCompany[]>({ queryKey: ['org', 'tree', 'shallow'], queryFn: orgApi.treeShallow, enabled: !!myId });
+  const {
+    data: orgTreeFull,
+    isLoading: orgFullLoading,
+    isError: orgFullError,
+    refetch: refetchOrgFull,
+  } = useQuery<OrgCompany[]>({ queryKey: ['org', 'tree'], queryFn: orgApi.tree, enabled: !!myId && needsFullOrgTree });
+
+  // 검색으로 필터링되기 전 원본 기준으로 계산해야 본부·팀 깊이가 흔들리지 않는다.
+  // (구조는 가벼운 트리·전체 트리가 동일하므로 항상 가벼운 트리 기준으로 계산해도 된다)
+  const defaultOpenDeptIds = useMemo(() => defaultOpenDepartmentIds(orgTreeShallow ?? []), [orgTreeShallow]);
+
+  // 전체 트리가 필요 없을 때만: 현재 화면에 펼쳐져 보이는 부서들의 사용자 목록을 병렬로 지연 로드.
+  const openDeptIdList = useMemo(() => {
+    if (needsFullOrgTree) return [] as string[];
+    return [...visibleOpenDepartmentIds(orgTreeShallow ?? [], treeOpen, defaultOpenDeptIds)];
+  }, [needsFullOrgTree, orgTreeShallow, treeOpen, defaultOpenDeptIds]);
+  const deptUserQueries = useQueries({
+    queries: openDeptIdList.map((id) => ({
+      queryKey: ['org', 'department-users', id],
+      queryFn: () => orgApi.departmentUsers(id),
+      enabled: !!myId,
+      staleTime: 60_000,
+    })),
+  });
+  const deptUsersMap = useMemo(() => {
+    const map: Record<string, OrgUser[]> = {};
+    openDeptIdList.forEach((id, i) => {
+      const users = deptUserQueries[i]?.data;
+      if (users) map[id] = users;
+    });
+    return map;
+  }, [openDeptIdList, deptUserQueries]);
+
+  // 실제로 화면·검색·즐겨찾기 등 하위 로직이 쓰는 조직 트리.
+  // 전체가 필요하면 전체 트리를, 아니면 가벼운 트리 위에 지연 로드된 부서 사용자를 덧씌운 것을 쓴다.
+  const orgTreeRaw = useMemo<OrgCompany[]>(() => {
+    if (needsFullOrgTree) return orgTreeFull ?? [];
+    const overlay = (departments: OrgDepartment[]): OrgDepartment[] =>
+      (departments ?? []).map((d) => ({
+        ...d,
+        users: deptUsersMap[d.id] ?? d.users ?? [],
+        children: overlay(d.children ?? []),
+      }));
+    return (orgTreeShallow ?? []).map((c) => ({ ...c, departments: overlay(c.departments ?? []) }));
+  }, [needsFullOrgTree, orgTreeFull, orgTreeShallow, deptUsersMap]);
+  const orgLoading = needsFullOrgTree ? orgFullLoading : orgShallowLoading;
+  const orgError = needsFullOrgTree ? orgFullError : orgShallowError;
+  const refetchOrg = needsFullOrgTree ? refetchOrgFull : refetchOrgShallow;
+
   const { data: affiliationData } = useQuery<{ departmentId: string | null; affiliations: UserAffiliation[] }>({
     queryKey: ['users', 'affiliations'],
     queryFn: usersApi.affiliations,
@@ -340,8 +400,6 @@ export default function Main() {
     queryFn: orgGroupsApi.list,
     enabled: !!myId,
   });
-  // 검색으로 필터링되기 전 원본 기준으로 계산해야 본부·팀 깊이가 흔들리지 않는다.
-  const defaultOpenDeptIds = useMemo(() => defaultOpenDepartmentIds(orgTreeRaw ?? []), [orgTreeRaw]);
   const orgTree = useMemo(() => {
     const tree = orgTreeRaw ?? [];
     const keepUser = (u: OrgUser) => {
@@ -408,7 +466,8 @@ export default function Main() {
   const companyMemberCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const company of orgTreeRaw ?? []) {
-      counts[company.id] = companyUsers(company).length;
+      // userCount(서버 메타데이터) 우선 — 부서를 아직 안 펼쳐 사용자 목록이 안 실려 있어도 정확한 값을 준다.
+      counts[company.id] = companyUserCount(company);
     }
     return counts;
   }, [orgTreeRaw]);
@@ -491,21 +550,31 @@ export default function Main() {
   }, [contextMenu, roomContextMenu, profileModalUser, showAnnouncementModal]);
   useEffect(() => {
     if (statusSyncedRef.current || !myId) return;
-    const me = allOrgUsers(Array.isArray(orgTreeRaw) ? orgTreeRaw : []).find((u) => String(u.id) === String(myId));
-    if (me) {
-      // 재접속/재로그인 시 이전 상태(자리비움 등)를 그대로 이어받지 않고 '온라인'으로 초기화한다.
-      // statusMessage가 비어있는(null) 최초 로그인 상태도 '아직 온라인으로 안 바뀐 상태'로 보고
-      // 반드시 handleSetStatus를 호출해 DB에 '온라인' 문자열을 기록·브로드캐스트해야
-      // 조직도에 온라인 상태 아이콘이 노출된다. (statusMessage가 null이면 아이콘 자체가
-      // 표시되지 않으므로 "이미 온라인"으로 간주해 건너뛰면 안 됨)
-      setStatusInput('온라인');
-      setStatusNote(me.statusNote || '');
-      setExtensionInput(me.extension || '');
-      setDeskPhoneInput(me.deskPhone || '');
-      statusSyncedRef.current = true;
-      if (me.statusMessage !== '온라인') void handleSetStatus('온라인');
-    }
-  }, [orgTreeRaw, myId]);
+    // 조직도(orgTreeRaw)는 이제 부서를 펼쳐야 사용자가 채워지는 지연 로드 트리라, 내가
+    // 속한 부서가 안 펼쳐져 있으면 거기서 "나"를 못 찾을 수 있다. 내 상태 초기화는 조직도
+    // 로딩과 무관하게 항상 되어야 하므로 /auth/me로 직접 내 프로필을 가져온다.
+    let cancelled = false;
+    (async () => {
+      try {
+        const { user: me } = await authApi.me();
+        if (cancelled) return;
+        // 재접속/재로그인 시 이전 상태(자리비움 등)를 그대로 이어받지 않고 '온라인'으로 초기화한다.
+        // statusMessage가 비어있는(null) 최초 로그인 상태도 '아직 온라인으로 안 바뀐 상태'로 보고
+        // 반드시 handleSetStatus를 호출해 DB에 '온라인' 문자열을 기록·브로드캐스트해야
+        // 조직도에 온라인 상태 아이콘이 노출된다. (statusMessage가 null이면 아이콘 자체가
+        // 표시되지 않으므로 "이미 온라인"으로 간주해 건너뛰면 안 됨)
+        setStatusInput('온라인');
+        setStatusNote(me.statusNote || '');
+        setExtensionInput(me.extension || '');
+        setDeskPhoneInput(me.deskPhone || '');
+        statusSyncedRef.current = true;
+        if (me.statusMessage !== '온라인') void handleSetStatus('온라인');
+      } catch (err) {
+        console.error('Failed to sync my status:', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [myId]);
 
   // 메모장: 서버(/auth/me)에서 불러온 값으로 채운다. 사용자가 입력을 시작한 뒤로는 덮어쓰지 않는다.
   useEffect(() => {

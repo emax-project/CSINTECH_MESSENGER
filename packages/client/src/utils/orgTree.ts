@@ -111,6 +111,48 @@ export function allOrgUsers(orgTree: OrgCompany[]): OrgUser[] {
 }
 
 /**
+ * 부서(+하위 부서) 인원수. 지연 로드로 아직 사용자 목록을 못 가져온 부서도
+ * userCount(서버가 내려주는 메타데이터)로 정확한 수를 보여줄 수 있다.
+ */
+export function departmentUserCount(department: OrgDepartment): number {
+  const own = department.userCount ?? department.users?.length ?? 0;
+  return own + (department.children ?? []).reduce((sum, c) => sum + departmentUserCount(c), 0);
+}
+
+/** 회사 전체 인원수 (지연 로드 여부와 무관하게 정확). */
+export function companyUserCount(company: OrgCompany): number {
+  return (company.departments ?? []).reduce((sum, d) => sum + departmentUserCount(d), 0);
+}
+
+/**
+ * 현재 펼쳐진(화면에 보이는) 부서 id 집합.
+ * treeOpen이 company-/dept- 키를 명시적으로 갖고 있지 않으면 기본 펼침 규칙을 따른다
+ * (OrgTree.tsx의 렌더링 로직과 동일해야 한다 — 회사는 기본 펼침, 부서는 defaultOpenDeptIds 기준).
+ * 조상 중 하나라도 닫혀 있으면 그 아래는 화면에 안 보이므로 로드 대상에서 제외한다.
+ */
+export function visibleOpenDepartmentIds(
+  companies: OrgCompany[],
+  treeOpen: Record<string, boolean>,
+  defaultOpenDeptIds: Set<string>,
+): Set<string> {
+  const isOpen = (key: string, defaultOpen: boolean) =>
+    treeOpen[key] === undefined ? defaultOpen : !!treeOpen[key];
+  const ids = new Set<string>();
+  const walk = (departments: OrgDepartment[]) => {
+    (departments ?? []).forEach((d) => {
+      const open = isOpen(`dept-${d.id}`, defaultOpenDeptIds.has(d.id));
+      if (!open) return;
+      ids.add(d.id);
+      walk(d.children ?? []);
+    });
+  };
+  (companies ?? []).forEach((c) => {
+    if (isOpen(`company-${c.id}`, true)) walk(c.departments ?? []);
+  });
+  return ids;
+}
+
+/**
  * 기본으로 펼쳐 보일 부서(본부 depth 0 · 팀 depth 1)의 id 집합.
  * 매번 본부를 눌러야 하위 팀이 보이는 불편을 없애기 위해, 팀 단계까지는
  * 관리자가 접어둔 적이 없다면 항상 펼쳐진 채로 노출한다. 그보다 아래(파트 등)는 기본 접힘.
@@ -131,6 +173,10 @@ export function defaultOpenDepartmentIds(orgTree: OrgCompany[]): Set<string> {
  * 부서 트리를 검색·필터 조건으로 거른다.
  * 자기 인원이 조건에 맞지 않아도 하위 부서에 남는 사람이 있으면 유지한다.
  * keepDept 가 true 인 부서는 이름 매칭 등으로 통째로 유지(인원 필터 완화).
+ *
+ * 지연 로드(userCount만 있고 users는 아직 빈 배열인) 부서는 실제로는 인원이 있어도
+ * users.length가 0이라 걸러지면 안 되므로, userCount > 0이면 검색어가 없는 한(필터링 중이
+ * 아닌 한) 항상 유지한다. q가 있을 땐 항상 전체 트리(userCount 없음)를 쓰므로 영향 없다.
  */
 export function filterDepartments(
   departments: OrgDepartment[],
@@ -146,7 +192,7 @@ export function filterDepartments(
         : (dept.users ?? []).filter(keepUser);
       return { ...dept, users, children };
     })
-    .filter((dept) => dept.users.length > 0 || dept.children.length > 0 || keepDept?.(dept) === true);
+    .filter((dept) => dept.users.length > 0 || dept.children.length > 0 || (dept.userCount ?? 0) > 0 || keepDept?.(dept) === true);
 }
 
 /**

@@ -223,6 +223,12 @@ export type OrgDepartment = {
   parentId?: string | null;
   /** 하위 부서. 회사 전체를 훑을 땐 utils/orgTree의 헬퍼를 쓸 것 */
   children: OrgDepartment[];
+  /**
+   * 이 부서 직속 인원수. orgApi.treeShallow()로 받은 트리에서만 내려오며,
+   * 그때는 users가 비어 있어도(아직 지연 로드 전) 이 값으로 인원수를 표시할 수 있다.
+   * orgApi.tree()(전체 로드)로 받은 트리에는 없고, users.length를 그대로 쓰면 된다.
+   */
+  userCount?: number;
 };
 export type OrgCompany = { id: string; name: string; departments: OrgDepartment[] };
 
@@ -525,6 +531,11 @@ export type UserDeleteImpact = {
 
 export const orgApi = {
   tree: () => api.get('/org/tree') as Promise<OrgCompany[]>,
+  /** 부서 구조 + 인원수만 가벼운 트리로. 사용자 목록은 departmentUsers()로 부서별 지연 로드. */
+  treeShallow: () => api.get('/org/tree?shallow=1') as Promise<OrgCompany[]>,
+  /** 부서를 펼칠 때 그 부서(하위 부서 제외) 소속 사용자 목록을 가져온다. */
+  departmentUsers: (departmentId: string) =>
+    api.get(`/org/departments/${departmentId}/users`) as Promise<OrgUser[]>,
   online: () => api.get('/org/online') as Promise<{
     userIds: string[];
     presence?: Record<string, { desktop: boolean; mobile: boolean }>;

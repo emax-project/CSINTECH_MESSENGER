@@ -29,7 +29,12 @@ orgRouter.get('/online', async (_req, res) => {
   }
 });
 
-/** GET /org/tree - 회사 > 부서(계층) > 사용자 트리. 로그인한 나는 없으면 첫 부서에 포함 */
+/**
+ * GET /org/tree - 회사 > 부서(계층) > 사용자 트리. 로그인한 나는 없으면 첫 부서에 포함
+ * ?shallow=1 이면 부서 구조 + 인원수(userCount)만 내려주고 users는 비워둔다.
+ * 실제 사용자 목록은 부서를 펼칠 때 GET /org/departments/:id/users 로 따로 가져온다
+ * (조직이 커질수록 한 번에 전체 인원을 내려주는 비용이 커지는 것을 피하기 위함).
+ */
 orgRouter.get('/tree', async (req, res) => {
   try {
     // 거래처 MSSQL 연동 중이면 해당 회사(externalCode)만 조직도에 노출
@@ -38,6 +43,59 @@ orgRouter.get('/tree', async (req, res) => {
       getPartnerOrgSource() === 'mssql' && partnerCode
         ? { externalCode: partnerCode }
         : undefined;
+
+    const shallow = req.query.shallow === '1' || req.query.shallow === 'true';
+    if (shallow) {
+      const companies = await prisma.company.findMany({
+        where: companyWhere,
+        orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+        include: {
+          departments: { orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }] },
+        },
+      });
+
+      // 인원수 = 직속(departmentId) ∪ 세컨더리 소속(userAffiliation), 같은 사람이
+      // 두 경로로 모두 걸려 있는 경우도 있어(부서 데이터 중복) 사용자 id 기준으로 중복 제거해서 센다.
+      // id만 필요하므로 department.users 전체를 include하는 것보다 훨씬 가볍다.
+      const [directUsers, affiliationRows] = await Promise.all([
+        prisma.user.findMany({ where: { departmentId: { not: null } }, select: { id: true, departmentId: true } }),
+        prisma.userAffiliation.findMany({ select: { userId: true, departmentId: true } }).catch((err) => {
+          console.warn('[org/tree shallow] affiliation counts unavailable:', err?.message || err);
+          return [];
+        }),
+      ]);
+      const userIdsByDept = new Map();
+      const addUser = (deptId, userId) => {
+        if (!userIdsByDept.has(deptId)) userIdsByDept.set(deptId, new Set());
+        userIdsByDept.get(deptId).add(userId);
+      };
+      directUsers.forEach((u) => addUser(u.departmentId, u.id));
+      affiliationRows.forEach((a) => addUser(a.departmentId, a.userId));
+
+      const nestShallow = (departments) => {
+        const nodes = new Map();
+        departments.forEach((d) => {
+          nodes.set(d.id, {
+            id: d.id,
+            name: d.name,
+            parentId: d.parentId ?? null,
+            userCount: userIdsByDept.get(d.id)?.size ?? 0,
+            users: [],
+            children: [],
+          });
+        });
+        const roots = [];
+        nodes.forEach((node) => {
+          const parent = node.parentId ? nodes.get(node.parentId) : null;
+          if (parent) parent.children.push(node);
+          else roots.push(node);
+        });
+        return roots;
+      };
+
+      const tree = companies.map((c) => ({ id: c.id, name: c.name, departments: nestShallow(c.departments) }));
+      return res.json(tree);
+    }
 
     let hrTitleMap = new Map();
     try {
@@ -142,6 +200,71 @@ orgRouter.get('/tree', async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Failed to fetch org tree' });
+  }
+});
+
+/**
+ * GET /org/departments/:id/users - 부서를 펼칠 때 그 부서(하위 부서 제외) 소속 사용자 목록을 지연 로드.
+ * GET /org/tree?shallow=1 과 짝을 이룬다.
+ */
+orgRouter.get('/departments/:id/users', async (req, res) => {
+  try {
+    const dept = await prisma.department.findUnique({
+      where: { id: req.params.id },
+      include: { company: true },
+    });
+    if (!dept) return res.status(404).json({ error: 'Department not found' });
+
+    // 거래처 MSSQL 연동 중이면 해당 회사 소속 부서만 조회 허용 (조직도 노출 범위와 동일하게 맞춤)
+    const partnerCode = (process.env.PARTNER_COMPANY_EXTERNAL_CODE || '').trim();
+    if (getPartnerOrgSource() === 'mssql' && partnerCode && dept.company?.externalCode !== partnerCode) {
+      return res.status(404).json({ error: 'Department not found' });
+    }
+
+    let hrTitleMap = new Map();
+    try {
+      hrTitleMap = await getHrTitleMap();
+    } catch (err) {
+      console.warn('[org/departments/:id/users] HR title map unavailable:', err?.message || err);
+    }
+
+    const userSelect = { id: true, name: true, email: true, phone: true, extension: true, deskPhone: true, jobTitle: true, statusMessage: true, statusNote: true, avatarUrl: true, updatedAt: true };
+    const users = await prisma.user.findMany({
+      where: { departmentId: dept.id },
+      orderBy: { name: 'asc' },
+      select: userSelect,
+    });
+
+    let extras = [];
+    try {
+      const rows = await prisma.userAffiliation.findMany({
+        where: { departmentId: dept.id },
+        include: { user: { select: userSelect } },
+      });
+      extras = rows.map((r) => r.user);
+    } catch (err) {
+      console.warn('[org/departments/:id/users] affiliations unavailable:', err?.message || err);
+    }
+    const seen = new Set(users.map((u) => String(u.id)));
+    const merged = [...users, ...extras.filter((u) => !seen.has(String(u.id)))];
+
+    const deptCtx = { deptName: dept.name, companyName: dept.company?.name ?? null, companyAddress: dept.company?.address ?? null };
+    const toUserWithAvatarPath = (u) => {
+      const ver = u.updatedAt ? `?v=${new Date(u.updatedAt).getTime()}` : '';
+      return {
+        ...u,
+        jobTitle: resolveHrTitle(u.jobTitle, hrTitleMap) ?? u.jobTitle,
+        avatarUrl: u.avatarUrl ? `/users/${u.id}/avatar${ver}` : null,
+        deptName: deptCtx.deptName,
+        companyName: deptCtx.companyName,
+        companyAddress: deptCtx.companyAddress,
+      };
+    };
+
+    return res.json(merged.map(toUserWithAvatarPath).sort((a, b) => a.name.localeCompare(b.name)));
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to fetch department users' });
   }
 });
 

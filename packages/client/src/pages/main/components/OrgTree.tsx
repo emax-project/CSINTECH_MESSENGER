@@ -3,7 +3,7 @@ import type { MouseEvent } from 'react';
 import type { OrgCompany, OrgDepartment, OrgGroup, OrgUser } from '../../../api';
 import type { OnlinePresenceMap } from '../../../utils/presence';
 import { cn } from '../../../utils/cn';
-import { allOrgUsers, companyUsers, defaultOpenDepartmentIds, departmentUsers, formatJobTitle } from '../../../utils/orgTree';
+import { allOrgUsers, companyUsers, defaultOpenDepartmentIds, departmentUserCount, departmentUsers, formatJobTitle } from '../../../utils/orgTree';
 import { getOrgTheme, type OrgThemeId } from '../../../utils/orgTheme';
 
 const ACTIVE_BLUE = '#5B8DEF';
@@ -574,13 +574,17 @@ function OrgTree({
     const deptKey = `dept-${dept.id}`;
     const deptOpen = treeOpen[deptKey] !== undefined ? !!treeOpen[deptKey] : defaultOpenDeptIds.has(dept.id);
     const children = dept.children ?? [];
-    // 이 부서 + 모든 하위 부서의 인원
+    // 이 부서 + 모든 하위 부서의 인원 (아직 로드 안 된 부서가 섞여 있으면 선택 가능한 건 로드된 사람만)
     const deptIds = departmentUsers(dept).map((u) => u.id);
     const deptAllSelected = deptIds.length > 0 && deptIds.every((id) => selectedIds.has(id));
+    // 표시용 인원수는 지연 로드 여부와 무관하게 항상 정확한 값(userCount 메타데이터 우선)을 쓴다.
+    const deptTotalCount = departmentUserCount(dept);
     const hasContent = viewMode === 'split'
       ? children.length > 0
-      : (dept.users.length > 0 || children.length > 0);
+      : (deptTotalCount > 0 || children.length > 0);
     const isSelectedDept = selectedDeptId === dept.id;
+    // 펼쳤는데 이 부서 직속 인원이 아직 안 왔으면(지연 로드 중) 잠깐 로딩 표시.
+    const ownUsersLoading = deptOpen && dept.users.length === 0 && (dept.userCount ?? 0) > 0;
 
     return (
       <div key={dept.id} className="mt-0.5">
@@ -634,7 +638,7 @@ function OrgTree({
               )}
               style={isSelectedDept && useCustomAccent ? { color: orgTheme.activeText } : undefined}
             >
-              ({deptIds.length})
+              ({deptTotalCount})
             </span>
           </button>
         </div>
@@ -655,6 +659,9 @@ function OrgTree({
                   />
                 ))}
               </ul>
+            )}
+            {viewMode === 'combined' && ownUsersLoading && (
+              <p className={cn('m-0 py-1 pl-2 text-[12px]', isDark ? 'text-slate-500' : 'text-slate-400')}>불러오는 중…</p>
             )}
             {children.map((child) => renderDept(child))}
           </div>
