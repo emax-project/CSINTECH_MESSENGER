@@ -49,6 +49,9 @@ projectsRouter.get('/room/:roomId', async (req, res) => {
         },
       },
       orderBy: { createdAt: 'desc' },
+      // 방당 프로젝트 수 상한 (칸반/간트는 프로젝트별 보드·태스크 전체가 필요해
+      // 태스크 단위 페이지네이션 대신 프로젝트 개수를 제한해 무제한 로드를 방지)
+      take: 50,
     });
 
     // Attach assignee names

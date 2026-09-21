@@ -5,12 +5,28 @@ import { authMiddleware } from '../auth.js';
 export const eventsRouter = Router();
 eventsRouter.use(authMiddleware);
 
-/** 내 일정 목록 */
+/** 내 일정 목록
+ *  ?startAt=, ?endAt= (ISO) 로 기간 필터 가능 (선택, 하위 호환).
+ *  기간 미지정 시에도 무제한 조회를 막기 위해 최대 1000건으로 제한.
+ */
 eventsRouter.get('/', async (req, res) => {
   try {
+    const where = { userId: req.userId };
+
+    const { startAt, endAt } = req.query;
+    if (typeof startAt === 'string' && startAt) {
+      const d = new Date(startAt);
+      if (!Number.isNaN(d.getTime())) where.endAt = { gte: d };
+    }
+    if (typeof endAt === 'string' && endAt) {
+      const d = new Date(endAt);
+      if (!Number.isNaN(d.getTime())) where.startAt = { lte: d };
+    }
+
     const list = await prisma.event.findMany({
-      where: { userId: req.userId },
+      where,
       orderBy: { startAt: 'asc' },
+      take: 1000,
     });
     return res.json(list);
   } catch (err) {
