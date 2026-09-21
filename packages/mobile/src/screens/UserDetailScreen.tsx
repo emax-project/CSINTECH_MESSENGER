@@ -46,7 +46,10 @@ export default function UserDetailScreen() {
       const { user: updated } = await authApi.me();
       if (updated) useAuthStore.getState().setAuth?.(updated, useAuthStore.getState().token);
       queryClient.invalidateQueries({ queryKey: ['user', userId] });
-      queryClient.invalidateQueries({ queryKey: ['org'] });
+      // 쿼리 키가 'org-tree'/'org-department-users'(하이픈)라 ['org']는 prefix 매치가 안 된다 —
+      // 각각 명시적으로 무효화해야 조직도 화면이 최신 정보로 갱신된다.
+      queryClient.invalidateQueries({ queryKey: ['org-tree'] });
+      queryClient.invalidateQueries({ queryKey: ['org-department-users'] });
       setEditingPhone(false);
     } catch (err) {
       const msg = err instanceof Error ? err.message : '프로필 저장에 실패했습니다.';
@@ -82,7 +85,10 @@ export default function UserDetailScreen() {
       const { user: updated } = await authApi.me();
       if (updated) useAuthStore.getState().setAuth?.(updated, useAuthStore.getState().token);
       queryClient.invalidateQueries({ queryKey: ['user', userId] });
-      queryClient.invalidateQueries({ queryKey: ['org'] });
+      // 쿼리 키가 'org-tree'/'org-department-users'(하이픈)라 ['org']는 prefix 매치가 안 된다 —
+      // 각각 명시적으로 무효화해야 조직도 화면이 최신 정보로 갱신된다.
+      queryClient.invalidateQueries({ queryKey: ['org-tree'] });
+      queryClient.invalidateQueries({ queryKey: ['org-department-users'] });
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
     } catch {
       Alert.alert('오류', '프로필 사진 업로드에 실패했습니다.');

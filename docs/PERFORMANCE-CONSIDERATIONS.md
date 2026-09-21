@@ -46,7 +46,16 @@
 **남은 것:**
 - InviteModal/MemoComposeModal/UserManageSection/BulkUserRegisterSection(선택·일괄등록 UI)은 원래부터
   전체 인원이 필요해 기존 `GET /org/tree`(전체)를 그대로 씀 — 대상 아님.
-- 모바일(`packages/mobile`)의 `OrgTreeScreen`은 이번 작업 범위에서 제외, 기존 전체 로드 그대로.
+
+모바일(`packages/mobile`)의 `OrgTreeScreen`도 같은 방식으로 지연 로딩 적용 완료 — 데스크톱과 같은
+`shallow`/부서별 엔드포인트를 그대로 재사용:
+- 부서 구조는 가벼운 트리로, 실제로 펼친(회사도 펼쳐져 있어야) 부서의 사용자만 지연 로드.
+- 부서 인원수 표시는 `userCount`로 항상 정확, 접속중 인원은 로드 전까진 `…/N`으로 표시(로드 후 갱신).
+- "내 소속 부서 이름"(프로필 영역 표시용)은 조직도 트리 대신 `GET /users/me/affiliations`로 따로
+  가져와 트리 로딩 상태와 무관하게 항상 정확.
+- 덤으로 발견한 기존 버그도 수정: `UserDetailScreen`의 프로필/아바타 수정 후
+  `invalidateQueries({queryKey:['org']})` 호출이 실제 쿼리 키(`'org-tree'`/`'org-department-users'`,
+  하이픈 포함 문자열)와 안 맞아 조직도 캐시가 전혀 무효화되지 않고 있었음 — 각각 명시적으로 무효화하도록 수정.
 
 ---
 
@@ -179,4 +188,4 @@
 ---
 
 **정리:**  
-GET /rooms·GET /users·소켓 멘션·방 읽음 처리·GET /events·GET /org/tree·GET /projects/room/:roomId는 개선을 마쳤습니다. 다음으로 점검할 것은 클라이언트의 **가상 스크롤 부재**(Main 목록, 채팅 메시지 DOM 누적)와 모바일 앱의 조직도(아직 전체 로드)입니다.
+GET /rooms·GET /users·소켓 멘션·방 읽음 처리·GET /events·GET /org/tree(모바일 포함)·GET /projects/room/:roomId는 개선을 마쳤습니다. 다음으로 점검할 것은 클라이언트의 **가상 스크롤 부재**(Main 목록, 채팅 메시지 DOM 누적)입니다.

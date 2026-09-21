@@ -116,6 +116,9 @@ export const authApi = {
 
 export const usersApi = {
   list: () => api.get('/users') as Promise<User[]>,
+  /** 내 소속 부서(들). 조직도 트리 로딩과 무관하게 내 부서 이름을 바로 알 수 있다. */
+  affiliations: () =>
+    api.get('/users/me/affiliations') as Promise<{ departmentId: string | null; affiliations: UserAffiliation[] }>,
   updateProfile: (data: { phone?: string | null; jobTitle?: string | null; statusMessage?: string | null }) =>
     api.put('/users/me', data) as Promise<{ ok: boolean }>,
   uploadAvatar: async (uri: string) => {
@@ -175,10 +178,30 @@ export const eventsApi = {
   remove: (id: string) => api.delete(`/events/${id}`) as Promise<{ ok: boolean }>,
 };
 
-export type OrgCompany = { id: string; name: string; departments: { id: string; name: string; users: User[] }[] };
+export type OrgDepartmentLite = {
+  id: string;
+  name: string;
+  users: User[];
+  /** treeShallow()에서만 내려온다: 아직 users를 안 가져온 상태에서도 정확한 인원수를 보여줄 수 있음. */
+  userCount?: number;
+};
+export type OrgCompany = { id: string; name: string; departments: OrgDepartmentLite[] };
+
+export type UserAffiliation = {
+  departmentId: string;
+  departmentName: string;
+  companyId: string;
+  companyName: string;
+  label: string;
+  active: boolean;
+};
 
 export const orgApi = {
   tree: () => api.get('/org/tree') as Promise<OrgCompany[]>,
+  /** 부서 구조 + 인원수만 가벼운 트리로. 사용자 목록은 departmentUsers()로 부서별 지연 로드. */
+  treeShallow: () => api.get('/org/tree?shallow=1') as Promise<OrgCompany[]>,
+  /** 부서를 펼칠 때 그 부서 소속 사용자 목록만 가져온다. */
+  departmentUsers: (departmentId: string) => api.get(`/org/departments/${departmentId}/users`) as Promise<User[]>,
   online: () => api.get('/org/online') as Promise<{ userIds: string[] }>,
 };
 

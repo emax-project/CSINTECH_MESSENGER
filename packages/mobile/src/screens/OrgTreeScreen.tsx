@@ -1,12 +1,13 @@
 import { useState, useMemo, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { useQuery } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import AntDesign from '@expo/vector-icons/AntDesign';
-import { orgApi } from '../api';
+import type { User } from '@emax/shared';
+import { orgApi, usersApi } from '../api';
 import { useAuthStore } from '../store';
 import { getOrgFavorites, setOrgFavorites } from '../storage';
 import Avatar from '../components/Avatar';
@@ -30,9 +31,10 @@ export default function OrgTreeScreen() {
     getOrgFavorites().then((ids) => setStarred(new Set(ids)));
   }, []);
 
+  // 가벼운 트리(부서 구조 + 인원수만)만 받고, 실제로 펼친 부서의 사용자만 그때그때 지연 로드한다.
   const { data: tree = [], isLoading } = useQuery({
-    queryKey: ['org-tree'],
-    queryFn: orgApi.tree,
+    queryKey: ['org-tree', 'shallow'],
+    queryFn: orgApi.treeShallow,
   });
 
   const { data: onlineData } = useQuery({
@@ -42,14 +44,41 @@ export default function OrgTreeScreen() {
   });
   const onlineSet = useMemo(() => new Set(onlineData?.userIds ?? []), [onlineData?.userIds]);
 
-  const { myDeptName } = useMemo(() => {
-    for (const c of tree) {
-      for (const d of c.departments) {
-        if (d.users.some((u) => u.id === myId)) return { myDeptName: d.name };
-      }
-    }
-    return { myDeptName: '' };
-  }, [tree, myId]);
+  // 펼쳐진(보이는) 부서 id만 — 회사가 접혀 있으면 그 아래 부서는 화면에 안 보이므로 로드 대상 제외.
+  const expandedDeptIds = useMemo(() => {
+    const ids: string[] = [];
+    tree.forEach((c) => {
+      if (!expanded.has(c.id)) return;
+      c.departments.forEach((d) => {
+        if (expanded.has(d.id)) ids.push(d.id);
+      });
+    });
+    return ids;
+  }, [tree, expanded]);
+
+  const deptUserQueries = useQueries({
+    queries: expandedDeptIds.map((id) => ({
+      queryKey: ['org-department-users', id],
+      queryFn: () => orgApi.departmentUsers(id),
+      staleTime: 60000,
+    })),
+  });
+  const deptUsersMap = useMemo(() => {
+    const map: Record<string, User[]> = {};
+    expandedDeptIds.forEach((id, i) => {
+      const users = deptUserQueries[i]?.data;
+      if (users) map[id] = users;
+    });
+    return map;
+  }, [expandedDeptIds, deptUserQueries]);
+
+  // 조직도 로딩(=부서를 펼쳤는지)과 무관하게 내 소속 부서 이름을 바로 알 수 있도록 별도로 가져온다.
+  const { data: affiliationData } = useQuery({
+    queryKey: ['users', 'affiliations'],
+    queryFn: usersApi.affiliations,
+    enabled: !!myId,
+  });
+  const myDeptName = affiliationData?.affiliations?.find((a) => a.active)?.departmentName ?? '';
 
   const sortedTree = useMemo(() => {
     return tree
@@ -174,20 +203,27 @@ export default function OrgTreeScreen() {
               </TouchableOpacity>
 
               {expanded.has(company.id) && company.departments.map((dept) => {
-                const onlineCount = dept.users.filter((u) => onlineSet.has(u.id)).length;
-                const total = dept.users.length;
+                // 지연 로드: 아직 안 펼쳤으면 deptUsers는 빈 배열 — 표시용 총원은 서버가 준
+                // userCount(항상 정확)를 쓰고, 접속중 인원은 로드된 뒤에만 알 수 있다.
+                const deptUsers = deptUsersMap[dept.id] ?? dept.users;
+                const deptLoaded = expanded.has(dept.id) ? dept.id in deptUsersMap : true;
+                const onlineCount = deptUsers.filter((u) => onlineSet.has(u.id)).length;
+                const total = dept.userCount ?? deptUsers.length;
                 return (
                   <View key={dept.id} style={styles.deptBlock}>
                     <TouchableOpacity style={styles.deptRow} onPress={() => toggle(dept.id)}>
                       <Ionicons name={expanded.has(dept.id) ? 'chevron-down' : 'chevron-forward'} size={16} color={expanded.has(dept.id) ? '#007aff' : '#8e8e93'} style={styles.chevron} />
                       <Text style={[styles.deptName, expanded.has(dept.id) && styles.deptNameExpanded]}>{dept.name}</Text>
-                      <Text style={styles.deptCount}>{onlineCount}/{total}</Text>
+                      <Text style={styles.deptCount}>{deptLoaded ? `${onlineCount}/${total}` : `…/${total}`}</Text>
                       <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} onPress={() => toggleStar(dept.id)}>
                         <AntDesign name="star" size={18} color={starred.has(dept.id) ? '#007aff' : '#8e8e93'} />
                       </TouchableOpacity>
                     </TouchableOpacity>
 
-                    {expanded.has(dept.id) && dept.users.map((user) => {
+                    {expanded.has(dept.id) && !deptLoaded && (
+                      <View style={styles.deptLoading}><ActivityIndicator size="small" color="#007aff" /></View>
+                    )}
+                    {expanded.has(dept.id) && deptUsers.map((user) => {
                       const isOnline = onlineSet.has(user.id);
                       return (
                       <TouchableOpacity
@@ -310,6 +346,7 @@ const styles = StyleSheet.create({
   deptName: { flex: 1, fontSize: 15, fontWeight: '500', color: '#000' },
   deptNameExpanded: { color: '#007aff' },
   deptCount: { fontSize: 13, color: '#8e8e93', marginRight: 12 },
+  deptLoading: { paddingVertical: 12, alignItems: 'center' },
 
   userRow: {
     flexDirection: 'row',
