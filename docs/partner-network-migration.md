@@ -27,9 +27,16 @@
 - [x] **앱 ID** — `com.csintech.message`
 - [x] **기본 API URL** — `http://121.143.3.163:3030` (사외, UTM 1442)
 - [x] **UTM 포워딩** — `3001 → 210:3001` (대장·TCP OPEN 확인, 앱 응답은 서버 기동 후)
-- [ ] **관리자 이메일** (`ADMIN_EMAIL`)
+- [x] **관리자 이메일** (`ADMIN_EMAIL`) — 배포 시 RDP 접속해서 `.env`에 직접 입력 (2026-09-21 결정)
+- [x] 업데이트 배포 방식 — **GitHub Releases 유지** (2026-09-21 결정). `package.json`의
+      `build.publish[0].provider: "github"`가 이미 이 설정이라 추가 코드 변경 불필요.
+      거래처 PC가 `github.com`으로 나갈 수 있어야 자동업데이트가 동작함 — 막혀 있으면
+      §4의 "자동업데이트 base URL 변경"을 다시 검토.
 - [ ] **RDP로 210 배포** — 계정 `gw_admin` (비밀번호는 채팅으로만, 저장소 금지)
-- [ ] 업데이트 배포 방식: GitHub Releases 유지 vs 거래처 내부 Generic URL
+      배포 스크립트(`scripts/deploy-partner-server.sh`/`.ps1`)·env 템플릿(`.env.partner.example`)
+      준비 완료 확인함(2026-09-21) — RDP 접속 후 `cp .env.partner.example .env`로 값 채우고
+      스크립트만 실행하면 됨. `JWT_SECRET`도 비밀번호와 같은 취급 — 새 값은 채팅으로만 전달,
+      이 문서(저장소)엔 남기지 않음.
 
 ---
 
@@ -175,3 +182,22 @@ docker compose exec server npm run partner:org:sync:users  # 계정 생성 포�
 | RDP CLI(`gw_admin`) | FreeRDP auth 실패(GUI RDP로 수동 접속 필요) |
 | 이맥스 공인 `203.254.98.92:3001` | 미오픈 (이관 후 불필요) |
 | 210 서버 실배포 | **보류** — Windows RDP 후 `deploy-partner-server.ps1` |
+
+## 점검 로그 (2026-09-21)
+
+이맥스 로컬 저장소 기준 배포 준비 상태를 코드로 재확인 (RDP 접속은 이 세션에서 불가 — 192.168.123.x는
+사설망이라 여기서 네트워크 경로 자체가 없음).
+
+| 항목 | 결과 |
+|------|------|
+| `scripts/deploy-partner-server.sh` / `.ps1` | 존재, 로직 확인 완료 (compose up → health 대기 → partner sync) |
+| `.env.partner.example` | 존재, `PARTNER_MSSQL_SERVER=192.168.123.211` 등 거래처 망 기본값 정확 |
+| `docker-compose.yml` | `PARTNER_*`/`LDAP_*`/`ADMIN_EMAIL`/`JWT_SECRET` 전부 `.env`에서 올바르게 연결됨 |
+| 브랜딩(§4) | `package.json`(appId/productName)·`api.ts`(기본 API)·서버 HTML 타이틀 모두 실제 반영 확인 |
+| `GET /health/ldap` | 구현 확인 (`packages/server/src/index.js`) |
+| `ADMIN_EMAIL` | 결정: 배포 시 RDP 접속해서 `.env`에 직접 입력 |
+| 업데이트 배포 방식 | 결정: GitHub Releases 유지 — `package.json`의 `publish.provider: github`가 이미 이 설정 |
+| 새 `JWT_SECRET` | 생성해서 채팅으로 전달함 (저장소엔 미기록) |
+
+**결론:** §0(사전 확정)은 RDP 실배포 항목 하나만 남고 전부 정리됨. 코드 쪽은 추가 변경 없이 그대로
+배포 가능한 상태 — 다음 단계는 `gw_admin`으로 RDP(121.143.3.163:9210) 접속해서 스크립트 실행.
