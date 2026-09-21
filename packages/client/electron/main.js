@@ -314,11 +314,14 @@ let mainWindow = null;
 let isQuitting = false;
 let updateDownloadedPending = false;
 let pendingUpdateVersion = null;
-const RELEASE_DOWNLOAD_BASE = 'https://github.com/emax-project/MESSAGE/releases/download';
+// CSIN-Tech 빌드는 CSINTECH_MESSENGER 저장소에 릴리즈된다 (build.publish와 동일한 저장소 —
+// 공개 MESSAGE 저장소를 가리키면 설치파일이 없어 404가 난다. 과거 자동 업데이트 피드 자체는
+// 고쳤지만, 이 수동 다운로드 링크는 그때 같이 안 고쳐져 있었음).
+const RELEASE_DOWNLOAD_BASE = 'https://github.com/emax-project/CSINTECH_MESSENGER/releases/download';
 
 function getReleaseDownloadUrl(version) {
   const v = String(version || '').replace(/^v/, '');
-  if (!v) return 'https://github.com/emax-project/MESSAGE/releases/latest';
+  if (!v) return 'https://github.com/emax-project/CSINTECH_MESSENGER/releases/latest';
   if (process.platform === 'darwin') {
     const arch = process.arch === 'arm64' ? 'arm64' : 'x64';
     return `${RELEASE_DOWNLOAD_BASE}/v${v}/CSIN-Tech-${v}-${arch}.dmg`;
@@ -326,7 +329,7 @@ function getReleaseDownloadUrl(version) {
   if (process.platform === 'win32') {
     return `${RELEASE_DOWNLOAD_BASE}/v${v}/CSIN-Tech-Setup-${v}.exe`;
   }
-  return `https://github.com/emax-project/MESSAGE/releases/tag/v${v}`;
+  return `https://github.com/emax-project/CSINTECH_MESSENGER/releases/tag/v${v}`;
 }
 
 // 창별 show 핸들러 (Map으로 관리, win 객체에 프로퍼티 직접 부착보다 안전)

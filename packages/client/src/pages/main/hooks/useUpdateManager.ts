@@ -74,7 +74,9 @@ export function useUpdateManager({ hasElectron, electronPlatform, activePanel, s
   };
 
   const handleOpenReleasesPage = () => {
-    window.electronAPI?.openExternal?.('https://github.com/emax-project/MESSAGE/releases/latest');
+    // CSIN-Tech 빌드는 CSINTECH_MESSENGER 저장소에 릴리즈된다 (공개 MESSAGE 저장소가
+    // 아님 — 거기엔 이 설치파일이 없어 페이지가 비어 보임).
+    window.electronAPI?.openExternal?.('https://github.com/emax-project/CSINTECH_MESSENGER/releases/latest');
   };
 
   const handleQuitAndInstall = async () => {
