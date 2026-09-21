@@ -188,6 +188,8 @@ export const announcementApi = {
 
 export const projectsApi = {
   list: (roomId: string) => api.get(`/projects/room/${roomId}`) as Promise<Project[]>,
+  /** 프로젝트 하나(선택된 탭)의 태스크 전체. 칸반을 열 때(=프로젝트 선택 시) 따로 불러온다. */
+  tasks: (projectId: string) => api.get(`/projects/${projectId}/tasks`) as Promise<TaskItem[]>,
   create: (data: { roomId: string; name: string; description?: string }) =>
     api.post('/projects', data) as Promise<Project>,
   update: (id: string, data: { name?: string; description?: string }) =>

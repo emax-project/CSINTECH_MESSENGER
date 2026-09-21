@@ -29,7 +29,11 @@ async function verifyTaskInProject(taskId, projectId) {
   return prisma.task.findFirst({ where: { id: taskId, projectId } });
 }
 
-// List projects for a room
+// List projects for a room.
+// 칸반/간트는 항상 프로젝트 하나(선택된 탭)의 태스크만 화면에 그리므로, 여기서는
+// 태스크를 내려주지 않고(비워둠 + taskCount만) GET /projects/:id/tasks 로 선택된
+// 프로젝트의 태스크만 따로 가져온다 — 방에 프로젝트가 여러 개면 안 보는 프로젝트의
+// 태스크까지 매번 전부 로드하던 비용을 없앤다.
 projectsRouter.get('/room/:roomId', async (req, res) => {
   try {
     const member = await prisma.roomMember.findFirst({
@@ -41,38 +45,52 @@ projectsRouter.get('/room/:roomId', async (req, res) => {
       where: { roomId: req.params.roomId },
       include: {
         boards: { orderBy: { position: 'asc' } },
-        tasks: {
-          include: {
-            _count: { select: { comments: true } },
-          },
-          orderBy: { position: 'asc' },
-        },
       },
       orderBy: { createdAt: 'desc' },
-      // 방당 프로젝트 수 상한 (칸반/간트는 프로젝트별 보드·태스크 전체가 필요해
-      // 태스크 단위 페이지네이션 대신 프로젝트 개수를 제한해 무제한 로드를 방지)
+      // 방당 프로젝트 수 상한 (그 자체는 가벼우니 보드까지는 항상 내려주고, 무거운
+      // 태스크만 지연 로드로 분리)
       take: 50,
     });
 
-    // Attach assignee names
-    const userIds = [...new Set(projects.flatMap((p) => p.tasks.map((t) => t.assigneeId).filter(Boolean)))];
+    const projectIds = projects.map((p) => p.id);
+    const taskCounts = projectIds.length > 0
+      ? await prisma.task.groupBy({ by: ['projectId'], where: { projectId: { in: projectIds } }, _count: { _all: true } })
+      : [];
+    const countMap = new Map(taskCounts.map((t) => [t.projectId, t._count._all]));
+
+    const result = projects.map((p) => ({ ...p, tasks: [], taskCount: countMap.get(p.id) ?? 0 }));
+    return res.json(result);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to fetch projects' });
+  }
+});
+
+// 프로젝트 하나의 태스크 전체(모든 보드 통틀어) — 칸반/간트가 선택된 프로젝트를 열 때 호출.
+projectsRouter.get('/:id/tasks', async (req, res) => {
+  try {
+    const project = await verifyProjectAccess(req.params.id, req.userId);
+    if (!project) return res.status(403).json({ error: 'Not a member' });
+
+    const tasks = await prisma.task.findMany({
+      where: { projectId: project.id },
+      include: { _count: { select: { comments: true } } },
+      orderBy: { position: 'asc' },
+    });
+
+    const userIds = [...new Set(tasks.map((t) => t.assigneeId).filter(Boolean))];
     const users = userIds.length > 0
       ? await prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true } })
       : [];
     const userMap = Object.fromEntries(users.map((u) => [u.id, u.name]));
 
-    const result = projects.map((p) => ({
-      ...p,
-      tasks: p.tasks.map((t) => ({
-        ...t,
-        assigneeName: t.assigneeId ? (userMap[t.assigneeId] || null) : null,
-      })),
-    }));
-
-    return res.json(result);
+    return res.json(tasks.map((t) => ({
+      ...t,
+      assigneeName: t.assigneeId ? (userMap[t.assigneeId] || null) : null,
+    })));
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: 'Failed to fetch projects' });
+    return res.status(500).json({ error: 'Failed to fetch tasks' });
   }
 });
 

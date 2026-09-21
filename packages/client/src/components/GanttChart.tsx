@@ -77,10 +77,18 @@ export default function GanttChart({ roomId, members, onClose }: Props) {
     setSelectedProjectId(project.id);
   }
 
-  // Build rows: board headers + tasks grouped by board (deps on project to avoid [] identity churn)
+  // 태스크는 프로젝트 목록에 안 실려 온다 — 지금 보고 있는(선택된) 프로젝트 것만 따로 가져온다.
+  // 쿼리 키가 ['projects', roomId, ...]로 시작해서 기존 invalidateQueries(['projects', roomId])가
+  // 그대로 이 쿼리도 함께 무효화한다.
+  const { data: tasks = [] } = useQuery({
+    queryKey: ['projects', roomId, project?.id, 'tasks'],
+    queryFn: () => projectsApi.tasks(project!.id),
+    enabled: !!project?.id,
+  });
+
+  // Build rows: board headers + tasks grouped by board
   const rows = useMemo(() => {
     const boards = project?.boards || [];
-    const tasks = project?.tasks || [];
     const result: Array<{ type: 'board'; name: string; count: number } | { type: 'task'; task: TaskItem }> = [];
     for (const board of boards) {
       const boardTasks = tasks.filter((t) => t.boardId === board.id).sort((a, b) => a.position - b.position);
@@ -90,11 +98,10 @@ export default function GanttChart({ roomId, members, onClose }: Props) {
       }
     }
     return result;
-  }, [project]);
+  }, [project, tasks]);
 
   // Calculate timeline range
   const { minDate, totalDays } = useMemo(() => {
-    const tasks = project?.tasks || [];
     const today = startOfDay(new Date());
     let min = addDays(today, -7);
     let max = addDays(today, 30);
@@ -114,7 +121,7 @@ export default function GanttChart({ roomId, members, onClose }: Props) {
     max = addDays(max, 7);
     const total = diffDays(min, max) + 1;
     return { minDate: min, maxDate: max, totalDays: total };
-  }, [project]);
+  }, [tasks]);
 
   const today = startOfDay(new Date());
   const todayOffset = diffDays(minDate, today);

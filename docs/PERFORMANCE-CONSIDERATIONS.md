@@ -75,15 +75,24 @@
 
 ---
 
-### 1-6. 프로젝트/칸반 (GET /projects/room/:roomId) — 🟡 부분 개선됨
+### 1-6. 프로젝트/칸반 (GET /projects/room/:roomId) — ✅ 개선됨
 
-**위치:** `packages/server/src/routes/projects.js`
+**위치:** `packages/server/src/routes/projects.js`, `packages/client/src/components/KanbanBoard.tsx`/`GanttChart.tsx`, 모바일 `KanbanScreen.tsx`
 
 **적용된 개선:**
-- 방당 프로젝트 조회에 `take: 50` 상한 적용.
+- 방당 프로젝트 조회에 `take: 50` 상한 적용 (기존).
+- `GET /projects/room/:roomId`가 더 이상 모든 프로젝트의 태스크를 한 번에 안 내려줌 — `tasks: []` +
+  정확한 `taskCount`(그룹화 집계)만 반환. 칸반/간트/모바일 칸반 화면 모두 항상 프로젝트 하나
+  (선택된 탭)의 태스크만 화면에 그리므로, 안 보는 프로젝트의 태스크까지 매번 로드하던 비용을 없앰.
+- `GET /projects/:id/tasks` 신설 — 선택된 프로젝트 하나의 태스크 전체(모든 보드 통틀어)만 따로
+  가져옴. 클라이언트 쿼리 키를 `['projects', roomId, projectId, 'tasks']`로 둬서 기존
+  `invalidateQueries({queryKey:['projects', roomId]})` 호출들이 prefix 매치로 그대로 함께
+  무효화되게 함(태스크 생성·수정·삭제·이동 핸들러 변경 불필요).
 
-**남은 문제:**
-- 칸반 보드/간트 차트는 프로젝트별 보드·태스크 **전체**가 있어야 드래그앤드롭 등이 동작하므로, 태스크 자체는 여전히 상한 없이 전부 로드됨. 프로젝트 하나에 태스크가 아주 많아지는 경우엔 별도 페이지네이션 API가 필요.
+**남은 것:**
+- 프로젝트 하나 안의 태스크 자체는 여전히 상한 없이 전부 로드(칸반 드래그앤드롭이 보드 전체
+  상태를 필요로 해서). 프로젝트 하나에 태스크가 아주 많아지는 극단적 케이스는 별도 페이지네이션이
+  필요하지만, 우선순위는 낮음.
 
 ---
 
@@ -161,7 +170,7 @@
 | 서버 | socket (멘션) | ✅ 개선됨 (유저별 룸 타겟) | - |
 | 서버 | POST /rooms/:id/read | ✅ 개선됨 (createMany 단일 쿼리) | - |
 | 서버 | GET /events | ✅ 개선됨 (기간 필터 + take 상한 + 인덱스) | - |
-| 서버 | GET /projects/room/:roomId | 🟡 부분 개선됨 (프로젝트 take: 50, 태스크는 여전히 무제한) | 중간 |
+| 서버 | GET /projects/room/:roomId | ✅ 개선됨 (태스크는 선택된 프로젝트만 지연 로드) | - |
 | 서버 | GET /org/tree | ✅ 개선됨 (shallow + 부서별 지연 로드) | - |
 | 클라이언트 | 채팅 | ✅ 개선됨 (무한 스크롤로 이전 메시지 로드) | - |
 | 클라이언트 | Main | 방/조직 목록 전부 렌더 (가상 스크롤 없음) | 데이터 많을 때 |
@@ -170,4 +179,4 @@
 ---
 
 **정리:**  
-GET /rooms·GET /users·소켓 멘션·방 읽음 처리·GET /events·GET /org/tree는 개선을 마쳤습니다. 다음으로 점검할 것은 **GET /projects/room/:roomId**의 태스크 전체 로드, 클라이언트의 **가상 스크롤 부재**(Main 목록, 채팅 메시지 DOM 누적), 그리고 모바일 앱의 조직도(아직 전체 로드)입니다.
+GET /rooms·GET /users·소켓 멘션·방 읽음 처리·GET /events·GET /org/tree·GET /projects/room/:roomId는 개선을 마쳤습니다. 다음으로 점검할 것은 클라이언트의 **가상 스크롤 부재**(Main 목록, 채팅 메시지 DOM 누적)와 모바일 앱의 조직도(아직 전체 로드)입니다.

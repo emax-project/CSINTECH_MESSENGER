@@ -756,7 +756,10 @@ export type Project = {
   createdBy: string;
   createdAt: string;
   boards: Board[];
+  /** projectsApi.list()로 받은 프로젝트는 항상 비어 있다 — projectsApi.tasks(id)로 따로 가져올 것. */
   tasks: TaskItem[];
+  /** projectsApi.list()에서만 내려온다: 태스크를 아직 안 가져온 상태에서도 정확한 개수를 보여줄 수 있음. */
+  taskCount?: number;
 };
 
 export type Board = {
@@ -796,6 +799,9 @@ export type TaskComment = {
 export const projectsApi = {
   list: (roomId: string) =>
     api.get(`/projects/room/${roomId}`) as Promise<Project[]>,
+  /** 프로젝트 하나(선택된 탭)의 태스크 전체. 칸반/간트를 열 때(=프로젝트 선택 시) 따로 불러온다. */
+  tasks: (projectId: string) =>
+    api.get(`/projects/${projectId}/tasks`) as Promise<TaskItem[]>,
   create: (data: { roomId: string; name: string; description?: string }) =>
     api.post('/projects', data) as Promise<Project>,
   update: (id: string, data: { name?: string; description?: string }) =>
