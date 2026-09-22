@@ -119,6 +119,20 @@ export function departmentUserCount(department: OrgDepartment): number {
   return own + (department.children ?? []).reduce((sum, c) => sum + departmentUserCount(c), 0);
 }
 
+/**
+ * 조직도 트리에서 "이 부서 행에 실제로 몇 명이 표시되고 있나"를 보여줄 때 쓰는 인원수.
+ * departmentUserCount와 달리 부서가 로드돼 있으면(usersLoaded, 혹은 애초에 userCount가
+ * 없는 전체 로드 트리) 필터링된 실제 users.length를 쓴다 — "온라인만 보기" 등으로 걸러진
+ * 뒤에도 부서가 살아남았다면(하위에 매칭되는 사람이 있으면) 배지가 필터 전 총원이 아니라
+ * 실제로 보이는 인원수를 보여줘야 하기 때문. 아직 지연 로드 전인 부서만 메타데이터
+ * userCount(필터와 무관한 참고용 총원)로 대체한다.
+ */
+export function displayDepartmentUserCount(department: OrgDepartment): number {
+  const loaded = department.userCount === undefined || department.usersLoaded;
+  const own = loaded ? (department.users?.length ?? 0) : (department.userCount ?? 0);
+  return own + (department.children ?? []).reduce((sum, c) => sum + displayDepartmentUserCount(c), 0);
+}
+
 /** 회사 전체 인원수 (지연 로드 여부와 무관하게 정확). */
 export function companyUserCount(company: OrgCompany): number {
   return (company.departments ?? []).reduce((sum, d) => sum + departmentUserCount(d), 0);
@@ -174,9 +188,10 @@ export function defaultOpenDepartmentIds(orgTree: OrgCompany[]): Set<string> {
  * 자기 인원이 조건에 맞지 않아도 하위 부서에 남는 사람이 있으면 유지한다.
  * keepDept 가 true 인 부서는 이름 매칭 등으로 통째로 유지(인원 필터 완화).
  *
- * 지연 로드(userCount만 있고 users는 아직 빈 배열인) 부서는 실제로는 인원이 있어도
- * users.length가 0이라 걸러지면 안 되므로, userCount > 0이면 검색어가 없는 한(필터링 중이
- * 아닌 한) 항상 유지한다. q가 있을 땐 항상 전체 트리(userCount 없음)를 쓰므로 영향 없다.
+ * 지연 로드 중(펼쳐서 아직 fetch가 안 끝난, usersLoaded=false)인 부서는 실제로는 인원이
+ * 있어도 users.length가 0이라 걸러지면 안 되므로 그동안은 유지한다. 하지만 로드가 끝났는데
+ * (usersLoaded=true) 필터(온라인만 보기 등)로 전부 걸러진 거라면 — 예전처럼 그 부서(폴더)도
+ * 화면에서 사라져야 한다. userCount만 보고 "인원 있음 = 유지"로 판단하면 이 구분이 안 된다.
  */
 export function filterDepartments(
   departments: OrgDepartment[],
@@ -192,7 +207,11 @@ export function filterDepartments(
         : (dept.users ?? []).filter(keepUser);
       return { ...dept, users, children };
     })
-    .filter((dept) => dept.users.length > 0 || dept.children.length > 0 || (dept.userCount ?? 0) > 0 || keepDept?.(dept) === true);
+    .filter((dept) => {
+      if (dept.users.length > 0 || dept.children.length > 0 || keepDept?.(dept) === true) return true;
+      // 지연 로드 아직 안 끝난 부서만 예외로 유지 (userCount가 있는데 usersLoaded가 아직 false)
+      return dept.userCount !== undefined && !dept.usersLoaded;
+    });
 }
 
 /**

@@ -3,7 +3,7 @@ import type { MouseEvent } from 'react';
 import type { OrgCompany, OrgDepartment, OrgGroup, OrgUser } from '../../../api';
 import type { OnlinePresenceMap } from '../../../utils/presence';
 import { cn } from '../../../utils/cn';
-import { allOrgUsers, companyUsers, defaultOpenDepartmentIds, departmentUserCount, departmentUsers, formatJobTitle } from '../../../utils/orgTree';
+import { allOrgUsers, companyUsers, defaultOpenDepartmentIds, departmentUsers, displayDepartmentUserCount, formatJobTitle } from '../../../utils/orgTree';
 import { getOrgTheme, type OrgThemeId } from '../../../utils/orgTheme';
 
 const ACTIVE_BLUE = '#5B8DEF';
@@ -577,8 +577,10 @@ function OrgTree({
     // 이 부서 + 모든 하위 부서의 인원 (아직 로드 안 된 부서가 섞여 있으면 선택 가능한 건 로드된 사람만)
     const deptIds = departmentUsers(dept).map((u) => u.id);
     const deptAllSelected = deptIds.length > 0 && deptIds.every((id) => selectedIds.has(id));
-    // 표시용 인원수는 지연 로드 여부와 무관하게 항상 정확한 값(userCount 메타데이터 우선)을 쓴다.
-    const deptTotalCount = departmentUserCount(dept);
+    // 표시용 인원수: 아직 지연 로드 전이면 정확한 참고용 총원(userCount)을, 로드가 끝났으면
+    // 실제로 화면에 보이는(필터링된) 인원수를 보여준다 — "온라인만 보기" 등으로 걸러진 뒤에도
+    // 총원이 그대로 떠서 필터가 안 먹힌 것처럼 보이는 걸 방지.
+    const deptTotalCount = displayDepartmentUserCount(dept);
     const hasContent = viewMode === 'split'
       ? children.length > 0
       : (deptTotalCount > 0 || children.length > 0);
