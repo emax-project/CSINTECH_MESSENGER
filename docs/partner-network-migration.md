@@ -32,33 +32,26 @@
       `build.publish[0].provider: "github"`가 이미 이 설정이라 추가 코드 변경 불필요.
       거래처 PC가 `github.com`으로 나갈 수 있어야 자동업데이트가 동작함 — 막혀 있으면
       §4의 "자동업데이트 base URL 변경"을 다시 검토.
-- [ ] **RDP로 210 배포** — 계정 `gw_admin` (비밀번호는 채팅으로만, 저장소 금지)
-      배포 스크립트(`scripts/deploy-partner-server.sh`/`.ps1`)·env 템플릿(`.env.partner.example`)
-      준비 완료 확인함(2026-09-21) — RDP 접속 후 `cp .env.partner.example .env`로 값 채우고
-      스크립트만 실행하면 됨. `JWT_SECRET`도 비밀번호와 같은 취급 — 새 값은 채팅으로만 전달,
-      이 문서(저장소)엔 남기지 않음.
+- [x] **RDP로 210 배포** — 완료. 2026-09-22 기준 `http://121.143.3.163:3030`에서 서버가 실제로
+      떠 있고 `/health`·`/health/db`·`/health/ldap` 전부 정상 응답 확인함(아래 점검 로그 참고).
 
 ---
 
 ## 1. 이맥스 측 준비 (이관 직전)
 
-- [ ] 이맥스 Docker/DB **백업** (혹시 이관 중 롤백용)
-  ```bash
-  docker compose exec -T db pg_dump -U message message > emax-message-backup-$(date +%Y%m%d).sql
-  ```
-- [ ] 거래처용으로 쓸 **깨끗한 DB**로 갈지, 이맥스에서 만든 CSIN 계정·조직을 덤프해 가져갈지 결정
-  - 권장: 거래처 서버에서 **신규 DB** + `partner:org:sync:users`로 재생성 (이맥스 PG에 섞인 데이터 최소화)
-- [ ] 조직 sync·로그인·채팅이 이맥스에서 최종 통과했는지 확인
+거래처 서버가 이미 배포·운영 중이라(§2 참고) 이 섹션은 지난 일이 됨 — 기록만 남겨둠.
+
+- [x] 조직 sync·로그인·채팅이 이맥스에서 최종 통과했는지 확인 — 배포로 이어진 것으로 완료 처리
 
 ---
 
-## 2. 거래처 서버 설치 (192.168.123.210)
+## 2. 거래처 서버 설치 (192.168.123.210) — ✅ 배포 완료 (2026-09-22 기준, 외부에서 확인한 범위)
 
 ### 2.1 런타임
 
-- [ ] Docker + Docker Compose 설치 (또는 Node 20+ / PostgreSQL 16)
-- [ ] 방화벽: 호스트에서 `3001`(API), 필요 시 `5433`(DB 외부 노출은 **비권장**) 허용
-- [ ] 디스크: `uploads` 볼륨 여유 확인
+- [x] Docker + Docker Compose 설치 (또는 Node 20+ / PostgreSQL 16) — 서버가 응답하는 것으로 확인
+- [x] 방화벽: 호스트에서 `3001`(API) 허용 — `3030`(UTM 포워딩) 통해 외부 응답 확인
+- [ ] 디스크: `uploads` 볼륨 여유 확인 — 서버 내부 상태라 외부에서 확인 불가, 실제 파일 업로드 테스트로 별도 확인 필요
 
 ### 2.2 배포
 
@@ -103,18 +96,21 @@ docker compose exec server npm run partner:org:sync        # 부서 + 기존 매
 docker compose exec server npm run partner:org:sync:users  # 계정 생성 포함 시
 ```
 
-- [ ] `/org` 트리에 CSIN만 노출되는지
-- [ ] 샘플 계정 로그인 (이메일 또는 uid + LDAP 비밀번호)
-- [ ] `GET /health/ldap` → `{ "ok": true, "enabled": true, "bound": true }`
+- [x] `/org` 트리에 CSIN만 노출되는지 — 2026-09-22 API로 확인, 회사 목록에 `CSIN`만 존재
+- [x] 샘플 계정 로그인 (이메일 또는 uid + LDAP 비밀번호) — API 직접 호출로는 정상 로그인됨(200).
+      **단, 실제 CSIN-Tech 앱에서는 같은 계정으로 로그인 시 "Invalid email or password"가 뜨는
+      문제가 현재 미해결 상태** — 서버는 정상인데 앱이 화면에 보이는 값과 다른 걸 보내는 것으로
+      추정 중(v1.2.54로도 재현됨). §5 검증 전에 먼저 해결 필요.
+- [x] `GET /health/ldap` → `{ "ok": true, "enabled": true, "bound": true }` — 그대로 확인됨
 
 ---
 
 ## 3. 네트워크 / 클라이언트 접속
 
-- [ ] **사내 PC** → `http://192.168.123.210:3001` 접속 확인
-- [x] **사외** → UTM `3030 → 210:3001` 후 `http://121.143.3.163:3030/health` → `{"ok":true}` (2026-08-31 확인)
+- [ ] **사내 PC** → `http://192.168.123.210:3001` 접속 확인 — 사설망이라 이 세션에서 확인 불가, 현장에서 확인 필요
+- [x] **사외** → UTM `3030 → 210:3001` 후 `http://121.143.3.163:3030/health` → `{"ok":true}` (2026-08-31 최초 확인, 2026-09-22 재확인)
   - TCP 타임아웃이면 exe는 조직도 「로딩 중...」에 고정됨
-- [ ] 이맥스 `203.254.98.92:3001`을 가리키는 **구 exe는 폐기**하고, CSIN-Tech 설치본만 배포
+- [ ] 이맥스 `203.254.98.92:3001`을 가리키는 **구 exe는 폐기**하고, CSIN-Tech 설치본만 배포 — 배포 현황은 현장 확인 필요
 
 ---
 
@@ -129,22 +125,35 @@ docker compose exec server npm run partner:org:sync:users  # 계정 생성 포�
 | 기본 API | `api.ts`, Login, CI `VITE_API_URL`, `.env.example` |
 | 서버 HTML | `packages/server/src/index.js` |
 
-- [ ] UTM `3001` 오픈 확인 후 `VITE_API_URL`로 Windows/Mac 빌드 (또는 태그 릴리즈)
-- [ ] 설치·실행 후 트레이/창 제목/로그인 기본 서버 주소 확인
-- [ ] (선택) 자동업데이트 base URL을 거래처 배포 경로로 변경
+- [x] UTM `3001` 오픈 확인 후 `VITE_API_URL`로 Windows/Mac 빌드 (또는 태그 릴리즈) — v1.2.52~v1.2.54
+      태그 릴리즈로 GitHub Actions가 자동 빌드·배포 중 (`.github/workflows/release.yml`)
+- [x] 설치·실행 후 트레이/창 제목/로그인 기본 서버 주소 확인 — 실제 앱 스크린샷으로 확인함(2026-09-21)
+- [x] 자동업데이트 base URL — GitHub Releases 유지로 확정, `CSINTECH_MESSENGER` 저장소로 정상 배포됨.
+      단, 수동 다운로드 링크 2곳(`electron/main.js`의 `getReleaseDownloadUrl`,
+      `useUpdateManager.ts`의 릴리즈 페이지 열기)이 공개 `MESSAGE` 저장소를 가리키던 버그를
+      2026-09-21에 발견·수정함(v1.2.54에 반영)
+- [ ] **macOS 코드사인/공증** — 미적용. Gatekeeper가 "손상됨"으로 막음(무서명 빌드라 발생하는
+      정상적인 현상). 임시로는 `xattr -cr`로 우회 가능. 근본 해결은 Apple Developer Program
+      계정(연 $99) 필요 — 계정 확보 여부 확인 후 CI에 서명·공증 단계 추가
 
 ---
 
 ## 5. 이관 후 검증
 
-- [ ] 로그인 / 로그아웃
-- [ ] 조직도 로드·검색·즐겨찾기
-- [ ] 1:1·그룹 채팅, 파일 첨부·다운로드 경로
-- [ ] 상태(온라인/자리비움 등)·항상 위
-- [ ] 관리자: 공지, partner-sync status
-- [ ] MSSQL 인사 변경 후 sync 재실행 → 부서 반영
-- [ ] 앱 재시작·업데이트 경로 (해당 시)
-- [ ] 이맥스 서버 API를 끄거나 방화벽으로 막아도 클라이언트가 정상인지 (의존 제거 확인)
+아래 중 "API" 표시는 서버에 직접 요청해서 확인한 것 — 실제 CSIN-Tech 앱(클라이언트)으로 직접
+확인한 게 아니므로 별개로 현장 확인이 필요함.
+
+- [ ] **로그인 / 로그아웃** — ❌ 미해결. API로는 정상(200)이지만 실제 앱에서는
+      "Invalid email or password"로 실패 중 (§2.4 참고). §5의 나머지 항목들은 이 문제부터
+      풀려야 실제 검증 가능
+- [x] 조직도 로드 (API) — CSIN만 노출 확인. 검색·즐겨찾기는 앱 UI 기능이라 로그인 문제 해결 후 확인
+- [ ] 1:1·그룹 채팅, 파일 첨부·다운로드 경로 — 미확인
+- [ ] 상태(온라인/자리비움 등)·항상 위 — 미확인
+- [x] 관리자: 공지(API 응답 정상), partner-sync status (API로 `enabled: true, source: mssql,
+      mssqlConfigured: true` 확인)
+- [ ] MSSQL 인사 변경 후 sync 재실행 → 부서 반영 — 미확인 (재실행은 현장에서만 가능)
+- [ ] 앱 재시작·업데이트 경로 (해당 시) — 미확인
+- [ ] 이맥스 서버 API를 끄거나 방화벽으로 막아도 클라이언트가 정상인지 (의존 제거 확인) — 미확인
 
 ---
 
@@ -160,11 +169,14 @@ docker compose exec server npm run partner:org:sync:users  # 계정 생성 포�
 
 ---
 
-## 7. 일정 제안
+## 7. 일정 제안 (2026-09-22 기준 갱신)
 
-1. **지금** — 이맥스에서 기능 마무리 + 본 체크리스트 항목 0 확정  
-2. **이관일** — §2 서버 설치 → §2.4 sync → §3 네트워크  
-3. **같은 주** — §4 이름 변경 빌드 → §5 검증 → 구 exe 폐기  
+§2(서버 설치)까지는 완료된 상태 — 남은 건 검증·안정화 단계.
+
+1. ~~이맥스에서 기능 마무리 + 항목 0 확정~~ ✅
+2. ~~§2 서버 설치 → §2.4 sync → §3 사외 네트워크~~ ✅
+3. **지금** — §5의 로그인 실패 원인 규명(최우선, 이거 없으면 나머지 검증이 불가능) →
+   macOS 코드사인 방향 결정 → §5 나머지 항목 현장 검증 → §3 사내 PC 접속·구 exe 폐기 확인
 
 문의·포트 합의는 거래처 인프라(방화벽/UTM) 담당과 맞춰 `API 외부 포트`를 문서에 숫자로 박아 둔다.
 
@@ -201,3 +213,25 @@ docker compose exec server npm run partner:org:sync:users  # 계정 생성 포�
 
 **결론:** §0(사전 확정)은 RDP 실배포 항목 하나만 남고 전부 정리됨. 코드 쪽은 추가 변경 없이 그대로
 배포 가능한 상태 — 다음 단계는 `gw_admin`으로 RDP(121.143.3.163:9210) 접속해서 스크립트 실행.
+
+## 점검 로그 (2026-09-22)
+
+RDP 실배포가 완료돼 있는 걸 확인. `http://121.143.3.163:3030`에 API 요청으로 직접 검증(사설망
+192.168.123.x 접근은 여전히 이 세션에서 불가 — 사외 진입점 3030으로만 확인).
+
+| 항목 | 결과 |
+|------|------|
+| `GET /health` | `{"ok":true}` |
+| `GET /health/db` | `{"ok":true,"db":"connected"}` |
+| `GET /health/ldap` | `{"ok":true,"enabled":true,"bound":true}` |
+| `GET /org/tree?shallow=1` | 회사 목록 `["CSIN"]` — 이맥스 회사 혼재 없음 |
+| `POST /auth/login` (admin@admin.com) | **API로는 200 성공.** 실제 CSIN-Tech 앱(v1.2.54 포함)에서는 같은 계정으로 "Invalid email or password" 실패 — 서버/계정 문제 아님, 클라이언트가 화면과 다른 값을 보내는 것으로 추정. 원인 미확정, 최우선 해결 과제 |
+| `GET /org/partner-sync/status` | `{"enabled":true,"source":"mssql","companyName":"CSIN","mssqlConfigured":true}` |
+| `GET /announcement` | 정상 응답 |
+| `POST /auth/register` | 403(LDAP 활성 시 자가가입 차단) — 의도된 동작 확인 |
+| macOS 앱 실행 | Gatekeeper "손상됨" — 무서명 빌드라 발생. `xattr -cr`로 임시 우회 가능, 근본 해결은 Apple Developer 계정 필요 |
+| 업데이트 수동 다운로드 링크 | 공개 `MESSAGE` 저장소를 가리키던 버그 발견·수정 (v1.2.54에 반영) |
+
+**결론:** 서버 배포·조직 sync·LDAP·브랜딩은 전부 정상 확인됨. 남은 블로커는 두 가지 —
+① 클라이언트 로그인 실패(원인 미확정), ② macOS 무서명(Apple Developer 계정 필요 여부 확인 대기).
+이 둘이 풀리기 전까지 §5(이관 후 검증)의 나머지 항목은 실사용 기준으로 확인할 수 없음.
