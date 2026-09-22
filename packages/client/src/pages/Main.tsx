@@ -331,10 +331,11 @@ export default function Main() {
 
   // 조직도: 기본은 부서 구조 + 인원수만 있는 가벼운 트리를 받고, 실제로 펼쳐진 부서의
   // 사용자 목록만 그때그때 지연 로드한다. 조직 전체를 대상으로 찾아야 하는 경우(검색어가
-  // 있거나, "즐겨찾기(친구)" 탭은 부서를 안 펼쳐도 어디 있는 사람이든 바로 보여야 하므로)엔
+  // 있거나, "즐겨찾기(친구)" 탭은 부서를 안 펼쳐도 어디 있는 사람이든 바로 보여야 하거나,
+  // "온라인만 보기"는 펼쳐본 적 없는 부서에 있는 온라인인 사람도 놓치면 안 되므로)엔
   // 전체 트리를 받아온다(이후로는 캐시돼서 다시 켜도 재요청하지 않음).
   const hasOrgSearch = !!q;
-  const needsFullOrgTree = hasOrgSearch || orgFriends.size > 0;
+  const needsFullOrgTree = hasOrgSearch || orgFriends.size > 0 || showOnlineOnly;
   const {
     data: orgTreeShallow = [],
     isLoading: orgShallowLoading,

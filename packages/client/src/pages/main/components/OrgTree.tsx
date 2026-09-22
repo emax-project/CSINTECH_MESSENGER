@@ -119,6 +119,8 @@ export type OrgTreeProps = {
   orgFriends: Set<string>;
   onToggleOrgFriend: (userId: string) => void;
   onlineUserIds: Set<string>;
+  /** 켜져 있으면 조직도(org) 탭에서 부서 트리 대신 온라인인 사람만 평평한 목록으로 보여준다. */
+  showOnlineOnly?: boolean;
   onlinePresence?: OnlinePresenceMap;
   myId?: string;
   myEmail?: string;
@@ -279,6 +281,7 @@ function OrgTree({
   orgFriends,
   onToggleOrgFriend,
   onlineUserIds,
+  showOnlineOnly = false,
   onlinePresence = {},
   myId,
   myEmail,
@@ -406,6 +409,40 @@ function OrgTree({
     renderStatusIcon,
     accentColor: rowAccentColor,
   };
+
+  // "온라인만 보기"가 켜져 있으면 조직도(org) 탭에서도 부서 트리를 펼쳐 보여주는 대신
+  // 온라인인 사람만 평평한 목록으로 보여준다. orgTree는 이미 Main.tsx에서 온라인(+검색어)
+  // 조건으로 걸러진 트리라 allOrgUsers로 훑으면 곧 "지금 온라인인 사람 전체" 목록이 된다.
+  if (view === 'org' && showOnlineOnly) {
+    const online = allOrgUsers(orgTree).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko'));
+
+    if (online.length === 0) {
+      return (
+        <p className={cn('p-6 text-center text-[13px] leading-relaxed', isDark ? 'text-slate-400' : 'text-slate-500')}>
+          온라인인 사람이 없습니다.
+        </p>
+      );
+    }
+
+    return (
+      <div className="px-2.5 py-2">
+        <div className={cn('mb-1.5 px-1 text-[12px] tabular-nums', isDark ? 'text-slate-500' : 'text-slate-400')}>
+          {online.length}명 온라인
+        </div>
+        <ul className="m-0 list-none space-y-0.5 p-0">
+          {online.map((u) => (
+            <OrgUserRow
+              key={u.id}
+              u={u}
+              selected={selectedIds.has(u.id)}
+              isFriend={orgFriends.has(String(u.id))}
+              {...userRowProps}
+            />
+          ))}
+        </ul>
+      </div>
+    );
+  }
 
   if (view === 'friends') {
     const friends = allOrgUsers(orgTree)

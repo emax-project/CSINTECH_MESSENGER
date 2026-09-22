@@ -303,6 +303,7 @@ function OrgPanel({
           orgFriends={orgFriends}
           onToggleOrgFriend={onToggleOrgFriend}
           onlineUserIds={onlineUserIds}
+          showOnlineOnly={showOnlineOnly}
           onlinePresence={onlinePresence}
           myId={myId}
           myEmail={myEmail}
