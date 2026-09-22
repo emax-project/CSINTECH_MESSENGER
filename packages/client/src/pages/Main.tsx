@@ -382,6 +382,10 @@ export default function Main() {
       (departments ?? []).map((d) => ({
         ...d,
         users: deptUsersMap[d.id] ?? d.users ?? [],
+        // 실제로 지연 로드가 끝났는지 여부. "온라인만 보기" 등으로 users가 걸러져 비어 보여도
+        // usersLoaded는 그대로 유지돼야 "로딩 중" 표시가 계속 안 뜬다 (filterDepartments가
+        // users/children만 덮어쓰고 나머지 필드는 그대로 두므로 필터링 이후에도 값이 보존됨).
+        usersLoaded: d.id in deptUsersMap,
         children: overlay(d.children ?? []),
       }));
     return (orgTreeShallow ?? []).map((c) => ({ ...c, departments: overlay(c.departments ?? []) }));

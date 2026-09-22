@@ -584,7 +584,10 @@ function OrgTree({
       : (deptTotalCount > 0 || children.length > 0);
     const isSelectedDept = selectedDeptId === dept.id;
     // 펼쳤는데 이 부서 직속 인원이 아직 안 왔으면(지연 로드 중) 잠깐 로딩 표시.
-    const ownUsersLoading = deptOpen && dept.users.length === 0 && (dept.userCount ?? 0) > 0;
+    // dept.users.length === 0만 보면 "로딩 중"과 "다 왔는데 필터(온라인만 보기 등)로 전부
+    // 걸러짐"을 구분 못 해 후자일 때도 로딩 표시가 영원히 남는다 — usersLoaded로 구분.
+    // (userCount가 없는 전체 로드 트리에서는 애초에 이 표시 자체가 필요 없음.)
+    const ownUsersLoading = deptOpen && dept.userCount !== undefined && !dept.usersLoaded;
 
     return (
       <div key={dept.id} className="mt-0.5">

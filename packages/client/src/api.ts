@@ -229,6 +229,12 @@ export type OrgDepartment = {
    * orgApi.tree()(전체 로드)로 받은 트리에는 없고, users.length를 그대로 쓰면 된다.
    */
   userCount?: number;
+  /**
+   * userCount와 짝을 이루는 필드(Main.tsx가 채움): 이 부서의 지연 로드가 실제로 끝났는지.
+   * "users.length === 0"만으로는 로딩 중인지 필터(예: 온라인만 보기)로 걸러진 건지 구분이
+   * 안 돼서 별도로 둠 — 필터링돼도 이 값은 보존되게 되어 있음.
+   */
+  usersLoaded?: boolean;
 };
 export type OrgCompany = { id: string; name: string; departments: OrgDepartment[] };
 
