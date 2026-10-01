@@ -1,8 +1,7 @@
 # 설치 · 유지보수 가이드 (관리자용)
 
 > 대상: 서버를 설치·운영하거나 클라이언트 앱을 빌드/배포하는 담당자.
-> 이 문서는 초안입니다 — 실제 배포 환경(사내 EMAX망 / 거래처망 등)에 맞춰 세부값을 채워 넣어 주세요.
-> 사용자 화면 기능(조직 관리·사용자 관리 메뉴 등)에 대한 상세 조작법은 [`user-guide.md`](./user-guide.md) §13을 참고하세요.
+> 사용자 화면 기능(조직 관리·사용자 관리 메뉴 등)에 대한 상세 조작법은 [`user-guide.md`](https://emax-project.github.io/csintech-messenger-docs/user-guide.html) §13을 참고하세요.
 
 ## 1. 구성 요소
 
@@ -56,9 +55,9 @@ npm run dev
 | `JWT_SECRET` | 로그인 토큰 서명 키. **운영 환경에서는 반드시 변경** (`openssl rand -base64 32`) |
 | `ADMIN_EMAIL` | 공지 등록 등 관리자 권한을 가질 이메일(쉼표로 다중 지정 가능) |
 | `PARTNER_ORG_SOURCE` | `off`(기본) / `mock`(로컬 검증용) / `mssql`(실제 거래처 DB) |
-| `PARTNER_MSSQL_*` | 거래처 조직도 MSSQL 접속 정보. 자세한 내용: [`partner-org-sync.md`](../packages/server/docs/partner-org-sync.md) |
+| `PARTNER_MSSQL_*` | 거래처 조직도 MSSQL 접속 정보. 자세한 내용: [`partner-org-sync.md`](https://github.com/emax-project/CSINTECH_MESSENGER/blob/main/packages/server/docs/partner-org-sync.md) |
 | `PARTNER_DEFAULT_PASSWORD` | 조직 동기화로 계정 자동 생성 시 초기 비밀번호(필수 지정, 최초 로그인 시 변경 강제) |
-| `LDAP_ENABLED` 이하 `LDAP_*` | Synology LDAP 연동(그룹웨어와 계정 통합). 자세한 내용: [`ldap.md`](../packages/server/docs/ldap.md) |
+| `LDAP_ENABLED` 이하 `LDAP_*` | Synology LDAP 연동(그룹웨어와 계정 통합). 자세한 내용: [`ldap.md`](https://github.com/emax-project/CSINTECH_MESSENGER/blob/main/packages/server/docs/ldap.md) |
 
 전체 예시는 `packages/server/.env.example`, 거래처망 배포용 예시는 `.env.partner.example` 참고.
 
@@ -81,14 +80,14 @@ npm run build:app:win      # Windows만 (.exe) — Mac에서도 크로스 빌드
 
 ### 4-2. 배포 (GitHub Releases)
 
-1. https://github.com/emax-project/MESSAGE/releases 에서 새 릴리스 생성
+1. https://github.com/emax-project/CSINTECH_MESSENGER/releases 에서 새 릴리스 생성
 2. 태그를 `package.json` 버전과 동일하게 (`v1.2.58`)
 3. `release/` 폴더의 설치 파일 **+ `latest.yml` + `latest-mac.yml`** 을 모두 첨부 (누락 시 자동 업데이트 동작 안 함)
 4. Publish
 
-사용자 안내 링크: `https://github.com/emax-project/MESSAGE/releases/latest`
+사용자 안내 링크: `https://github.com/emax-project/CSINTECH_MESSENGER/releases/latest`
 
-자세한 절차·문구 예시·직접 서버/S3 배포(방법 B)는 [`DEPLOY.md`](../DEPLOY.md) 참고.
+자세한 절차·문구 예시·직접 서버/S3 배포(방법 B)는 [`DEPLOY.md`](https://github.com/emax-project/CSINTECH_MESSENGER/blob/main/DEPLOY.md) 참고.
 
 ### 4-3. 자동 업데이트
 
@@ -117,11 +116,11 @@ Docker 배포라면 서버 컨테이너 기동 시 `prisma db push`가 자동 �
 
 - 1회 설정: 서버 PC에 Docker 설치 → 사용자 `docker` 그룹 추가 → GitHub **Settings → Actions → Runners**에서 러너 등록(Label에 `server` 포함) → 서비스로 등록
 - `JWT_SECRET`은 GitHub **Settings → Secrets and variables → Actions**에 등록해 두면 배포 시 자동 전달(미등록 시 기본값 `change-me-in-production` 사용 — 운영 환경 금지)
-- 전체 단계별 명령어는 [`DEPLOY.md`](../DEPLOY.md) "GitHub Actions로 서버 PC Docker 자동 배포" 절 참고
+- 전체 단계별 명령어는 [`DEPLOY.md`](https://github.com/emax-project/CSINTECH_MESSENGER/blob/main/DEPLOY.md) "GitHub Actions로 서버 PC Docker 자동 배포" 절 참고
 
 ## 7. 거래처(파트너) 배포 특이사항
 
-거래처망에 별도로 설치하는 빌드(예: CSIN-Tech)는 다음이 사내 배포와 다릅니다. 자세한 배경·결정 이력은 [`partner-network-migration.md`](../docs/partner-network-migration.md) 참고.
+거래처망에 별도로 설치하는 빌드(예: CSIN-Tech)는 다음이 사내 배포와 다릅니다. 자세한 배경·결정 이력은 [`partner-network-migration.md`](https://github.com/emax-project/CSINTECH_MESSENGER/blob/main/docs/partner-network-migration.md) 참고.
 
 - 앱 표시 이름 / 앱 ID가 다름 (`productName`, `appId`)
 - 클라이언트 기본 API 주소가 거래처 서버 URL로 빌드에 박힘
@@ -175,12 +174,10 @@ DB(PostgreSQL)가 떠 있지 않거나 접속 정보가 잘못된 경우 발생.
 
 ## 10. 참고 문서
 
-- [`README.md`](../README.md) — 로컬 개발 빠른 시작
-- [`DEPLOY.md`](../DEPLOY.md) — 빌드/배포 전체 절차, GitHub Actions 자동 배포
-- [`packages/server/docs/ldap.md`](../packages/server/docs/ldap.md) — LDAP 연동
-- [`packages/server/docs/partner-org-sync.md`](../packages/server/docs/partner-org-sync.md) — 거래처 조직도 동기화
-- [`docs/partner-network-migration.md`](./partner-network-migration.md) — 거래처망 이관 체크리스트/결정 기록
-- [`docs/PERFORMANCE-CONSIDERATIONS.md`](./PERFORMANCE-CONSIDERATIONS.md) — 성능 관련 고려사항
+- [`README.md`](https://github.com/emax-project/CSINTECH_MESSENGER/blob/main/README.md) — 로컬 개발 빠른 시작
+- [`DEPLOY.md`](https://github.com/emax-project/CSINTECH_MESSENGER/blob/main/DEPLOY.md) — 빌드/배포 전체 절차, GitHub Actions 자동 배포
+- [`packages/server/docs/ldap.md`](https://github.com/emax-project/CSINTECH_MESSENGER/blob/main/packages/server/docs/ldap.md) — LDAP 연동
+- [`packages/server/docs/partner-org-sync.md`](https://github.com/emax-project/CSINTECH_MESSENGER/blob/main/packages/server/docs/partner-org-sync.md) — 거래처 조직도 동기화
+- [`docs/partner-network-migration.md`](https://github.com/emax-project/CSINTECH_MESSENGER/blob/main/docs/partner-network-migration.md) — 거래처망 이관 체크리스트/결정 기록
+- [`docs/PERFORMANCE-CONSIDERATIONS.md`](https://github.com/emax-project/CSINTECH_MESSENGER/blob/main/docs/PERFORMANCE-CONSIDERATIONS.md) — 성능 관련 고려사항
 
----
-*이 문서는 초안입니다. 실제 운영 환경(서버 IP, 포트, 거래처명 등) 확정 후 구체값으로 업데이트해 주세요.*
