@@ -52,6 +52,8 @@ jobs:
           LDAP_BIND_PASSWORD: ${{ secrets.LDAP_BIND_PASSWORD }}
           LDAP_EMAIL_DOMAIN: ${{ secrets.LDAP_EMAIL_DOMAIN }}
           LDAP_TLS_REJECT_UNAUTHORIZED: ${{ secrets.LDAP_TLS_REJECT_UNAUTHORIZED }}
+          # LDAP 대신 로컬 비밀번호로 로그인할 예외 계정 (쉼표로 구분)
+          LDAP_LOCAL_EXCEPTIONS: ${{ secrets.LDAP_LOCAL_EXCEPTIONS }}
           # 거래처 MSSQL 조직도 연동
           PARTNER_ORG_SOURCE: ${{ secrets.PARTNER_ORG_SOURCE }}
           PARTNER_COMPANY_NAME: ${{ secrets.PARTNER_COMPANY_NAME }}
