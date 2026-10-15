@@ -12,6 +12,7 @@ import {
   type Room,
 } from '../../../api';
 import { playNotificationSound } from '../../../utils/notificationSound';
+import { isNotificationPopupEnabled } from '../../../utils/notificationPopup';
 
 type MessagesPage = { messages: Message[]; nextCursor: string | null; hasMore: boolean };
 
@@ -114,7 +115,7 @@ export function useChatSocket({
             playNotificationSound();
             const electronAPI = window.electronAPI;
 
-            if (electronAPI?.showNotification) {
+            if (isNotificationPopupEnabled() && electronAPI?.showNotification) {
               (async () => {
                 try {
                   let icon: string | null = null;
@@ -159,7 +160,7 @@ export function useChatSocket({
                   electronAPI.showNotification(title, body, msg.roomId);
                 }
               })();
-            } else if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+            } else if (isNotificationPopupEnabled() && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
               new Notification(title, { body });
             }
           } catch {
@@ -270,10 +271,12 @@ export function useChatSocket({
 
     s.on('mention', (payload: { roomId: string; senderName: string; content: string }) => {
       playNotificationSound();
-      window.electronAPI?.showNotification(
-        `${payload.senderName}님이 회원님을 멘션했습니다`,
-        payload.content
-      );
+      if (isNotificationPopupEnabled()) {
+        window.electronAPI?.showNotification(
+          `${payload.senderName}님이 회원님을 멘션했습니다`,
+          payload.content
+        );
+      }
     });
 
     setSocket(s);
