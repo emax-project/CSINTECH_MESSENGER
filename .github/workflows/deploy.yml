@@ -2,6 +2,12 @@
 # main 브랜치에 push 하거나, Actions 탭에서 수동 실행 가능
 # 웹 클라이언트(React)도 Docker 빌드 단계에서 포함됩니다.
 # Runner에는 Docker만 있으면 됨 (Node/npm 불필요).
+#
+# Docker Desktop 라이선스 정책(250인/매출 1천만 달러 초과 기업 유료) 때문에,
+# Docker Desktop 대신 WSL2 안에 Docker Engine을 직접 설치해 쓴다(완전 무료,
+# Apache-2.0). Windows 쪽 러너는 CLI만 설치하고 DOCKER_HOST로 WSL2 안의
+# 데몬(tcp://localhost:2375, WSL2 localhost 포워딩 경유)에 접속한다.
+# 서버 쪽 설정은 docs/wsl2-docker-engine-setup.md 참고.
 
 name: Deploy to Server (Docker)
 
@@ -9,6 +15,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:  # 수동 실행
+
+env:
+  # WSL2 안의 Docker Engine(데몬)에 접속. 127.0.0.1만 바인딩하고 WSL2 localhost
+  # 포워딩으로 Windows에서도 보이게 해 둔 전제 — docs/wsl2-docker-engine-setup.md 참고.
+  DOCKER_HOST: tcp://localhost:2375
 
 jobs:
   deploy:
@@ -19,13 +30,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 러너가 Windows 서비스(SYSTEM 계정)로 떠서 Docker Desktop이 사용자 계정에
-      # 등록해둔 PATH를 못 물려받는다. 머신 전체 PATH를 고치면 서비스가 부팅 시
-      # 캐시한 환경을 재부팅 전까지 갱신하지 않으므로, 이 잡에서만 PATH에 추가한다.
+      # 러너가 Windows 서비스(SYSTEM 계정)로 떠서 사용자 계정 PATH를 못 물려받는다.
+      # 머신 전체 PATH를 고치면 서비스가 부팅 시 캐시한 환경을 재부팅 전까지
+      # 갱신하지 않으므로, 이 잡에서만 PATH에 추가한다.
+      # docker.exe/docker-compose.exe는 Docker Desktop이 아니라 CLI만 따로 받아
+      # C:\docker-cli 에 둔 것 — docs/wsl2-docker-engine-setup.md 참고.
       - name: Ensure Docker CLI is on PATH
         shell: powershell
         run: |
-          $dockerBin = "C:\Users\gw_admin\AppData\Local\Programs\DockerDesktop\resources\bin"
+          $dockerBin = "C:\docker-cli"
           if (Test-Path $dockerBin) {
             Add-Content -Path $env:GITHUB_PATH -Value $dockerBin
           } else {
