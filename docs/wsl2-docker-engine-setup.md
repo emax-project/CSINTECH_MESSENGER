@@ -136,6 +136,34 @@ docker compose version
 `DOCKER_HOST=tcp://localhost:2375`를 쓰도록 돼 있으니, GitHub Actions에서
 Deploy 워크플로를 다시 실행하면 그대로 붙는다.
 
+## 9. 외부/LAN IP로 포트 열기 — 반드시 IPv6(::1)로 연결할 것 ⚠️
+
+이 서버를 외부(공인 IP·UTM 포워딩)나 LAN IP(`192.168.x.x`)로 접속 가능하게
+하려면, Windows의 `0.0.0.0:<포트>`로 들어온 요청을 WSL2 안의 Docker 컨테이너로
+넘겨주는 `netsh interface portproxy` 규칙이 필요하다. 이때 **반드시
+`connectaddress=::1`(IPv6 루프백)을 써야 한다 — `127.0.0.1`(IPv4)은 쓰지 말 것.**
+
+**배경(2026-10-22 확인)**: 이 WSL2 환경에서는 Windows의 IPv4 루프백
+(`127.0.0.1`) → WSL2 포워딩이 간헐적으로 끊긴다(특히 컨테이너가 재배포로
+다시 만들어질 때마다). 반면 IPv6 루프백(`::1`)은 지금까지 항상 안정적으로
+동작했다. `curl http://127.0.0.1:3001` 은 실패하는데 `curl http://localhost:3001`
+(IPv6으로 resolve됨)은 되는 식으로 증상이 갈라져서 원인을 찾는 데 오래
+걸렸다 — 같은 서버에서 다시 겪지 않도록 기록해 둔다.
+
+```powershell
+# 예시: API(3001), HTTP(80), HTTPS(443) 전부 동일 패턴
+netsh interface portproxy add v4tov6 listenport=3001 listenaddress=0.0.0.0 connectport=3001 connectaddress=::1
+netsh interface portproxy add v4tov6 listenport=80   listenaddress=0.0.0.0 connectport=80   connectaddress=::1
+netsh interface portproxy add v4tov6 listenport=443  listenaddress=0.0.0.0 connectport=443  connectaddress=::1
+
+netsh interface portproxy show all   # 확인
+```
+
+`.github/workflows/deploy.yml`의 "Re-assert IPv4→IPv6 portproxy rules" 스텝이
+매 배포마다 이 규칙을 자동으로 재등록하므로, 정상적인 경우 수동으로 다시 할
+필요는 없다 — 그래도 외부 접속이 안 될 때 가장 먼저 확인할 지점이라 여기
+남겨 둔다.
+
 ## 롤백
 
 문제가 생기면 Docker Desktop을 다시 설치하고, `deploy.yml`의

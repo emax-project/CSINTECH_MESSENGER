@@ -84,6 +84,23 @@ jobs:
           PARTNER_MSSQL_TRUST_CERT: ${{ secrets.PARTNER_MSSQL_TRUST_CERT }}
           PARTNER_DEFAULT_PASSWORD: ${{ secrets.PARTNER_DEFAULT_PASSWORD }}
 
+      # WSL2 환경에서 Windows의 IPv4 루프백(127.0.0.1) → WSL2 포워딩이 간헐적으로
+      # 끊기는 문제가 있다(2026-10-22 확인 — IPv6 루프백(::1)은 항상 정상 동작).
+      # 그래서 외부/LAN IP(0.0.0.0)로 들어온 요청을 WSL2로 넘기는 netsh portproxy는
+      # 반드시 connectaddress=::1(IPv6)을 써야 한다 — 127.0.0.1로 하면 컨테이너가
+      # 재배포될 때마다 접속 불가 상태에 빠진다. 컨테이너 재생성 때마다 매번 수동
+      # 재등록하지 않도록 배포 직후 항상 재적용한다(멱등 — 이미 같은 규칙이면 just no-op).
+      - name: Re-assert IPv4→IPv6 portproxy rules (WSL2 loopback workaround)
+        shell: powershell
+        run: |
+          $ports = @(80, 443, 3001)
+          foreach ($p in $ports) {
+            netsh interface portproxy delete v4tov4 listenport=$p listenaddress=0.0.0.0 2>$null | Out-Null
+            netsh interface portproxy delete v4tov6 listenport=$p listenaddress=0.0.0.0 2>$null | Out-Null
+            netsh interface portproxy add v4tov6 listenport=$p listenaddress=0.0.0.0 connectport=$p connectaddress=::1
+          }
+          netsh interface portproxy show all
+
       - name: Log result
         run: |
           docker compose ps
