@@ -1,9 +1,9 @@
 import { clearSessionDate, getActiveToken } from './utils/authSession';
 
 // 빈 문자열이면 같은 origin 사용(배포 시 같은 서버에서 API·웹 서빙), 없으면 로컬 개발용
-/** 거래처 사외 기본 API (UTM 1442: 121.143.3.163:3030 → 192.168.123.210:3001) */
+/** 거래처 사외 기본 API (msg.csin.kr → Caddy 리버스 프록시 → 192.168.123.210:3001, HTTPS) */
 const DEFAULT_BASE =
-  import.meta.env.VITE_API_URL === '' ? '' : (import.meta.env.VITE_API_URL || 'http://121.143.3.163:3030');
+  import.meta.env.VITE_API_URL === '' ? '' : (import.meta.env.VITE_API_URL || 'https://msg.csin.kr');
 
 const API_URL_KEY = 'emax_api_url';
 

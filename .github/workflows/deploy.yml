@@ -53,6 +53,10 @@ jobs:
         run: docker compose up -d
         env:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          # HTTPS 도메인(예: msg.csin.kr). 저장소 Settings > Secrets에 등록하면
+          # Caddy가 Let's Encrypt 인증서를 자동 발급한다 — 비어 있으면 평문 80으로
+          # 동작(기존 클라이언트 영향 없음). docker-compose.yml의 caddy 서비스 참고.
+          CADDY_DOMAIN: ${{ secrets.CADDY_DOMAIN }}
           # 저장소 Settings > Secrets에 ADMIN_EMAIL을 등록해야 관리자 기능이 열린다
           ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
           # Synology LDAP 연동 (CSIN-Tech 직원 로그인)

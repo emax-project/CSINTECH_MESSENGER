@@ -24,14 +24,6 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<!-- 거래처 서버가 아직 http(평문)·IP 주소라 ATS 예외 도메인 지정이 불가능해 전체 예외로 열었다.
-	     ⚠️ 앱스토어 제출 전 서버를 https 도메인으로 바꾸고 이 전체 예외는 반드시 지워야 한다
-	     — 심사에서 지적될 가능성이 크고, 평문 로그인·메시지 전송 자체가 보안 리스크다. -->
-	<key>NSAppTransportSecurity</key>
-	<dict>
-		<key>NSAllowsArbitraryLoads</key>
-		<true/>
-	</dict>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
