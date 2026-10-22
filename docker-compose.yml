@@ -7,7 +7,9 @@ services:
   # 갱신이 된다). CADDY_DOMAIN이 비어 있으면(.env 미설정) Caddy는 그냥 80/443을
   # 평문으로 리슨한다 — HTTPS 전환 전 기존 클라이언트들에 영향 없음.
   caddy:
-    image: caddy:2-alpine
+    build:
+      context: .
+      dockerfile: Dockerfile.caddy
     restart: unless-stopped
     ports:
       - "80:80"
@@ -15,7 +17,6 @@ services:
     environment:
       CADDY_DOMAIN: ${CADDY_DOMAIN:-:80}
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:

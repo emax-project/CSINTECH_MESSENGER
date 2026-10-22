@@ -1,0 +1,6 @@
+# Caddy에 Caddyfile을 이미지 안에 직접 포함시켜 빌드한다.
+# 호스트 경로 바인드 마운트(volumes: ./Caddyfile:...)를 쓰면, Docker 엔진이
+# WSL2(Linux) 안에서 돌고 CLI는 Windows에서 돌 때 경로 변환이 깨진다
+# (Docker Desktop이 있었으면 자동 처리해줬을 부분 — 지금은 없으므로 회피).
+FROM caddy:2-alpine
+COPY Caddyfile /etc/caddy/Caddyfile
