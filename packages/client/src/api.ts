@@ -1,4 +1,4 @@
-import { clearSessionDate, getActiveToken } from './utils/authSession';
+import { clearSessionDate, getActiveToken, removeStoredToken } from './utils/authSession';
 
 // 빈 문자열이면 같은 origin 사용(배포 시 같은 서버에서 API·웹 서빙), 없으면 로컬 개발용
 /** 거래처 사외 기본 API (msg.csin.kr → Caddy 리버스 프록시 → 192.168.123.210:3001, HTTPS) */
@@ -81,7 +81,7 @@ function handleForcedLogout(path: string, status: number, serverMessage?: string
   const msg = serverMessage || '다른 기기에서 로그인되어 로그아웃되었습니다.';
   try {
     localStorage.setItem('forcedLogoutMessage', msg);
-    localStorage.removeItem('token');
+    removeStoredToken();
     clearSessionDate();
     if (typeof window !== 'undefined') {
       const isLoginPage = window.location.pathname === '/login' || window.location.pathname === '/register';
