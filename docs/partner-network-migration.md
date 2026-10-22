@@ -191,6 +191,30 @@ docker compose exec server npm run partner:org:sync:users  # 계정 생성 포�
 
 ---
 
+## 8. HTTPS 전환 마무리 체크리스트 (release.yml) — 2026-10-22 추가, 대기 중
+
+`72e793f`에서 서버(Caddy+Let's Encrypt)·클라이언트 기본 URL(`api.ts`, `Login.tsx`,
+`capacitor.config.ts`)은 이미 `https://msg.csin.kr`로 전환했지만, **`.github/workflows/release.yml`의
+`VITE_API_URL`은 아직 `http://121.143.3.163:3030`(평문)으로 남겨둔 상태** — 이게 바뀌어야 실제
+배포되는 설치파일(exe/dmg)의 기본 서버 주소가 평문에서 벗어난다.
+
+2026-10-22 확인 결과 `msg.csin.kr` DNS가 아직 해석되지 않음 — 지금 release.yml을 바꾸면 기존
+설치된 앱들이 자동업데이트 후 접속 불가에 빠질 위험이 있어 보류. 아래 조건이 갖춰지면 순서대로 진행:
+
+- [ ] `msg.csin.kr` A레코드 등록 확인 (`dig +short msg.csin.kr` 또는 `nslookup`으로 공인 IP 응답 확인)
+- [ ] UTM 방화벽 80/443 → `121.143.3.163` 서버(Caddy 컨테이너)로 포워딩 확인
+- [ ] `CADDY_DOMAIN=msg.csin.kr` 배포 후 `https://msg.csin.kr/health` → `{"ok":true}` 확인
+      (Let's Encrypt 인증서 자동 발급까지 포함해서 확인 — 브라우저에서 인증서 경고 없는지도 체크)
+- [ ] 기존 `http://121.143.3.163:3030` 경로가 전환 기간 동안 병행 응답하는지 확인
+      (구버전 설치 앱이 자동업데이트 받기 전까지 접속 끊기지 않아야 함)
+- [ ] `release.yml`의 `VITE_API_URL: http://121.143.3.163:3030` →
+      `VITE_API_URL: https://msg.csin.kr`로 변경 후 새 태그로 빌드
+- [ ] 신규 설치 시 기본 서버 주소가 `https://msg.csin.kr`인지 확인
+- [ ] 기존 설치된 앱이 자동업데이트 후에도 정상 접속되는지 확인 (가장 리스크 큰 항목)
+- [ ] §5(이관 후 검증)의 로그인 실패 블로커가 해결됐는지도 함께 재확인
+
+---
+
 ## 점검 로그 (2026-08-27)
 
 | 항목 | 결과 |
