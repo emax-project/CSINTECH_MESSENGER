@@ -9,7 +9,7 @@ COPY packages/server/package.json packages/server/package.json
 RUN npm ci --ignore-scripts
 ENV VITE_API_URL=
 ENV VITE_BASE_URL=/
-RUN npm run build --workspace=client
+RUN npm run build --workspace=csin-tech
 
 # Stage 2: API 서버 + 클라이언트 정적 파일
 FROM node:20-bookworm-slim
