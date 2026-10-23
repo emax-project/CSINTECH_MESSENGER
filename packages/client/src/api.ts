@@ -617,6 +617,9 @@ export const appSettingsApi = {
   getExternalSite: () => api.get('/settings/external-site') as Promise<{ url: string }>,
   putExternalSite: (url: string) =>
     api.put('/settings/external-site', { url }) as Promise<{ url: string }>,
+  getGroupwareUrl: () => api.get('/settings/groupware-url') as Promise<{ url: string }>,
+  putGroupwareUrl: (url: string) =>
+    api.put('/settings/groupware-url', { url }) as Promise<{ url: string }>,
 };
 
 export const announcementApi = {

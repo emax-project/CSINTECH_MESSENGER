@@ -6,7 +6,6 @@ import {
   electronNoDragStyle,
   isMacElectron,
 } from '../../../utils/electronChrome';
-import { openGroupware } from '../../../utils/groupware';
 import { cn } from '../../../utils/cn';
 import { useAuthStore, useThemeStore } from '../../../store';
 import { getBaseUrl, type UserAffiliation } from '../../../api';
@@ -37,6 +36,7 @@ type LeftSidebarProps = {
   onQuit?: () => void;
   externalSiteUrl?: string;
   onOpenExternalSite?: () => void;
+  onOpenGroupware?: () => void;
 };
 
 /**
@@ -105,6 +105,7 @@ function LeftSidebar({
   onQuit,
   externalSiteUrl,
   onOpenExternalSite,
+  onOpenGroupware,
 }: LeftSidebarProps) {
   const macDrag = isMacElectron();
   const user = useAuthStore((s) => s.user);
@@ -150,7 +151,7 @@ function LeftSidebar({
       <button
         type="button"
         style={{ ...btnStyle(false), ...(macDrag ? electronNoDragStyle : {}) }}
-        onClick={() => openGroupware()}
+        onClick={() => onOpenGroupware?.()}
         title="그룹웨어 바로가기"
         className={electronNoDragClass}
       >
@@ -185,7 +186,7 @@ function LeftSidebar({
         <button
           type="button"
           style={{ ...btnStyle(false), ...(macDrag ? electronNoDragStyle : {}) }}
-          onClick={() => openGroupware()}
+          onClick={() => onOpenGroupware?.()}
           title="메일"
           className={electronNoDragClass}
         >

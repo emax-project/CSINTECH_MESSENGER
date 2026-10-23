@@ -23,13 +23,25 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'users', label: '사용자 관리' },
 ];
 
-function SidebarLinkSettings({ isDark }: { isDark: boolean }) {
+type UrlSettingFieldProps = {
+  isDark: boolean;
+  queryKey: string;
+  getUrl: () => Promise<{ url: string }>;
+  putUrl: (url: string) => Promise<{ url: string }>;
+  title: string;
+  description: string;
+  placeholder: string;
+};
+
+/** 관리자가 사이드바 버튼이 가리킬 외부 주소를 지정하는 입력 — 링크 접속·그룹웨어 등
+ *  거래처마다 다른 외부 주소를 코드 수정 없이 바꿀 수 있게 한다. */
+function UrlSettingField({ isDark, queryKey, getUrl, putUrl, title, description, placeholder }: UrlSettingFieldProps) {
   const accent = useAccentStyles(isDark);
   const queryClient = useQueryClient();
   const showToast = useToastStore((s) => s.show);
   const { data } = useQuery({
-    queryKey: ['settings', 'external-site'],
-    queryFn: appSettingsApi.getExternalSite,
+    queryKey: ['settings', queryKey],
+    queryFn: getUrl,
   });
   const [url, setUrl] = useState('');
   const [saving, setSaving] = useState(false);
@@ -41,10 +53,10 @@ function SidebarLinkSettings({ isDark }: { isDark: boolean }) {
   const save = async () => {
     setSaving(true);
     try {
-      const saved = await appSettingsApi.putExternalSite(url);
+      const saved = await putUrl(url);
       setUrl(saved.url);
-      await queryClient.invalidateQueries({ queryKey: ['settings', 'external-site'] });
-      showToast(saved.url ? '링크를 저장했습니다' : '링크를 비웠습니다', 'success');
+      await queryClient.invalidateQueries({ queryKey: ['settings', queryKey] });
+      showToast(saved.url ? '주소를 저장했습니다' : '주소를 비웠습니다', 'success');
     } catch (err) {
       showToast(err instanceof Error ? err.message : '저장에 실패했습니다', 'error');
     } finally {
@@ -69,10 +81,10 @@ function SidebarLinkSettings({ isDark }: { isDark: boolean }) {
     <div className={cn('flex flex-col gap-2 rounded-lg px-3 py-2.5', isDark ? 'bg-slate-800' : 'bg-white')}>
       <div>
         <div className={cn('text-[13px] font-semibold', isDark ? 'text-slate-200' : 'text-slate-800')}>
-          사이드바 링크 접속
+          {title}
         </div>
         <p className={cn('mt-1 mb-0 text-xs leading-relaxed', muted)}>
-          왼쪽 사이드바 링크 버튼을 누르면 이 주소로 바로 이동합니다. 모든 사용자에게 동일하게 적용됩니다.
+          {description}
         </p>
       </div>
       <div className="flex gap-2 items-center">
@@ -81,7 +93,7 @@ function SidebarLinkSettings({ isDark }: { isDark: boolean }) {
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') void save(); }}
-          placeholder="https://portal.example.com"
+          placeholder={placeholder}
           style={{ ...inputStyle, ...accent.inputStyle }}
         />
         <button
@@ -120,7 +132,24 @@ function AdminSection({ isDark, isNarrowLayout = false, currentUserId }: Props) 
         </p>
       </div>
 
-      <SidebarLinkSettings isDark={isDark} />
+      <UrlSettingField
+        isDark={isDark}
+        queryKey="external-site"
+        getUrl={appSettingsApi.getExternalSite}
+        putUrl={appSettingsApi.putExternalSite}
+        title="사이드바 링크 접속"
+        description="왼쪽 사이드바 링크 버튼을 누르면 이 주소로 바로 이동합니다. 모든 사용자에게 동일하게 적용됩니다."
+        placeholder="https://portal.example.com"
+      />
+      <UrlSettingField
+        isDark={isDark}
+        queryKey="groupware-url"
+        getUrl={appSettingsApi.getGroupwareUrl}
+        putUrl={appSettingsApi.putGroupwareUrl}
+        title="그룹웨어·메일 바로가기"
+        description="왼쪽 사이드바 그룹웨어·메일 버튼을 누르면 이 주소로 이동합니다. 비워두면 버튼을 눌러도 아무 동작도 하지 않습니다."
+        placeholder="https://gw.example.com"
+      />
 
       <div
         role="tablist"

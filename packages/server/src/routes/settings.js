@@ -8,6 +8,7 @@ export const settingsRouter = Router();
 settingsRouter.use(authMiddleware);
 
 const EXTERNAL_SITE_KEY = 'external_site_url';
+const GROUPWARE_URL_KEY = 'groupware_url';
 
 // 이 값은 클라이언트가 window.open/openExternal로 "열기"만 하는 용도입니다.
 // 서버가 이 URL을 직접 fetch/요청하는 기능을 추가할 경우 SSRF가 될 수 있으므로,
@@ -36,18 +37,32 @@ function normalizeExternalSiteUrl(raw) {
   return { url: parsed.toString() };
 }
 
-async function readExternalSiteUrl() {
+async function readSettingUrl(key) {
   const row = await prisma.appSetting.findUnique({
-    where: { key: EXTERNAL_SITE_KEY },
+    where: { key },
     select: { value: true },
   });
   return row?.value || '';
 }
 
+async function writeSettingUrl(key, rawUrl, res) {
+  const parsed = normalizeExternalSiteUrl(rawUrl);
+  if (parsed.error) {
+    res.status(400).json({ error: parsed.error });
+    return null;
+  }
+  await prisma.appSetting.upsert({
+    where: { key },
+    create: { key, value: parsed.url },
+    update: { value: parsed.url },
+  });
+  return parsed.url;
+}
+
 /** 사이드바 링크 주소 조회 (로그인한 모든 사용자) */
 settingsRouter.get('/external-site', async (_req, res) => {
   try {
-    const url = await readExternalSiteUrl();
+    const url = await readSettingUrl(EXTERNAL_SITE_KEY);
     return res.json({ url });
   } catch (err) {
     console.error(err);
@@ -59,18 +74,35 @@ settingsRouter.get('/external-site', async (_req, res) => {
 settingsRouter.put('/external-site', async (req, res) => {
   try {
     if (!(await assertAdmin(req, res))) return;
-    const parsed = normalizeExternalSiteUrl(req.body?.url);
-    if (parsed.error) {
-      return res.status(400).json({ error: parsed.error });
-    }
-    await prisma.appSetting.upsert({
-      where: { key: EXTERNAL_SITE_KEY },
-      create: { key: EXTERNAL_SITE_KEY, value: parsed.url },
-      update: { value: parsed.url },
-    });
-    return res.json({ url: parsed.url });
+    const url = await writeSettingUrl(EXTERNAL_SITE_KEY, req.body?.url, res);
+    if (url === null) return;
+    return res.json({ url });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: '링크 설정을 저장하지 못했습니다' });
+  }
+});
+
+/** 그룹웨어 바로가기 주소 조회 (로그인한 모든 사용자) — 사이드바 '그룹웨어'·'메일' 버튼이 씀 */
+settingsRouter.get('/groupware-url', async (_req, res) => {
+  try {
+    const url = await readSettingUrl(GROUPWARE_URL_KEY);
+    return res.json({ url });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: '그룹웨어 주소를 불러오지 못했습니다' });
+  }
+});
+
+/** 그룹웨어 바로가기 주소 저장 (관리자만) */
+settingsRouter.put('/groupware-url', async (req, res) => {
+  try {
+    if (!(await assertAdmin(req, res))) return;
+    const url = await writeSettingUrl(GROUPWARE_URL_KEY, req.body?.url, res);
+    if (url === null) return;
+    return res.json({ url });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: '그룹웨어 주소를 저장하지 못했습니다' });
   }
 });
