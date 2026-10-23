@@ -3,6 +3,12 @@ const path = require('path');
 const fs = require('fs');
 const { pathToFileURL } = require('url');
 
+// package.json의 "name"(client)이 아니라 제품명으로 사용자 데이터 폴더(userData)를
+// 만들도록 가장 먼저 설정한다 — app.getPath() 등 어떤 호출보다도 앞서야 한다.
+// (기존 설치본은 %APPDATA%\client 등 옛 폴더를 계속 쓰므로, 업데이트 이후 최초
+// 실행 시 재로그인이 한 번 필요하다 — 서버에 저장된 대화 내용 등은 영향 없음)
+app.setName('CSIN-Tech');
+
 // Windows: GPU 렌더링 문제로 검은 화면 발생 시 소프트웨어 렌더링 강제
 if (process.platform === 'win32') {
   app.commandLine.appendSwitch('disable-gpu');
