@@ -3,12 +3,12 @@
 확정 방향: **이맥스 서버에 거래처 데이터를 두지 않고**, 거래처 GW/ERP 서버에 메신저를 배포한다.  
 이맥스 환경은 기능 완성·검증용으로만 쓰고, 완성 후 이관·검증한다.
 
-> **2026-10-22 업데이트**: 클라이언트 기본 URL이 `http://121.143.3.163:3030`(평문)에서
-> `https://msg.csin.kr`(Caddy 리버스 프록시 + Let's Encrypt 자동 인증서)로 전환 중이다.
-> 모바일(iOS/Android) 앱스토어 심사·멀티테넌트 전환의 선행 조건. 아래 표의
-> `121.143.3.163:3030` 관련 항목은 전환 완료 전 과거 기록이다 — 최신 설정은
-> `docker-compose.yml`(caddy 서비스)·`Caddyfile`·`.github/workflows/deploy.yml`의
-> `CADDY_DOMAIN` 참고.
+> **2026-10-23 업데이트**: 클라이언트 기본 URL이 `http://121.143.3.163:3030`(평문)에서
+> `https://msg.csin.kr`로 전환 완료(`release.yml` 포함). 인증서·HTTPS 종료는 저희 쪽
+> Caddy가 아니라 거래처 사내 리버스 프록시에서 처리하고, `192.168.123.210:3001`(기존
+> 서버)로 평문 HTTP 연결한다 — 상세 경과는 §8 참고. 모바일(iOS/Android) 앱스토어
+> 심사·멀티테넌트 전환의 선행 조건. 아래 표의 `121.143.3.163:3030`은 전환 기간 병행
+> 운영을 위해 당분간 그대로 살아있다(기존 설치 앱 호환용).
 
 ## 대상 서버
 
@@ -21,7 +21,7 @@
 | 내부 호스트 | `192.168.123.210` | GW/ERP + 메신저 설치 |
 | MS-SQL (조직) | 내부 `192.168.123.211:1433` | 외부로는 `9213` |
 | GW DB | `CSI_GW` | 조직 sync 소스 |
-| 클라이언트 기본 URL | `http://121.143.3.163:3030` | 사외용 (exe에 박힘) |
+| 클라이언트 기본 URL | `https://msg.csin.kr` | 사외용 (exe에 박힘). 2026-10-23 전환, §8 참고. 구 주소(`http://121.143.3.163:3030`)는 병행 운영 중 |
 
 > `9210`으로 RDP(`gw_admin`) 접속 후 Docker/Node로 API+DB를 올린다.  
 > 사외 API는 **`3030`** (내부 서버 포트는 3001 유지). 구 공인 3001은 다른 서버(1220)와 충돌.
@@ -191,26 +191,31 @@ docker compose exec server npm run partner:org:sync:users  # 계정 생성 포�
 
 ---
 
-## 8. HTTPS 전환 마무리 체크리스트 (release.yml) — 2026-10-22 추가, 대기 중
+## 8. HTTPS 전환 마무리 체크리스트 (release.yml) — 2026-10-23 완료
 
 `72e793f`에서 서버(Caddy+Let's Encrypt)·클라이언트 기본 URL(`api.ts`, `Login.tsx`,
-`capacitor.config.ts`)은 이미 `https://msg.csin.kr`로 전환했지만, **`.github/workflows/release.yml`의
-`VITE_API_URL`은 아직 `http://121.143.3.163:3030`(평문)으로 남겨둔 상태** — 이게 바뀌어야 실제
-배포되는 설치파일(exe/dmg)의 기본 서버 주소가 평문에서 벗어난다.
+`capacitor.config.ts`)은 이미 `https://msg.csin.kr`로 전환했고, 2026-10-23에
+`release.yml`의 `VITE_API_URL`도 `https://msg.csin.kr`로 전환 완료 — 실제 배포되는
+설치파일(exe/dmg)의 기본 서버 주소가 평문에서 벗어났다.
 
-2026-10-22 확인 결과 `msg.csin.kr` DNS가 아직 해석되지 않음 — 지금 release.yml을 바꾸면 기존
-설치된 앱들이 자동업데이트 후 접속 불가에 빠질 위험이 있어 보류. 아래 조건이 갖춰지면 순서대로 진행:
+실제 구성은 처음 계획(Caddy 컨테이너가 직접 80/443 받고 Let's Encrypt 발급)과 다르게
+진행됐다 — 거래처 인프라팀(김원태 담당자)이 **UTM 직접 포워딩 대신 사내 리버스 프록시**를
+msg.csin.kr 앞단에 두고, 와일드카드 인증서(`*.csin.kr`, Let's Encrypt)와 HTTP→HTTPS
+리다이렉트를 그 프록시에서 처리한 뒤 `192.168.123.210:3001`(기존 서버, 평문 HTTP)로
+연결하는 방식으로 구성함. 저희 쪽 `Caddy`/`CADDY_DOMAIN` 설정은 이번 배포에서는
+쓰이지 않음(docker-compose에는 남아 있으나 비활성 상태 — 다른 거래처 배포에 영향 없음).
 
-- [ ] `msg.csin.kr` A레코드 등록 확인 (`dig +short msg.csin.kr` 또는 `nslookup`으로 공인 IP 응답 확인)
-- [ ] UTM 방화벽 80/443 → `121.143.3.163` 서버(Caddy 컨테이너)로 포워딩 확인
-- [ ] `CADDY_DOMAIN=msg.csin.kr` 배포 후 `https://msg.csin.kr/health` → `{"ok":true}` 확인
-      (Let's Encrypt 인증서 자동 발급까지 포함해서 확인 — 브라우저에서 인증서 경고 없는지도 체크)
-- [ ] 기존 `http://121.143.3.163:3030` 경로가 전환 기간 동안 병행 응답하는지 확인
-      (구버전 설치 앱이 자동업데이트 받기 전까지 접속 끊기지 않아야 함)
-- [ ] `release.yml`의 `VITE_API_URL: http://121.143.3.163:3030` →
-      `VITE_API_URL: https://msg.csin.kr`로 변경 후 새 태그로 빌드
-- [ ] 신규 설치 시 기본 서버 주소가 `https://msg.csin.kr`인지 확인
-- [ ] 기존 설치된 앱이 자동업데이트 후에도 정상 접속되는지 확인 (가장 리스크 큰 항목)
+- [x] `msg.csin.kr` A레코드 등록 확인 — 2026-10-23 `121.143.3.163`로 정상 해석 확인
+- [x] 80/443 → 사내 리버스 프록시 → `210:3001` 라우팅 확인 (UTM 직접 포워딩 아님, 위 설명 참고)
+- [x] `https://msg.csin.kr/health` → `{"ok":true}`, `x-powered-by: Express`(메신저 서버로
+      정상 연결), `cache-control: no-store` 확인(2026-10-23). 와일드카드 인증서 유효기간
+      2026-11-22까지 확인. HTTP→HTTPS 301 리다이렉트 정상. `/socket.io` 폴링 핸드셰이크
+      정상 응답(`upgrades: ["websocket"]`) — WebSocket 프록시 설정도 정상
+- [x] 기존 `http://121.143.3.163:3030` 경로는 전환 후에도 그대로 병행 응답 확인(기존 규칙 유지)
+- [x] `release.yml`의 `VITE_API_URL: http://121.143.3.163:3030` →
+      `VITE_API_URL: https://msg.csin.kr`로 변경, `v1.2.73` 태그로 빌드
+- [ ] 신규 설치 시 기본 서버 주소가 `https://msg.csin.kr`인지 확인 — 설치파일 빌드 후 현장 확인 필요
+- [ ] 기존 설치된 앱이 자동업데이트 후에도 정상 접속되는지 확인 (가장 리스크 큰 항목 — 현장 확인 필요)
 - [ ] §5(이관 후 검증)의 로그인 실패 블로커가 해결됐는지도 함께 재확인
 
 ---
