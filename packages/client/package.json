@@ -1,6 +1,6 @@
 {
   "name": "csin-tech",
-  "version": "1.2.75",
+  "version": "1.2.76",
   "private": true,
   "main": "electron/main.js",
   "scripts": {
