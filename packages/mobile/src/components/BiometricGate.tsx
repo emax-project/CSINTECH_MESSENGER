@@ -56,7 +56,7 @@ export default function BiometricGate({ children, onAuthFail }: Props) {
         setStatus('prompt');
         // 생체 실패 시 항상 기기 비밀번호 fallback 허용 (Expo Go, 인식 실패 등)
         const result = await LocalAuthentication.authenticateAsync({
-          promptMessage: 'EMAX 로그인',
+          promptMessage: 'Crew 로그인',
           fallbackLabel: '비밀번호 사용',
           disableDeviceFallback: false,
         });
@@ -81,7 +81,7 @@ export default function BiometricGate({ children, onAuthFail }: Props) {
     setError('');
     try {
       const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: 'EMAX 로그인',
+        promptMessage: 'Crew 로그인',
         fallbackLabel: '비밀번호 사용',
         disableDeviceFallback: false,
       });
@@ -120,7 +120,7 @@ export default function BiometricGate({ children, onAuthFail }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>EMAX</Text>
+      <Text style={styles.title}>Crew</Text>
       <Text style={styles.subtitle}>{authLabel}</Text>
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <TouchableOpacity style={styles.button} onPress={handleRetry}>

@@ -87,7 +87,7 @@ export default function RegisterScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>EMAX</Text>
+        <Text style={styles.title}>Crew</Text>
         <Text style={styles.subtitle}>새 계정 만들기</Text>
 
         <View style={styles.fieldGroup}>

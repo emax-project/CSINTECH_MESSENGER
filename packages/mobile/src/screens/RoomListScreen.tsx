@@ -131,7 +131,7 @@ export default function RoomListScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>EMAX</Text>
+        <Text style={styles.headerTitle}>Crew</Text>
         <TouchableOpacity
           style={styles.addBtn}
           onPress={() => setShowCreateModal(true)}

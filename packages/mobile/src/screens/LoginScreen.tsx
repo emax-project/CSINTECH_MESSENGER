@@ -84,7 +84,7 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>EMAX</Text>
+        <Text style={styles.title}>Crew</Text>
         <Text style={styles.subtitle}>업무 메신저에 로그인</Text>
 
         <View style={styles.fieldGroup}>

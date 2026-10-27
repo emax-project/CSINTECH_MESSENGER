@@ -1,14 +1,14 @@
 {
   "expo": {
-    "name": "EMAX",
-    "slug": "emax-mobile",
+    "name": "Crew",
+    "slug": "crew",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.emax.mobile",
+      "bundleIdentifier": "com.emax.crew",
       "infoPlist": {
         "NSCameraUsageDescription": "프로필 사진 촬영 및 파일 첨부를 위해 카메라 접근이 필요합니다.",
         "NSPhotoLibraryUsageDescription": "프로필 사진 및 파일 첨부를 위해 사진 라이브러리 접근이 필요합니다.",
@@ -21,7 +21,7 @@
       }
     },
     "android": {
-      "package": "com.emax.mobile",
+      "package": "com.emax.crew",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
