@@ -1,12 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { authApi } from '../api';
-import { useAuthStore } from '../store';
-import TitleBar from '../components/TitleBar';
+import { authApi, fetchTenantBranding, getBaseUrl, setBaseUrl } from '../api';
+import { useAuthStore, useBrandStore } from '../store';
+import TitleBar, { MacInsetChromeTools } from '../components/TitleBar';
 import { AuthCard } from '../components/AuthCard';
 import UITextInput from '../components/ui/UITextInput';
-import { APP_MAX_WIDTH, APP_WINDOW_HEIGHT } from '../layout/constants';
+import { APP_MAX_WIDTH } from '../layout/constants';
+import { applyWindowPinClass, isMacElectron } from '../utils/electronChrome';
 import { passwordErrorMessage } from './main/components/PasswordChangeModal';
+
+const REGISTER_WINDOW_HEIGHT = 900;
 
 // 회원가입은 LDAP 연동 중엔 막혀 있으므로(REGISTER_DISABLED) 여기서 나올 수 있는
 // 비밀번호 정책 오류는 항상 로컬 정책(4자 이상) 기준이다.
@@ -41,16 +44,38 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [serverUrl, setServerUrl] = useState(() => getBaseUrl());
+  const [pinned, setPinned] = useState(false);
+  const { name: brandName, logoUrl: brandLogoUrl, setBrand } = useBrandStore();
   const setAuth = useAuthStore((s) => s.setAuth);
   const navigate = useNavigate();
+  const brandRequestSeq = useRef(0);
+
+  const refreshBranding = (urlOverride: string) => {
+    const seq = ++brandRequestSeq.current;
+    void fetchTenantBranding(urlOverride || undefined).then((b) => {
+      if (seq !== brandRequestSeq.current) return;
+      setBrand(b?.name || '', b?.logoUrl || '');
+    });
+  };
 
   useEffect(() => {
-    window.electronAPI?.windowResize?.(APP_MAX_WIDTH, APP_WINDOW_HEIGHT);
+    void window.electronAPI?.setWindowUiMode?.('login', APP_MAX_WIDTH, REGISTER_WINDOW_HEIGHT);
+    void window.electronAPI?.getAlwaysOnTop?.().then((r) => {
+      const on = !!r?.alwaysOnTop;
+      setPinned(on);
+      applyWindowPinClass(on);
+    });
+    refreshBranding(serverUrl);
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    if (serverUrl.trim()) setBaseUrl(serverUrl.trim());
+    else if (!window.electronAPI) {
+      try { localStorage.removeItem('emax_api_url'); } catch { /* ignore */ }
+    }
     setLoading(true);
     try {
       const { user, token } = await authApi.register(email, password, name);
@@ -68,12 +93,39 @@ export default function Register() {
     }
   };
 
+  const handleTogglePin = async () => {
+    const next = !pinned;
+    const r = await window.electronAPI?.setAlwaysOnTop?.(next);
+    const on = !!(r?.alwaysOnTop ?? next);
+    setPinned(on);
+    applyWindowPinClass(on);
+  };
+
+  const isElectron = !!window.electronAPI;
+  const isMac = isMacElectron();
+  const chromeTools = {
+    showPin: true,
+    pinned,
+    onTogglePin: () => { void handleTogglePin(); },
+  };
+
   return (
-    <div className="w-full h-full min-h-0 flex flex-col bg-black">
-      {!!window.electronAPI && <TitleBar title="CSIN-Tech" isDark />}
-      <div className="flex-1 flex items-center justify-center p-4 overflow-y-auto">
+    <div className="w-full h-full min-h-0 flex flex-col bg-white">
+      {isElectron && isMac && <MacInsetChromeTools {...chromeTools} />}
+      {isElectron && !isMac && (
+        <TitleBar
+          title="CSIN-Tech"
+          showLogo
+          showMaximize={false}
+          {...chromeTools}
+        />
+      )}
+      <div className="flex-1 flex items-stretch justify-center overflow-y-auto">
         <AuthCard
           title="계정 만들기"
+          variant="flush"
+          logoUrl={brandLogoUrl}
+          brandName={brandName}
           subtext={
             <>
               이미 계정이 있으신가요?{' '}
@@ -84,6 +136,23 @@ export default function Register() {
           }
         >
           <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[13px] font-medium text-[#334155]">회사 서버 주소</label>
+              <UITextInput
+                type="url"
+                placeholder="예: https://example.com"
+                value={serverUrl}
+                onChange={(e) => setServerUrl(e.target.value)}
+                onBlur={() => {
+                  if (serverUrl.trim()) setBaseUrl(serverUrl.trim());
+                  else if (!window.electronAPI) {
+                    try { localStorage.removeItem('emax_api_url'); } catch { /* ignore */ }
+                  }
+                  refreshBranding(serverUrl.trim());
+                }}
+                className="!px-4 !py-3 !rounded-xl !border !border-[#e2e8f0] !bg-[#f8fafc] !text-black placeholder:!text-[#94a3b8]"
+              />
+            </div>
             <UITextInput
               type="text"
               placeholder="이름"
@@ -126,7 +195,7 @@ export default function Register() {
                 <input type="checkbox" required className="rounded border-[#e2e8f0]" />
                 <span>
                   <a href="#" className="text-brand hover:underline">이용약관</a> 및{' '}
-                  <a href="#" className="text-brand hover:underline">개인정보처리방침</a>에 동의합니다
+                  <Link to="/privacy" className="text-brand hover:underline">개인정보처리방침</Link>에 동의합니다
                 </span>
               </label>
             </p>

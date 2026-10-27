@@ -2,7 +2,7 @@ import { memo, useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAccentStyles } from '../../../hooks/useAccentStyles';
 import { cn } from '../../../utils/cn';
-import { appSettingsApi } from '../../../api';
+import { appSettingsApi, fetchTenantBranding } from '../../../api';
 import { useToastStore } from '../../../store';
 import BulkUserRegisterSection from './BulkUserRegisterSection';
 import OrgManageSection from './OrgManageSection';
@@ -113,6 +113,100 @@ function UrlSettingField({ isDark, queryKey, getUrl, putUrl, title, description,
   );
 }
 
+/** 멀티테넌트 로그인 화면에 표시할 회사명·로고 설정 — 서버 주소를 입력한 사람이
+ *  바로 "이 서버가 어느 회사 것인지" 알 수 있게 한다(로그인 전에도 조회 가능한 공개 값). */
+function BrandSettingField({ isDark }: { isDark: boolean }) {
+  const accent = useAccentStyles(isDark);
+  const queryClient = useQueryClient();
+  const showToast = useToastStore((s) => s.show);
+  const { data } = useQuery({
+    queryKey: ['settings', 'branding'],
+    queryFn: () => fetchTenantBranding(),
+  });
+  const [name, setName] = useState('');
+  const [logoUrl, setLogoUrl] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (data) {
+      setName(data.name || '');
+      setLogoUrl(data.logoUrl || '');
+    }
+  }, [data]);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const saved = await appSettingsApi.putBranding(name, logoUrl);
+      setName(saved.name);
+      setLogoUrl(saved.logoUrl);
+      await queryClient.invalidateQueries({ queryKey: ['settings', 'branding'] });
+      showToast('로그인 화면 브랜드 정보를 저장했습니다', 'success');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : '저장에 실패했습니다', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const muted = isDark ? 'text-slate-400' : 'text-slate-500';
+  const inputStyle = {
+    flex: 1,
+    minWidth: 0,
+    padding: '8px 10px',
+    borderRadius: 8,
+    border: `1px solid ${isDark ? '#475569' : '#e2e8f0'}`,
+    background: isDark ? '#1e293b' : '#fff',
+    color: isDark ? '#e2e8f0' : '#333',
+    fontSize: 13,
+    boxSizing: 'border-box' as const,
+  };
+
+  return (
+    <div className={cn('flex flex-col gap-2 rounded-lg px-3 py-2.5', isDark ? 'bg-slate-800' : 'bg-white')}>
+      <div>
+        <div className={cn('text-[13px] font-semibold', isDark ? 'text-slate-200' : 'text-slate-800')}>
+          로그인 화면 회사명·로고
+        </div>
+        <p className={cn('mt-1 mb-0 text-xs leading-relaxed', muted)}>
+          다른 회사가 이 서버 주소를 로그인 화면에 입력했을 때 보여줄 회사명·로고입니다. 비워두면 기본 로고가 표시됩니다.
+        </p>
+      </div>
+      <div className="flex gap-2 items-center">
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="회사명 (예: TPA코리아)"
+          style={{ ...inputStyle, ...accent.inputStyle }}
+        />
+      </div>
+      <div className="flex gap-2 items-center">
+        <input
+          type="url"
+          value={logoUrl}
+          onChange={(e) => setLogoUrl(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') void save(); }}
+          placeholder="로고 이미지 URL (https://...)"
+          style={{ ...inputStyle, ...accent.inputStyle }}
+        />
+        <button
+          type="button"
+          style={accent.primaryStyle}
+          disabled={saving}
+          onClick={() => { void save(); }}
+          className={cn(
+            'shrink-0 px-3.5 py-2 border-none rounded-lg bg-gradient-to-br from-brand-light to-brand-dark text-white text-[13px] font-semibold cursor-pointer',
+            saving && 'opacity-70 cursor-wait',
+          )}
+        >
+          {saving ? '저장 중' : '저장'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /** 관리자 전용 도구 묶음. 세로로 쌓지 않고 탭으로 나눠 설정 화면이 길어지지 않게 한다. */
 function AdminSection({ isDark, isNarrowLayout = false, currentUserId }: Props) {
   const accent = useAccentStyles(isDark);
@@ -132,6 +226,7 @@ function AdminSection({ isDark, isNarrowLayout = false, currentUserId }: Props) 
         </p>
       </div>
 
+      <BrandSettingField isDark={isDark} />
       <UrlSettingField
         isDark={isDark}
         queryKey="external-site"

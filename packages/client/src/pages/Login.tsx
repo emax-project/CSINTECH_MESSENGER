@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { authApi, getBaseUrl, setBaseUrl } from '../api';
-import { useAuthStore } from '../store';
+import { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { authApi, fetchTenantBranding, getBaseUrl, setBaseUrl } from '../api';
+import { useAuthStore, useBrandStore } from '../store';
 import TitleBar, { MacInsetChromeTools } from '../components/TitleBar';
 import { AuthCard } from '../components/AuthCard';
 import UITextInput from '../components/ui/UITextInput';
@@ -45,11 +45,20 @@ export default function Login() {
   const [rememberEmail, setRememberEmail] = useState(remembered.remember);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [pinned, setPinned] = useState(false);
-  const [serverUrl, setServerUrl] = useState(() => getBaseUrl() || (typeof window !== 'undefined' && !window.electronAPI ? '' : 'https://msg.csin.kr'));
+  const [serverUrl, setServerUrl] = useState(() => getBaseUrl());
+  const { name: brandName, logoUrl: brandLogoUrl, setBrand } = useBrandStore();
   const setAuth = useAuthStore((s) => s.setAuth);
   const navigate = useNavigate();
+  const brandRequestSeq = useRef(0);
+
+  const refreshBranding = (urlOverride: string) => {
+    const seq = ++brandRequestSeq.current;
+    void fetchTenantBranding(urlOverride || undefined).then((b) => {
+      if (seq !== brandRequestSeq.current) return; // 더 최신 입력이 있으면 이 결과는 버린다
+      setBrand(b?.name || '', b?.logoUrl || '');
+    });
+  };
 
   useEffect(() => {
     void window.electronAPI?.setWindowUiMode?.('login', APP_MAX_WIDTH, LOGIN_WINDOW_HEIGHT);
@@ -61,7 +70,8 @@ export default function Login() {
   }, []);
   useEffect(() => {
     const base = getBaseUrl();
-    setServerUrl(base || (window.electronAPI ? 'https://msg.csin.kr' : ''));
+    setServerUrl(base);
+    refreshBranding(base);
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -111,8 +121,6 @@ export default function Login() {
     showPin: true,
     pinned,
     onTogglePin: () => { void handleTogglePin(); },
-    showSettings: true,
-    onSettings: () => setShowSettings((v) => !v),
   };
 
   return (
@@ -127,8 +135,38 @@ export default function Login() {
         />
       )}
       <div className="flex-1 flex items-stretch justify-center overflow-y-auto">
-        <AuthCard title="로그인" variant="flush">
+        <AuthCard
+          title="로그인"
+          variant="flush"
+          logoUrl={brandLogoUrl}
+          brandName={brandName}
+          subtext={
+            <>
+              계정이 없으신가요?{' '}
+              <Link to="/register" className="text-brand font-semibold no-underline hover:underline">
+                회원가입
+              </Link>
+            </>
+          }
+        >
           <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[13px] font-medium text-[#334155]">회사 서버 주소</label>
+              <UITextInput
+                type="url"
+                placeholder="예: https://example.com"
+                value={serverUrl}
+                onChange={(e) => setServerUrl(e.target.value)}
+                onBlur={() => {
+                  if (serverUrl.trim()) setBaseUrl(serverUrl.trim());
+                  else if (!window.electronAPI) {
+                    try { localStorage.removeItem('emax_api_url'); } catch { /* ignore */ }
+                  }
+                  refreshBranding(serverUrl.trim());
+                }}
+                className="!px-4 !py-3 !rounded-xl !border !border-[#e2e8f0] !bg-[#f8fafc] !text-black placeholder:!text-[#64748b]"
+              />
+            </div>
             <div className="relative">
               <UITextInput
                 type="text"
@@ -168,24 +206,6 @@ export default function Login() {
               />
               <span className="text-[13px] text-[#334155]">아이디 저장</span>
             </label>
-            {(showSettings || error) && (
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[13px] font-medium text-[#334155]">서버 주소</label>
-                <UITextInput
-                  type="url"
-                  placeholder="비우면 현재 사이트 주소 사용 (예: https://msg.csin.kr)"
-                  value={serverUrl}
-                  onChange={(e) => setServerUrl(e.target.value)}
-                  onBlur={() => {
-                    if (serverUrl.trim()) setBaseUrl(serverUrl.trim());
-                    else if (!window.electronAPI) {
-                      try { localStorage.removeItem('emax_api_url'); } catch { /* ignore */ }
-                    }
-                  }}
-                  className="!px-4 !py-3 !rounded-xl !border !border-[#e2e8f0] !bg-[#f8fafc] !text-black placeholder:!text-[#64748b]"
-                />
-              </div>
-            )}
             {error && (
               <p className="px-3 py-2 rounded-xl text-[13px] text-red-600 bg-red-50/80">
                 {error}

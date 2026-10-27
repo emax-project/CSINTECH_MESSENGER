@@ -620,7 +620,30 @@ export const appSettingsApi = {
   getGroupwareUrl: () => api.get('/settings/groupware-url') as Promise<{ url: string }>,
   putGroupwareUrl: (url: string) =>
     api.put('/settings/groupware-url', { url }) as Promise<{ url: string }>,
+  putBranding: (name: string, logoUrl: string) =>
+    api.put('/settings/branding', { name, logoUrl }) as Promise<{ name: string; logoUrl: string }>,
 };
+
+export type TenantBranding = { name: string; logoUrl: string };
+
+/**
+ * 로그인 전(토큰 없음) 상태에서 특정 서버 주소의 회사명·로고를 미리 조회.
+ * 멀티테넌트 로그인 화면에서 "서버 주소" 입력값이 바뀔 때마다 그 회사의
+ * 브랜딩을 보여주기 위한 용도라, getBaseUrl()이 아니라 입력받은 주소를
+ * 그대로(또는 비어 있으면 현재 getBaseUrl()을) 사용한다. 실패해도 로그인
+ * 자체를 막지 않도록 에러를 던지지 않고 null을 반환한다.
+ */
+export async function fetchTenantBranding(baseUrlOverride?: string): Promise<TenantBranding | null> {
+  const base = (baseUrlOverride ?? getBaseUrl()).replace(/\/$/, '');
+  try {
+    const res = await fetch(`${base}/settings/branding`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return { name: typeof data?.name === 'string' ? data.name : '', logoUrl: typeof data?.logoUrl === 'string' ? data.logoUrl : '' };
+  } catch {
+    return null;
+  }
+}
 
 export const announcementApi = {
   get: () => api.get('/announcement') as Promise<{

@@ -124,3 +124,18 @@ export const useMainSocketStore = create<MainSocketState>()((set) => ({
   socket: null,
   setMainSocket: (socket) => set({ socket }),
 }));
+
+// 멀티테넌트: 로그인 화면에서 입력한 "서버 주소"가 어느 회사 서버인지에 따라
+// 그 회사가 지정한 로고·회사명을 보여주기 위한 저장소. 로그인 화면에서 설정되고,
+// 로그인 후에도 사이드바/타이틀바가 같은 값을 쓸 수 있도록 전역으로 둔다.
+type BrandState = {
+  name: string;
+  logoUrl: string;
+  setBrand: (name: string, logoUrl: string) => void;
+};
+
+export const useBrandStore = create<BrandState>()((set) => ({
+  name: '',
+  logoUrl: '',
+  setBrand: (name, logoUrl) => set({ name, logoUrl }),
+}));
