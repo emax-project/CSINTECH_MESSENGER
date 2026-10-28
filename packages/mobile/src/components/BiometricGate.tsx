@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -120,7 +120,7 @@ export default function BiometricGate({ children, onAuthFail }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Crew</Text>
+      <Image source={require('../../assets/wordmark.png')} style={styles.wordmark} resizeMode="contain" />
       <Text style={styles.subtitle}>{authLabel}</Text>
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <TouchableOpacity style={styles.button} onPress={handleRetry}>
@@ -147,11 +147,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#f1f5f9',
   },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#0f172a',
-    textAlign: 'center',
+  wordmark: {
+    width: 120,
+    height: 29,
+    alignSelf: 'center',
     marginBottom: 8,
   },
   subtitle: {

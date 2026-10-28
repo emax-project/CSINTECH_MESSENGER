@@ -14,9 +14,16 @@ import { useColors } from './src/theme';
 import { getStoredBaseUrl } from './src/storage';
 import { registerForPushNotifications, sendTokenToServer, showLocalNotification, setupNotificationResponseHandler } from './src/notifications';
 import { Ionicons } from '@expo/vector-icons';
+import {
+  useFonts,
+  Inter_300Light,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter';
 import BiometricGate from './src/components/BiometricGate';
-import LoginScreen from './src/screens/LoginScreen';
-import RegisterScreen from './src/screens/RegisterScreen';
+import ServerScreen from './src/screens/ServerScreen';
+import ServiceWebViewScreen from './src/screens/ServiceWebViewScreen';
 import RoomListScreen from './src/screens/RoomListScreen';
 import ChatScreen from './src/screens/ChatScreen';
 import MoreScreen from './src/screens/MoreScreen';
@@ -223,10 +230,20 @@ export default function App() {
   const hasHydrated = useAuthStore((s) => s._hasHydrated);
   const isDark = useThemeStore((s) => s.isDark);
   const [baseUrlReady, setBaseUrlReady] = useState(false);
+  const [needsServer, setNeedsServer] = useState(false);
+  const [storedBaseUrl, setStoredBaseUrlState] = useState<string | null>(null);
+  const [fontsLoaded] = useFonts({
+    Inter_300Light,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+  });
 
   useEffect(() => {
     getStoredBaseUrl().then((base) => {
       setBaseUrlOverride(base || null);
+      setNeedsServer(!base);
+      setStoredBaseUrlState(base || null);
       setBaseUrlReady(true);
     });
   }, []);
@@ -263,7 +280,7 @@ export default function App() {
     setupNotificationResponseHandler(navigationRef, queryClient);
   }, []);
 
-  if (!baseUrlReady || !hasHydrated) {
+  if (!baseUrlReady || !hasHydrated || !fontsLoaded) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: isDark ? '#0f172a' : '#f1f5f9' }}>
         <ActivityIndicator size="large" color={isDark ? '#94a3b8' : '#475569'} />
@@ -282,9 +299,16 @@ export default function App() {
             <MainTabsWithSocket baseUrlReady={baseUrlReady} />
           </BiometricGate>
         ) : (
-          <AuthStack.Navigator screenOptions={{ headerShown: false }}>
-            <AuthStack.Screen name="Login" component={LoginScreen} />
-            <AuthStack.Screen name="Register" component={RegisterScreen} />
+          <AuthStack.Navigator
+            screenOptions={{ headerShown: false }}
+            initialRouteName={needsServer ? 'Server' : 'ServiceWebView'}
+          >
+            <AuthStack.Screen name="Server" component={ServerScreen} />
+            <AuthStack.Screen
+              name="ServiceWebView"
+              component={ServiceWebViewScreen}
+              initialParams={storedBaseUrl ? { url: storedBaseUrl } : undefined}
+            />
           </AuthStack.Navigator>
         )}
       </NavigationContainer>

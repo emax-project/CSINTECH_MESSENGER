@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, TextInput,
+  View, Text, Image, FlatList, TouchableOpacity, TextInput,
   StyleSheet, RefreshControl, ActivityIndicator,
 } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -131,7 +131,7 @@ export default function RoomListScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Crew</Text>
+        <Image source={require('../../assets/wordmark.png')} style={styles.headerWordmark} resizeMode="contain" />
         <TouchableOpacity
           style={styles.addBtn}
           onPress={() => setShowCreateModal(true)}
@@ -196,7 +196,7 @@ export default function RoomListScreen() {
           renderItem={renderItem}
           contentContainerStyle={filtered.length === 0 ? styles.emptyWrap : { paddingBottom: 20 }}
           ListEmptyComponent={<Text style={styles.emptyText}>채팅방이 없습니다</Text>}
-          refreshControl={<RefreshControl refreshing={false} onRefresh={() => refetch()} tintColor="#6366f1" />}
+          refreshControl={<RefreshControl refreshing={false} onRefresh={() => { void refetch(); }} tintColor="#6366f1" />}
         />
       )}
     </View>
@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     paddingHorizontal: 20,
   },
-  headerTitle: { fontSize: 28, fontWeight: '700', color: '#000' },
+  headerWordmark: { width: 110, height: 27 },
   addBtn: { padding: 4 },
   searchWrap: {
     flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 6,
