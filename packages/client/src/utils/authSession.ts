@@ -97,3 +97,22 @@ export function setTrustedBaseUrl(baseUrl: string): void {
     /* ignore */
   }
 }
+
+/**
+ * 모바일 앱의 웹뷰 안에서 돌아갈 때, 로그인/로그아웃 상태를 감싸고 있는
+ * 네이티브 앱에 알려준다 — 네이티브는 이 신호로 푸시 알림 등록·생체 인증
+ * 잠금을 켠다. react-native-webview가 주입하는 window.ReactNativeWebView가
+ * 없으면(일반 브라우저·Electron) 아무 일도 하지 않는다.
+ */
+export function notifyNativeAuth(token: string | null, user: unknown): void {
+  try {
+    const rnWebView = (window as unknown as { ReactNativeWebView?: { postMessage: (msg: string) => void } })
+      .ReactNativeWebView;
+    if (!rnWebView) return;
+    rnWebView.postMessage(
+      JSON.stringify(token ? { type: 'csin-auth', token, user } : { type: 'csin-logout' })
+    );
+  } catch {
+    /* ignore */
+  }
+}

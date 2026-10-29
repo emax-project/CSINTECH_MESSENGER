@@ -294,11 +294,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <NavigationContainer ref={navigationRef}>
         <StatusBar style={isDark ? 'light' : 'dark'} />
-        {token ? (
-          <BiometricGate onAuthFail={() => {}}>
-            <MainTabsWithSocket baseUrlReady={baseUrlReady} />
-          </BiometricGate>
-        ) : (
+        <BiometricGate onAuthFail={() => {}}>
           <AuthStack.Navigator
             screenOptions={{ headerShown: false }}
             initialRouteName={needsServer ? 'Server' : 'ServiceWebView'}
@@ -311,7 +307,7 @@ export default function App() {
               options={{ animation: 'none' }}
             />
           </AuthStack.Navigator>
-        )}
+        </BiometricGate>
       </NavigationContainer>
     </QueryClientProvider>
     </SafeAreaProvider>

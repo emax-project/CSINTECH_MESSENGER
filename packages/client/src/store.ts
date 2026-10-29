@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Socket } from 'socket.io-client';
 import { authApi, getBaseUrl, type User } from './api';
-import { clearSessionDate, getActiveToken, markSessionToday, removeStoredToken, setStoredToken, setTrustedBaseUrl } from './utils/authSession';
+import { clearSessionDate, getActiveToken, markSessionToday, notifyNativeAuth, removeStoredToken, setStoredToken, setTrustedBaseUrl } from './utils/authSession';
 import type { OrgThemeId } from './utils/orgTheme';
 
 type AuthState = {
@@ -29,6 +29,7 @@ export const useAuthStore = create<AuthState>()(
           removeStoredToken();
           clearSessionDate();
         }
+        notifyNativeAuth(token, user);
         set((s) => ({
           user,
           token,
@@ -41,6 +42,7 @@ export const useAuthStore = create<AuthState>()(
         authApi.logout().catch(() => {});
         removeStoredToken();
         clearSessionDate();
+        notifyNativeAuth(null, null);
         window.electronAPI?.clearAppCache?.().catch(() => {});
         set({ user: null, token: null, mustChangePassword: false });
       },

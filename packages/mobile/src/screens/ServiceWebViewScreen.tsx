@@ -5,6 +5,8 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors } from '../theme/mobbin';
+import { useAuthStore } from '../store';
+import type { User } from '@emax/shared';
 
 // 모노레포에서 packages/mobile이 루트와 다른 React 버전(19.x)을 써서 중첩
 // 설치되는데, react-native-webview의 forwardRef 타입이 이 둘을 같은 타입으로
@@ -49,6 +51,26 @@ export default function ServiceWebViewScreen() {
     canGoBackRef.current = nav.canGoBack;
   }, []);
 
+  const setAuth = useAuthStore((s) => s.setAuth);
+
+  // 웹뷰 안의 웹앱이 로그인/로그아웃될 때 window.ReactNativeWebView.postMessage로
+  // 보내는 신호를 받아 네이티브 쪽 인증 상태에 반영한다 — 이게 있어야 푸시 알림
+  // 등록·생체 인증 잠금이 동작한다(둘 다 네이티브 토큰 유무로 켜짐).
+  const handleMessage = useCallback((e: { nativeEvent: { data: string } }) => {
+    try {
+      const msg = JSON.parse(e.nativeEvent.data) as
+        | { type: 'csin-auth'; token: string; user?: User }
+        | { type: 'csin-logout' };
+      if (msg.type === 'csin-auth') {
+        setAuth(msg.user ?? null, msg.token);
+      } else if (msg.type === 'csin-logout') {
+        setAuth(null, null);
+      }
+    } catch {
+      /* 우리 쪽 신호가 아닌 메시지는 무시 */
+    }
+  }, [setAuth]);
+
   // 실시간 메신저 특성상 웹소켓/롱폴링 연결이 계속 떠있으면 안드로이드
   // 웹뷰가 onLoadEnd(onPageFinished)를 끝까지 안 보내는 경우가 있어, 로딩
   // 진행률이 거의 끝났거나 일정 시간이 지나면 오버레이를 강제로 걷어낸다.
@@ -87,6 +109,7 @@ export default function ServiceWebViewScreen() {
         onLoadEnd={hideLoading}
         onLoadProgress={handleLoadProgress}
         onNavigationStateChange={handleNavChange}
+        onMessage={handleMessage}
         startInLoadingState
         sharedCookiesEnabled
         domStorageEnabled
