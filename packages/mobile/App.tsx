@@ -308,6 +308,7 @@ export default function App() {
               name="ServiceWebView"
               component={ServiceWebViewScreen}
               initialParams={storedBaseUrl ? { url: storedBaseUrl } : undefined}
+              options={{ animation: 'none' }}
             />
           </AuthStack.Navigator>
         )}
