@@ -91,6 +91,7 @@ export default function ServiceWebViewScreen() {
         sharedCookiesEnabled
         domStorageEnabled
         javaScriptEnabled
+        androidLayerType="hardware"
       />
       {loading && (
         <View style={styles.loadingOverlay}>
