@@ -31,10 +31,32 @@ export default function ServiceWebViewScreen() {
   const [loading, setLoading] = useState(true);
   const webviewRef = useRef<{ goBack: () => void } | null>(null);
   const canGoBackRef = useRef(false);
+  const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearLoadingTimeout = useCallback(() => {
+    if (loadingTimeoutRef.current) {
+      clearTimeout(loadingTimeoutRef.current);
+      loadingTimeoutRef.current = null;
+    }
+  }, []);
+
+  const hideLoading = useCallback(() => {
+    clearLoadingTimeout();
+    setLoading(false);
+  }, [clearLoadingTimeout]);
 
   const handleNavChange = useCallback((nav: WebViewNavigation) => {
     canGoBackRef.current = nav.canGoBack;
   }, []);
+
+  // 실시간 메신저 특성상 웹소켓/롱폴링 연결이 계속 떠있으면 안드로이드
+  // 웹뷰가 onLoadEnd(onPageFinished)를 끝까지 안 보내는 경우가 있어, 로딩
+  // 진행률이 거의 끝났거나 일정 시간이 지나면 오버레이를 강제로 걷어낸다.
+  const handleLoadProgress = useCallback((e: { nativeEvent: { progress: number } }) => {
+    if (e.nativeEvent.progress >= 0.95) hideLoading();
+  }, [hideLoading]);
+
+  useEffect(() => clearLoadingTimeout, [clearLoadingTimeout]);
 
   // 안드로이드 뒤로가기: 웹뷰 안에서 더 갈 곳이 있으면 웹뷰 내비게이션, 없으면
   // 서비스 주소 화면으로 돌아간다(앱 자체는 종료하지 않음).
@@ -57,8 +79,13 @@ export default function ServiceWebViewScreen() {
         ref={webviewRef}
         source={{ uri: url }}
         style={styles.webview}
-        onLoadStart={() => setLoading(true)}
-        onLoadEnd={() => setLoading(false)}
+        onLoadStart={() => {
+          setLoading(true);
+          clearLoadingTimeout();
+          loadingTimeoutRef.current = setTimeout(hideLoading, 15000);
+        }}
+        onLoadEnd={hideLoading}
+        onLoadProgress={handleLoadProgress}
         onNavigationStateChange={handleNavChange}
         startInLoadingState
         sharedCookiesEnabled
