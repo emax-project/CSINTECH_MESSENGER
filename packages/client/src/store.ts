@@ -44,6 +44,7 @@ export const useAuthStore = create<AuthState>()(
         clearSessionDate();
         notifyNativeAuth(null, null);
         window.electronAPI?.clearAppCache?.().catch(() => {});
+        window.electronAPI?.clearGroupwareCredentials?.().catch(() => {});
         set({ user: null, token: null, mustChangePassword: false });
       },
     }),
