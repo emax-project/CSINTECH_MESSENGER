@@ -279,8 +279,42 @@ export default function Main() {
     style: { maxWidth: '100%' } as React.CSSProperties,
   }), []);
 
-  const notificationStatus = typeof Notification === 'undefined' ? '지원되지 않음' : Notification.permission === 'granted' ? '허용됨' : Notification.permission === 'denied' ? '차단됨' : '미정';
-  const requestNotificationPermission = async () => { if (typeof Notification !== 'undefined' && Notification.permission === 'default') { try { await Notification.requestPermission(); } catch { /* ignore */ } } };
+  // 모바일 앱(crew-mobile)의 웹뷰 안에서는 브라우저 Notification API 권한 프롬프트를
+  // 받아줄 데가 없어 호출해도 아무 반응이 없다 — 대신 네이티브에 요청을 넘기고,
+  // 네이티브가 postMessage로 돌려주는 결과로 상태를 반영한다.
+  const isNativeWebView = typeof window !== 'undefined' && !!(window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView;
+  const [nativePushGranted, setNativePushGranted] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!isNativeWebView) return;
+    const onNativeMessage = (e: globalThis.Event) => {
+      const data = (e as globalThis.MessageEvent).data;
+      if (typeof data !== 'string') return;
+      try {
+        const msg = JSON.parse(data) as { type?: string; granted?: boolean };
+        if (msg.type === 'csin-push-permission-result') setNativePushGranted(!!msg.granted);
+      } catch { /* 우리 쪽 신호가 아닌 메시지는 무시 */ }
+    };
+    // react-native-webview는 안드로이드는 document에, iOS는 window에 message 이벤트를 쏜다
+    document.addEventListener('message', onNativeMessage);
+    window.addEventListener('message', onNativeMessage);
+    return () => {
+      document.removeEventListener('message', onNativeMessage);
+      window.removeEventListener('message', onNativeMessage);
+    };
+  }, [isNativeWebView]);
+
+  const notificationStatus = isNativeWebView
+    ? (nativePushGranted === null ? '미정' : nativePushGranted ? '허용됨' : '차단됨')
+    : typeof Notification === 'undefined' ? '지원되지 않음' : Notification.permission === 'granted' ? '허용됨' : Notification.permission === 'denied' ? '차단됨' : '미정';
+  const requestNotificationPermission = async () => {
+    if (isNativeWebView) {
+      (window as unknown as { ReactNativeWebView?: { postMessage: (msg: string) => void } }).ReactNativeWebView
+        ?.postMessage(JSON.stringify({ type: 'csin-request-push-permission' }));
+      return;
+    }
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') { try { await Notification.requestPermission(); } catch { /* ignore */ } }
+  };
 
   const hasElectron = !!window.electronAPI;
 

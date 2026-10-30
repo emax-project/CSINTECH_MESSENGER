@@ -61,6 +61,9 @@ export const useAuthStore = create<AuthState>()(
           clearSessionDate();
           return { ...current, ...saved, user: null, token: null, mustChangePassword: false };
         }
+        // 로그인 때와 달리 세션 복원 시에는 setAuth()를 거치지 않아 네이티브(모바일 앱)에
+        // 로그인 신호가 안 갔다 — 앱 재실행마다 푸시 토큰 등록이 안 되던 원인.
+        notifyNativeAuth(activeToken, saved?.user ?? null);
         return { ...current, ...saved, token: activeToken };
       },
     }
