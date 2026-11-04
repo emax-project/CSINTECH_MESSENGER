@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { authApi, fetchTenantBranding, getBaseUrl, setBaseUrl } from '../api';
 import { useAuthStore, useBrandStore } from '../store';
 import TitleBar, { MacInsetChromeTools } from '../components/TitleBar';
@@ -142,14 +142,6 @@ export default function Login() {
           variant="flush"
           logoUrl={brandLogoUrl}
           brandName={brandName}
-          subtext={
-            <>
-              계정이 없으신가요?{' '}
-              <Link to="/register" className="text-brand font-semibold no-underline hover:underline">
-                회원가입
-              </Link>
-            </>
-          }
         >
           <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
             <div className="flex flex-col gap-1.5">
