@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authApi, fetchTenantBranding, getBaseUrl, setBaseUrl } from '../api';
+import { authApi, fetchTenantBranding, getBaseUrl } from '../api';
 import { useAuthStore, useBrandStore } from '../store';
 import TitleBar, { MacInsetChromeTools } from '../components/TitleBar';
 import { AuthCard } from '../components/AuthCard';
@@ -47,19 +47,9 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [pinned, setPinned] = useState(false);
-  const [serverUrl, setServerUrl] = useState(() => getBaseUrl());
   const { name: brandName, logoUrl: brandLogoUrl, setBrand } = useBrandStore();
   const setAuth = useAuthStore((s) => s.setAuth);
   const navigate = useNavigate();
-  const brandRequestSeq = useRef(0);
-
-  const refreshBranding = (urlOverride: string) => {
-    const seq = ++brandRequestSeq.current;
-    void fetchTenantBranding(urlOverride || undefined).then((b) => {
-      if (seq !== brandRequestSeq.current) return; // 더 최신 입력이 있으면 이 결과는 버린다
-      setBrand(b?.name || '', b?.logoUrl || '');
-    });
-  };
 
   useEffect(() => {
     void window.electronAPI?.setWindowUiMode?.('login', APP_MAX_WIDTH, LOGIN_WINDOW_HEIGHT);
@@ -70,18 +60,14 @@ export default function Login() {
     });
   }, []);
   useEffect(() => {
-    const base = getBaseUrl();
-    setServerUrl(base);
-    refreshBranding(base);
+    void fetchTenantBranding(getBaseUrl() || undefined).then((b) => {
+      setBrand(b?.name || '', b?.logoUrl || '');
+    });
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (serverUrl.trim()) setBaseUrl(serverUrl.trim());
-    else if (!window.electronAPI) {
-      try { localStorage.removeItem('emax_api_url'); } catch { /* ignore */ }
-    }
     setLoading(true);
     try {
       const { user, token, mustChangePassword } = await authApi.login(email, password);
@@ -103,7 +89,7 @@ export default function Login() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
       const isNetwork = /fetch|network|connection|refused|Failed to fetch|INVALID_HTTP/i.test(msg) || msg === '';
-      setError(isNetwork ? '서버에 연결할 수 없습니다. 아래에서 서버 주소를 확인·수정 후 다시 시도해 주세요.' : msg || '로그인 실패');
+      setError(isNetwork ? '서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.' : msg || '로그인 실패');
     } finally {
       setLoading(false);
     }
@@ -144,23 +130,6 @@ export default function Login() {
           brandName={brandName}
         >
           <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[13px] font-medium text-[#334155]">회사 서버 주소</label>
-              <UITextInput
-                type="url"
-                placeholder="예: https://example.com"
-                value={serverUrl}
-                onChange={(e) => setServerUrl(e.target.value)}
-                onBlur={() => {
-                  if (serverUrl.trim()) setBaseUrl(serverUrl.trim());
-                  else if (!window.electronAPI) {
-                    try { localStorage.removeItem('emax_api_url'); } catch { /* ignore */ }
-                  }
-                  refreshBranding(serverUrl.trim());
-                }}
-                className="!px-4 !py-3 !rounded-xl !border !border-[#e2e8f0] !bg-[#f8fafc] !text-black placeholder:!text-[#64748b]"
-              />
-            </div>
             <div className="relative">
               <UITextInput
                 type="text"
