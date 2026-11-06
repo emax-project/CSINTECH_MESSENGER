@@ -532,6 +532,13 @@ export default function Main() {
     enabled: !!token,
   });
   const groupwareUrl = groupwareSetting?.url?.trim() || (import.meta.env.VITE_GROUPWARE_URL || '').trim();
+  const { data: mailSetting } = useQuery({
+    queryKey: ['settings', 'mail-url'],
+    queryFn: appSettingsApi.getMailUrl,
+    enabled: !!token,
+  });
+  /** 메일 버튼 주소: 관리자가 따로 지정했으면 그 주소, 아니면 기존처럼 그룹웨어 주소 */
+  const mailUrl = mailSetting?.url?.trim() || groupwareUrl;
   const { data: events = [] } = useQuery<Event[]>({ queryKey: ['events'], queryFn: eventsApi.list, enabled: !!token });
   const { data: mentions = [] } = useQuery({ queryKey: ['mentions'], queryFn: mentionsApi.list, enabled: !!token && activePanel === 'notifications' });
   const { data: unreadMentionCount } = useQuery({ queryKey: ['mentions', 'unread-count'], queryFn: mentionsApi.unreadCount, enabled: !!token, refetchInterval: 30000 });
@@ -834,6 +841,19 @@ export default function Main() {
       return;
     }
     openGroupware(groupwareUrl);
+  };
+  const handleOpenMail = () => {
+    if (!mailUrl) {
+      showToast(
+        user?.isAdmin
+          ? '설정에서 메일 또는 그룹웨어 주소를 먼저 저장해 주세요'
+          : '관리자가 아직 메일 주소를 설정하지 않았습니다',
+        'error',
+      );
+      if (user?.isAdmin) setActivePanel('settings');
+      return;
+    }
+    openGroupware(mailUrl);
   };
   const handleSaveStatusProfile = async () => {
     try {
@@ -1247,6 +1267,7 @@ export default function Main() {
           externalSiteUrl={externalSiteUrl}
           onOpenExternalSite={handleOpenExternalSite}
           onOpenGroupware={handleOpenGroupware}
+          onOpenMail={handleOpenMail}
         />
 
         <div className={cn('flex-1 min-h-0 min-w-0 flex flex-col', isDark ? 'bg-slate-900' : 'bg-white')}>

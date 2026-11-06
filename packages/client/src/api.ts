@@ -620,6 +620,9 @@ export const appSettingsApi = {
   getGroupwareUrl: () => api.get('/settings/groupware-url') as Promise<{ url: string }>,
   putGroupwareUrl: (url: string) =>
     api.put('/settings/groupware-url', { url }) as Promise<{ url: string }>,
+  getMailUrl: () => api.get('/settings/mail-url') as Promise<{ url: string }>,
+  putMailUrl: (url: string) =>
+    api.put('/settings/mail-url', { url }) as Promise<{ url: string }>,
   putBranding: (name: string, logoUrl: string) =>
     api.put('/settings/branding', { name, logoUrl }) as Promise<{ name: string; logoUrl: string }>,
 };

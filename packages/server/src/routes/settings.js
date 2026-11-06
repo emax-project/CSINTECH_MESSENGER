@@ -8,6 +8,7 @@ export const settingsRouter = Router();
 
 const EXTERNAL_SITE_KEY = 'external_site_url';
 const GROUPWARE_URL_KEY = 'groupware_url';
+const MAIL_URL_KEY = 'mail_url';
 const BRAND_NAME_KEY = 'brand_name';
 const BRAND_LOGO_URL_KEY = 'brand_logo_url';
 
@@ -103,7 +104,31 @@ settingsRouter.put('/external-site', async (req, res) => {
   }
 });
 
-/** 그룹웨어 바로가기 주소 조회 (로그인한 모든 사용자) — 사이드바 '그룹웨어'·'메일' 버튼이 씀 */
+/** 메일 바로가기 주소 조회 (로그인한 모든 사용자) — 비어 있으면 클라이언트가 그룹웨어 주소로 연다 */
+settingsRouter.get('/mail-url', async (_req, res) => {
+  try {
+    const url = await readSettingUrl(MAIL_URL_KEY);
+    return res.json({ url });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: '메일 주소를 불러오지 못했습니다' });
+  }
+});
+
+/** 메일 바로가기 주소 저장 (관리자만) */
+settingsRouter.put('/mail-url', async (req, res) => {
+  try {
+    if (!(await assertAdmin(req, res))) return;
+    const url = await writeSettingUrl(MAIL_URL_KEY, req.body?.url, res);
+    if (url === null) return;
+    return res.json({ url });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: '메일 주소를 저장하지 못했습니다' });
+  }
+});
+
+/** 그룹웨어 바로가기 주소 조회 (로그인한 모든 사용자) — 사이드바 '그룹웨어' 버튼, 메일 주소 미지정 시 '메일' 버튼도 씀 */
 settingsRouter.get('/groupware-url', async (_req, res) => {
   try {
     const url = await readSettingUrl(GROUPWARE_URL_KEY);

@@ -241,9 +241,18 @@ function AdminSection({ isDark, isNarrowLayout = false, currentUserId }: Props) 
         queryKey="groupware-url"
         getUrl={appSettingsApi.getGroupwareUrl}
         putUrl={appSettingsApi.putGroupwareUrl}
-        title="그룹웨어·메일 바로가기"
-        description="왼쪽 사이드바 그룹웨어·메일 버튼을 누르면 이 주소로 이동합니다. 비워두면 버튼을 눌러도 아무 동작도 하지 않습니다."
+        title="그룹웨어 바로가기"
+        description="왼쪽 사이드바 그룹웨어 버튼을 누르면 이 주소로 이동합니다. 메일 주소를 따로 지정하지 않으면 메일 버튼도 이 주소로 이동합니다."
         placeholder="https://gw.example.com"
+      />
+      <UrlSettingField
+        isDark={isDark}
+        queryKey="mail-url"
+        getUrl={appSettingsApi.getMailUrl}
+        putUrl={appSettingsApi.putMailUrl}
+        title="메일 바로가기"
+        description="왼쪽 사이드바 메일 버튼을 누르면 이 주소로 이동합니다. 비워두면 그룹웨어 주소로 이동합니다."
+        placeholder="https://gw.example.com/mail"
       />
 
       <div

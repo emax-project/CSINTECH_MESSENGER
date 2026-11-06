@@ -37,6 +37,8 @@ type LeftSidebarProps = {
   externalSiteUrl?: string;
   onOpenExternalSite?: () => void;
   onOpenGroupware?: () => void;
+  /** 메일 버튼. 없으면 그룹웨어 버튼과 같은 동작을 한다. */
+  onOpenMail?: () => void;
 };
 
 /**
@@ -106,6 +108,7 @@ function LeftSidebar({
   externalSiteUrl,
   onOpenExternalSite,
   onOpenGroupware,
+  onOpenMail,
 }: LeftSidebarProps) {
   const macDrag = isMacElectron();
   const user = useAuthStore((s) => s.user);
@@ -186,7 +189,7 @@ function LeftSidebar({
         <button
           type="button"
           style={{ ...btnStyle(false), ...(macDrag ? electronNoDragStyle : {}) }}
-          onClick={() => onOpenGroupware?.()}
+          onClick={() => (onOpenMail ?? onOpenGroupware)?.()}
           title="메일"
           className={electronNoDragClass}
         >
