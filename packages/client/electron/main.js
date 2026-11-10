@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain, Tray, screen, shell, nativeImage, dialog, session, safeStorage } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, Tray, screen, shell, nativeImage, dialog, session, safeStorage, powerMonitor } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { pathToFileURL } = require('url');
@@ -11,10 +11,67 @@ const { Readable } = require('node:stream');
 // 실행 시 재로그인이 한 번 필요하다 — 서버에 저장된 대화 내용 등은 영향 없음)
 app.setName('CSIN-Tech');
 
-// Windows: GPU 렌더링 문제로 검은 화면 발생 시 소프트웨어 렌더링 강제
-if (process.platform === 'win32') {
-  app.commandLine.appendSwitch('disable-gpu');
-  app.commandLine.appendSwitch('disable-gpu-sandbox');
+// 그래픽(GPU) 가속: 기본은 사용. 드라이버 문제로 GPU 프로세스가 반복 종료하는 PC나 사용자가
+// 직접 끈 경우에만 소프트웨어 렌더링으로 내린다(정책은 gpuPolicy.js, 상태는 userData/gpu-state.json).
+// GPU 샌드박스는 끄지 않는다 — 예전 무조건 --disable-gpu-sandbox 설정은 보안만 약하게 만들었다.
+const gpuPolicy = require('./gpuPolicy');
+const policyHelpers = require('./policyHelpers');
+const GPU_STATE_FILE = path.join(app.getPath('userData'), 'gpu-state.json');
+
+function readGpuState() {
+  try {
+    return gpuPolicy.normalizeState(JSON.parse(fs.readFileSync(GPU_STATE_FILE, 'utf8')));
+  } catch {
+    return gpuPolicy.emptyState();
+  }
+}
+
+function writeGpuState(state) {
+  try {
+    fs.writeFileSync(GPU_STATE_FILE, JSON.stringify(state));
+  } catch (err) {
+    console.error('[gpu] state write failed', err);
+  }
+}
+
+const gpuDecision = gpuPolicy.decideGpu({ env: process.env, argv: process.argv, state: readGpuState() });
+if (gpuDecision.disable) {
+  console.warn(`[gpu] 하드웨어 가속 비활성화 (${gpuDecision.reason})`);
+  app.disableHardwareAcceleration();
+}
+
+app.on('child-process-gone', (_event, details) => {
+  const before = readGpuState();
+  const after = gpuPolicy.recordGpuExit(before, details);
+  if (after !== before) {
+    console.error('[gpu] GPU 프로세스 비정상 종료:', details.reason);
+    writeGpuState(after);
+  }
+});
+
+/** 트레이/앱 메뉴용 — 그래픽 가속 사용 여부를 사용자가 직접 바꾼다(재시작 후 적용). */
+function gpuMenuItem() {
+  const forced = readGpuState().forceDisable;
+  return {
+    label: '그래픽 가속 사용',
+    type: 'checkbox',
+    checked: !forced,
+    click: async () => {
+      writeGpuState(gpuPolicy.setUserForceDisable(readGpuState(), !forced));
+      const { response } = await dialog.showMessageBox({
+        type: 'info',
+        buttons: ['지금 재시작', '나중에'],
+        defaultId: 0,
+        cancelId: 1,
+        message: forced ? '그래픽 가속을 켰습니다.' : '그래픽 가속을 껐습니다.',
+        detail: '화면이 검게 나오거나 깨질 때는 끄면 해결될 수 있습니다. 재시작하면 적용됩니다.',
+      });
+      if (response === 0) {
+        app.relaunch();
+        doQuit();
+      }
+    },
+  };
 }
 
 // 단일 인스턴스 잠금: 두 번 실행하면 기존 창을 포커스하고 종료
@@ -890,6 +947,20 @@ function openSecondWindow() {
 }
 
 function openChatWindow(roomId) {
+  const chatWindows = BrowserWindow.getAllWindows().filter(
+    (w) => !w.isDestroyed() && typeof w.__emaxInitialRoute === 'string' && w.__emaxInitialRoute.startsWith('/chat/'),
+  );
+  const existing = chatWindows.find((w) => w.__emaxInitialRoute === `/chat/${roomId}`);
+  if (existing) {
+    // 이미 열려 있는 방이면 새로 만들지 않고 그 창을 앞으로 가져온다
+    if (existing.isMinimized()) existing.restore();
+    existing.focus();
+    return;
+  }
+  if (!policyHelpers.canOpenChatWindow(chatWindows.length, maxChatWindows)) {
+    showCustomNotification('CSIN-Tech', `대화창은 최대 ${maxChatWindows}개까지 열 수 있습니다. 다른 창을 닫고 다시 시도해 주세요.`);
+    return;
+  }
   createWindow({
     width: 480,
     height: 680,
@@ -949,6 +1020,7 @@ function createTray() {
       label: '로그아웃',
       click: () => broadcastLogout(),
     },
+    gpuMenuItem(),
     { type: 'separator' },
     { label: '종료', click: () => doQuit() },
   ]);
@@ -1181,8 +1253,24 @@ ipcMain.on('emax-get-initial-route', (event) => {
   event.returnValue = win?.__emaxInitialRoute ?? null;
 });
 
+// 화면 잠금 상태(렌더러가 알려줌) — 잠겨 있으면 알림에 대화 내용·보낸 사람이 보이지 않게 한다
+let screenLocked = false;
+ipcMain.on('set-screen-locked', (_, locked) => {
+  screenLocked = locked === true;
+});
+
+// 서버 보안 정책의 "동시에 열 수 있는 대화창 수"(0 = 제한 없음). 렌더러가 정책을 받으면 알려준다.
+let maxChatWindows = 0;
+ipcMain.on('set-max-chat-windows', (_, value) => {
+  maxChatWindows = policyHelpers.sanitizeMaxChatWindows(value);
+});
+
 ipcMain.handle('show-notification', (_, { title, body, roomId, icon, imagePreview }) => {
-  showCustomNotification(title || 'CSIN-Tech', body || '', { roomId: roomId || null, icon: icon || null, imagePreview: imagePreview || null });
+  const n = policyHelpers.maskNotificationIfLocked(
+    { title: title || 'CSIN-Tech', body: body || '', roomId: roomId || null, icon: icon || null, imagePreview: imagePreview || null },
+    screenLocked,
+  );
+  showCustomNotification(n.title, n.body, { roomId: n.roomId, icon: n.icon, imagePreview: n.imagePreview });
 });
 
 // 앱 아이콘 배지 (맥 도크/윈도우 태스크바) - 안 읽은 개수를 그대로 표시
@@ -1354,11 +1442,54 @@ ipcMain.handle('fetch-user-avatar', async (_, { userId }) => {
   }
 });
 
+// 업데이트 설치 파일이 쌓이는 폴더 정리 (Windows: %LOCALAPPDATA%\csin-tech-updater\pending).
+// 이전 버전은 앱 이름이 'client'라 %LOCALAPPDATA%\client-updater 를 썼고 설치 파일(약 166MB)이 그대로 남아 있다.
+// - 현재 폴더: 가장 최근 설치 파일 1개(차등 업데이트 기준)만 남기고 나머지·미완성 파일 삭제
+// - 옛 폴더: 더 이상 쓰이지 않으므로 pending 안의 파일 모두 삭제
+function pruneUpdaterCache() {
+  if (process.platform !== 'win32' || !process.env.LOCALAPPDATA) return;
+  const readFiles = (dir) => {
+    try {
+      return fs.readdirSync(dir, { withFileTypes: true })
+        .filter((e) => e.isFile())
+        .map((e) => ({ name: e.name, mtimeMs: fs.statSync(path.join(dir, e.name)).mtimeMs }));
+    } catch {
+      return [];
+    }
+  };
+  const remove = (dir, names) => {
+    for (const name of names) {
+      try {
+        fs.unlinkSync(path.join(dir, name));
+        console.log('[updater-cache] 삭제:', name);
+      } catch (err) {
+        console.warn('[updater-cache] 삭제 실패:', name, err?.message);
+      }
+    }
+  };
+  const current = path.join(process.env.LOCALAPPDATA, 'csin-tech-updater', 'pending');
+  remove(current, policyHelpers.pickStaleUpdaterFiles(readFiles(current)));
+  const legacy = path.join(process.env.LOCALAPPDATA, 'client-updater', 'pending');
+  remove(legacy, readFiles(legacy).map((f) => f.name));
+}
+
 function setupAutoUpdate() {
   if (isDev || !app.isPackaged) return;
+  // 설치 직후·재실행 때 한 번 정리(업데이트 확인과 겹치지 않도록 잠시 뒤에)
+  setTimeout(pruneUpdaterCache, 60 * 1000);
   if (updaterBaseUrl) {
-    autoUpdater.setFeedURL({ provider: 'generic', url: updaterBaseUrl });
+    // 업데이트 서버를 직접 지정하는 경우에도 평문(http)은 쓰지 않는다 — 중간자가 설치 파일을
+    // 바꿔치기할 수 있다. https가 아니면 지정을 무시하고 기본(GitHub Releases) 경로를 쓴다.
+    if (/^https:\/\//i.test(updaterBaseUrl)) {
+      autoUpdater.setFeedURL({ provider: 'generic', url: updaterBaseUrl });
+    } else {
+      console.error('[updater] ELECTRON_UPDATER_BASE_URL은 https여야 합니다. 무시하고 기본 경로를 사용합니다.');
+    }
   }
+  // 다운그레이드·시험판 설치를 막는다. (설치 파일의 sha512 검증은 electron-updater가 항상 수행하고,
+  // 서명된 빌드는 app-update.yml의 publisherName으로 Windows 코드 서명 발행자도 검증한다 — 아래 DEPLOY 문서 참고)
+  autoUpdater.allowDowngrade = false;
+  autoUpdater.allowPrerelease = false;
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.on('update-available', () => {
@@ -1409,7 +1540,17 @@ app.on('second-instance', () => {
   }
 });
 
+// OS 화면 잠금·절전 진입 시 열려 있는 모든 창에 알려 앱 화면도 함께 잠근다
+function notifySystemLock() {
+  BrowserWindow.getAllWindows().forEach((w) => {
+    if (!w.isDestroyed() && !w.webContents.isDestroyed()) w.webContents.send('system-lock');
+  });
+}
+
 app.whenReady().then(() => {
+  powerMonitor.on('lock-screen', notifySystemLock);
+  powerMonitor.on('suspend', notifySystemLock);
+
   if (process.platform === 'win32') {
     app.setAppUserModelId('com.csintech.message');
   }
@@ -1441,6 +1582,8 @@ app.whenReady().then(() => {
     {
       label: '도움말',
       submenu: [
+        gpuMenuItem(),
+        { type: 'separator' },
         {
           label: '업데이트 확인',
           click: () => {

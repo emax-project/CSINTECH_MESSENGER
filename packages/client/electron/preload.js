@@ -58,6 +58,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('tray-logout', listener);
     return () => ipcRenderer.removeListener('tray-logout', listener);
   },
+  // OS 화면 잠금·절전 진입 시 메인 프로세스가 보내는 신호 — 앱도 함께 잠근다
+  onSystemLock: (handler) => {
+    const listener = () => handler();
+    ipcRenderer.on('system-lock', listener);
+    return () => ipcRenderer.removeListener('system-lock', listener);
+  },
+  // 렌더러 → 메인: 잠금 상태(알림 내용 가리기용), 서버 정책의 대화창 수 제한
+  setScreenLocked: (locked) => ipcRenderer.send('set-screen-locked', !!locked),
+  setMaxChatWindows: (n) => ipcRenderer.send('set-max-chat-windows', n),
   onNavigateToRoom: (handler) => {
     const listener = (_, roomId) => handler(roomId);
     ipcRenderer.on('navigate-to-room', listener);

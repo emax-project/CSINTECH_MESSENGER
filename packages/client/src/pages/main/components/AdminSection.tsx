@@ -7,6 +7,7 @@ import { useToastStore } from '../../../store';
 import BulkUserRegisterSection from './BulkUserRegisterSection';
 import OrgManageSection from './OrgManageSection';
 import UserManageSection from './UserManageSection';
+import SecurityPolicySection from './SecurityPolicySection';
 
 type Props = {
   isDark: boolean;
@@ -254,6 +255,8 @@ function AdminSection({ isDark, isNarrowLayout = false, currentUserId }: Props) 
         description="왼쪽 사이드바 메일 버튼을 누르면 이 주소로 이동합니다. 비워두면 그룹웨어 주소로 이동합니다."
         placeholder="https://gw.example.com/mail"
       />
+
+      <SecurityPolicySection isDark={isDark} />
 
       <div
         role="tablist"
