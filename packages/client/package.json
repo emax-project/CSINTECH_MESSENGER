@@ -119,6 +119,9 @@
       "allowElevation": true,
       "deleteAppDataOnUninstall": false,
       "shortcutName": "CSIN-Tech"
+    },
+    "extraMetadata": {
+      "name": "csin-tech"
     }
   }
 }
