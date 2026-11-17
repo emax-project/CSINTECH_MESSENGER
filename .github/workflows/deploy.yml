@@ -108,35 +108,49 @@ jobs:
           PARTNER_MSSQL_TRUST_CERT: ${{ secrets.PARTNER_MSSQL_TRUST_CERT }}
           PARTNER_DEFAULT_PASSWORD: ${{ secrets.PARTNER_DEFAULT_PASSWORD }}
 
-      # WSL2 환경에서 Windows의 IPv4 루프백(127.0.0.1) → WSL2 포워딩이 간헐적으로
-      # 끊기는 문제가 있다(2026-10-22 확인 — IPv6 루프백(::1)은 항상 정상 동작).
-      # 그래서 외부/LAN IP(0.0.0.0)로 들어온 요청을 WSL2로 넘기는 netsh portproxy는
-      # 반드시 connectaddress=::1(IPv6)을 써야 한다 — 127.0.0.1로 하면 컨테이너가
-      # 재배포될 때마다 접속 불가 상태에 빠진다. 컨테이너 재생성 때마다 매번 수동
-      # 재등록하지 않도록 배포 직후 항상 재적용한다(멱등 — 이미 같은 규칙이면 just no-op).
-      - name: Re-assert IPv4→IPv6 portproxy rules (WSL2 loopback workaround)
+      # WSL2 환경에서 Windows의 localhost → WSL2 포워딩이 컨테이너를 다시 만들 때마다 간헐적으로
+      # 끊긴다(2026-10-22, 2026-11-17 확인 — ::1 / 127.0.0.1 모두 Connection refused).
+      # 그래서 포워딩에 의존하지 않고, Docker 엔진이 떠 있는 WSL2 VM의 현재 IP를 직접 구해
+      # netsh portproxy(v4tov4)가 그 IP로 바로 넘기게 한다. WSL IP는 재시작마다 바뀌므로
+      # 배포 때마다 다시 구해 덮어쓴다(멱등).
+      # 러너는 SYSTEM 서비스라 wsl.exe를 못 쓰므로, DOCKER_HOST로 연결된 엔진에서
+      # --network host 컨테이너를 띄워 WSL2 VM의 eth0 주소를 읽는다.
+      - name: Point portproxy at the current WSL2 IP
         shell: powershell
         run: |
+          $out = docker run --rm --network host --entrypoint sh postgres:16-alpine -c "ip -4 -o addr show eth0"
+          $m = [regex]::Match(($out | Out-String), 'inet (\d+\.\d+\.\d+\.\d+)')
+          if ($m.Success) {
+            $ip = $m.Groups[1].Value
+            Write-Host "WSL2 IP: $ip"
+            "WSL_IP=$ip" | Add-Content -Path $env:GITHUB_ENV
+            $target = $ip; $family = "v4tov4"
+          } else {
+            Write-Warning "WSL2 IP를 읽지 못해 기존 방식(::1)으로 대체합니다. 출력: $out"
+            $target = "::1"; $family = "v4tov6"
+          }
           $ports = @(80, 443, 3001)
           foreach ($p in $ports) {
             netsh interface portproxy delete v4tov4 listenport=$p listenaddress=0.0.0.0 2>$null | Out-Null
             netsh interface portproxy delete v4tov6 listenport=$p listenaddress=0.0.0.0 2>$null | Out-Null
-            netsh interface portproxy add v4tov6 listenport=$p listenaddress=0.0.0.0 connectport=$p connectaddress=::1
+            netsh interface portproxy add $family listenport=$p listenaddress=0.0.0.0 connectport=$p connectaddress=$target
           }
           netsh interface portproxy show all
 
       # 컨테이너가 "시작"만 하고 곧바로 죽는 경우(예: 1.3.0의 prisma db push 실패로 재시작 반복)에도
       # 배포가 성공으로 끝나지 않도록, 서버가 실제로 응답할 때까지 기다리고 DB 연결까지 확인한다.
-      # 서버는 시작할 때 prisma db push를 하므로 1~2분 걸릴 수 있다. ::1을 쓰는 이유는 위 portproxy 주석 참고.
+      # 서버는 시작할 때 prisma db push를 하므로 1~2분 걸릴 수 있다.
+      # 포워딩이 끊겨도 서버 자체는 확인할 수 있게 WSL2 IP로 직접 접속한다(없으면 ::1).
       - name: Wait for server health
         shell: powershell
         run: |
+          $hostAddr = if ($env:WSL_IP) { $env:WSL_IP } else { "[::1]" }
           $ok = $false
           for ($i = 1; $i -le 36; $i++) {
             Start-Sleep -Seconds 5
             try {
-              $r = Invoke-WebRequest -Uri "http://[::1]:3001/health/db" -UseBasicParsing -TimeoutSec 5
-              if ($r.StatusCode -eq 200) { $ok = $true; Write-Host "서버 응답 확인 ($($i * 5)초): $($r.Content)"; break }
+              $r = Invoke-WebRequest -Uri "http://${hostAddr}:3001/health/db" -UseBasicParsing -TimeoutSec 5
+              if ($r.StatusCode -eq 200) { $ok = $true; Write-Host "서버 응답 확인 ($($i * 5)초, $hostAddr): $($r.Content)"; break }
             } catch { Write-Host "대기 중... ($($i * 5)초) $($_.Exception.Message)" }
           }
           if (-not $ok) {
