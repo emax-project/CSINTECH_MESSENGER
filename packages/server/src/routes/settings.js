@@ -3,6 +3,7 @@ import { prisma } from '../db.js';
 import { authMiddleware } from '../auth.js';
 import { assertAdmin } from '../lib/admin.js';
 import { isBlockedHostname } from '../lib/ssrfGuard.js';
+import { SSO_DEFAULT_PATH, normalizeSsoPath } from '../lib/ssoToken.js';
 import { ALWAYS_BLOCKED_EXTENSIONS, getSecurityPolicy, saveSecurityPolicy } from '../lib/securityPolicy.js';
 
 export const settingsRouter = Router();
@@ -10,6 +11,8 @@ export const settingsRouter = Router();
 const EXTERNAL_SITE_KEY = 'external_site_url';
 const GROUPWARE_URL_KEY = 'groupware_url';
 const MAIL_URL_KEY = 'mail_url';
+const SSO_ENABLED_KEY = 'groupware_sso_enabled';
+const SSO_PATH_KEY = 'groupware_sso_path';
 const BRAND_NAME_KEY = 'brand_name';
 const BRAND_LOGO_URL_KEY = 'brand_logo_url';
 
@@ -126,6 +129,34 @@ settingsRouter.put('/mail-url', async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: '메일 주소를 저장하지 못했습니다' });
+  }
+});
+
+/** 그룹웨어 SSO 설정 조회 (로그인한 모든 사용자) — 켜져 있으면 클라이언트가 1회용 토큰을 받아 그룹웨어를 연다 */
+settingsRouter.get('/groupware-sso', async (_req, res) => {
+  try {
+    const [enabled, path] = await Promise.all([readSettingUrl(SSO_ENABLED_KEY), readSettingUrl(SSO_PATH_KEY)]);
+    return res.json({ enabled: enabled === '1', path: path || SSO_DEFAULT_PATH });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'SSO 설정을 불러오지 못했습니다' });
+  }
+});
+
+/** 그룹웨어 SSO 설정 저장 (관리자만). body: { enabled: boolean, path?: string } */
+settingsRouter.put('/groupware-sso', async (req, res) => {
+  try {
+    if (!(await assertAdmin(req, res))) return;
+    const parsed = normalizeSsoPath(req.body?.path);
+    if (parsed.error) return res.status(400).json({ error: parsed.error });
+    const enabled = req.body?.enabled === true;
+    for (const [key, value] of [[SSO_ENABLED_KEY, enabled ? '1' : '0'], [SSO_PATH_KEY, parsed.path]]) {
+      await prisma.appSetting.upsert({ where: { key }, create: { key, value }, update: { value } });
+    }
+    return res.json({ enabled, path: parsed.path });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'SSO 설정을 저장하지 못했습니다' });
   }
 });
 

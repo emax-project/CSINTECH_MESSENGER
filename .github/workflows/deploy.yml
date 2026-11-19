@@ -107,6 +107,8 @@ jobs:
           PARTNER_MSSQL_ENCRYPT: ${{ secrets.PARTNER_MSSQL_ENCRYPT }}
           PARTNER_MSSQL_TRUST_CERT: ${{ secrets.PARTNER_MSSQL_TRUST_CERT }}
           PARTNER_DEFAULT_PASSWORD: ${{ secrets.PARTNER_DEFAULT_PASSWORD }}
+          # 그룹웨어 SSO 토큰 검증 공유 키 (저장소 Secrets에 SSO_SHARED_KEY 등록, 그룹웨어 서버와 같은 값)
+          SSO_SHARED_KEY: ${{ secrets.SSO_SHARED_KEY }}
 
       # WSL2 환경에서 Windows의 localhost → WSL2 포워딩이 컨테이너를 다시 만들 때마다 간헐적으로
       # 끊긴다(2026-10-22, 2026-11-17 확인 — ::1 / 127.0.0.1 모두 Connection refused).

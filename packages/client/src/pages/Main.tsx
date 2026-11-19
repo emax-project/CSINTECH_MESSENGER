@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Socket } from 'socket.io-client';
 import { useAuthStore, useThemeStore, useToastStore } from '../store';
-import { roomsApi, orgApi, announcementApi, eventsApi, usersApi, mentionsApi, memosApi, foldersApi, orgGroupsApi, authApi, appSettingsApi, type Room, type OrgCompany, type OrgDepartment, type OrgUser, type OrgGroup, type Event, type Folder, type UserAffiliation } from '../api';
+import { roomsApi, orgApi, announcementApi, eventsApi, usersApi, mentionsApi, memosApi, foldersApi, orgGroupsApi, authApi, appSettingsApi, ssoApi, type Room, type OrgCompany, type OrgDepartment, type OrgUser, type OrgGroup, type Event, type Folder, type UserAffiliation } from '../api';
 import MemoComposeModal from '../components/MemoComposeModal';
 import ToastProvider from '../components/ui/ToastProvider';
 import TitleBar, { MacInsetChromeTools } from '../components/TitleBar';
@@ -32,7 +32,7 @@ import { cn } from '../utils/cn';
 import { filterDepartments, flattenDepartments, defaultOpenDepartmentIds, companyUserCount, visibleOpenDepartmentIds } from '../utils/orgTree';
 import { presenceFromList, type OnlinePresenceMap } from '../utils/presence';
 import { openChatRoomWindow } from '../utils/chatPopout';
-import { openGroupware } from '../utils/groupware';
+import { openGroupwareWithSso } from '../utils/groupware';
 
 const STATUS_OPTIONS = [
   { id: '온라인', label: '온라인' },
@@ -534,6 +534,11 @@ export default function Main() {
     enabled: !!token,
   });
   const groupwareUrl = groupwareSetting?.url?.trim() || (import.meta.env.VITE_GROUPWARE_URL || '').trim();
+  const { data: groupwareSso } = useQuery({
+    queryKey: ['settings', 'groupware-sso'],
+    queryFn: appSettingsApi.getGroupwareSso,
+    enabled: !!token,
+  });
   const { data: mailSetting } = useQuery({
     queryKey: ['settings', 'mail-url'],
     queryFn: appSettingsApi.getMailUrl,
@@ -843,7 +848,7 @@ export default function Main() {
       if (user?.isAdmin) setActivePanel('settings');
       return;
     }
-    openGroupware(groupwareUrl);
+    void openGroupwareWithSso(groupwareUrl, groupwareUrl, groupwareSso, ssoApi.createToken);
   };
   const handleOpenMail = () => {
     if (!mailUrl) {
@@ -856,7 +861,7 @@ export default function Main() {
       if (user?.isAdmin) setActivePanel('settings');
       return;
     }
-    openGroupware(mailUrl);
+    void openGroupwareWithSso(groupwareUrl, mailUrl, groupwareSso, ssoApi.createToken);
   };
   const handleSaveStatusProfile = async () => {
     try {
