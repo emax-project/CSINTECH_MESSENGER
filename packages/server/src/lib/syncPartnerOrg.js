@@ -8,6 +8,7 @@ import { prisma } from '../db.js';
 import { fetchPartnerOrg } from './partnerOrg.js';
 import { isPartnerOrgEnabled, getPartnerOrgSource } from './partnerMssql.js';
 import { isHrCode } from './partnerHrTitles.js';
+import { diffAffiliations } from './affiliationSync.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -68,6 +69,10 @@ export async function syncPartnerOrg(opts = {}) {
     createdEmails: /** @type {string[]} */ ([]),
     employeesWithoutEmail: 0,
     employeesWithoutDept: 0,
+    employeesWithMultiDept: 0,
+    multiDeptUnresolved: 0,
+    affiliationsAdded: 0,
+    affiliationsRemoved: 0,
   };
 
   if (createMissingUsers && (!defaultPassword || defaultPassword.length < 4)) {
@@ -97,6 +102,7 @@ export async function syncPartnerOrg(opts = {}) {
         continue;
       }
       if (!e.deptCode) stats.employeesWithoutDept += 1;
+      if (e.multiDeptCodes?.length) stats.employeesWithMultiDept += 1;
       if (existingSet.has(e.email)) stats.usersMatched += 1;
       else if (createMissingUsers && e.name) {
         stats.usersCreated += 1;
@@ -273,15 +279,49 @@ export async function syncPartnerOrg(opts = {}) {
       stats.usersUpdated += 1;
       userByEmail.set(e.email, { ...user, ...data });
     }
-    if (departmentId) {
+    // 소속 표(UserAffiliation)를 그룹웨어 기준으로 맞춘다: 직속 부서 + 현재 겸직 부서.
+    // 겸직 해제·인사이동으로 더 이상 해당하지 않는 소속은 지운다(조직도에 옛 소속이 남지 않게).
+    // 직속 부서를 못 정했거나(departmentId 없음) 겸직 부서코드를 메신저 부서에서 못 찾으면 지우지는 않는다.
+    const multiCodes = e.multiDeptCodes || [];
+    if (multiCodes.length) stats.employeesWithMultiDept += 1;
+    const multiIds = [];
+    let multiAllResolved = true;
+    for (const code of multiCodes) {
+      const id = deptIdByCode.get(code) ?? null;
+      if (id) multiIds.push(id);
+      else {
+        multiAllResolved = false;
+        stats.multiDeptUnresolved += 1;
+      }
+    }
+    const desiredIds = [...new Set([departmentId, ...multiIds].filter(Boolean))];
+    if (desiredIds.length > 0) {
       try {
-        await prisma.userAffiliation.upsert({
-          where: { userId_departmentId: { userId: user.id, departmentId } },
-          create: { userId: user.id, departmentId },
-          update: {},
+        const current = await prisma.userAffiliation.findMany({
+          where: { userId: user.id },
+          select: { departmentId: true },
         });
+        const { toAdd, toRemove } = diffAffiliations(
+          current.map((r) => r.departmentId),
+          desiredIds,
+          departmentId,
+          multiAllResolved,
+          !!departmentId,
+        );
+        for (const id of toAdd) {
+          await prisma.userAffiliation.upsert({
+            where: { userId_departmentId: { userId: user.id, departmentId: id } },
+            create: { userId: user.id, departmentId: id },
+            update: {},
+          });
+        }
+        if (toRemove.length > 0) {
+          await prisma.userAffiliation.deleteMany({ where: { userId: user.id, departmentId: { in: toRemove } } });
+        }
+        stats.affiliationsAdded += toAdd.length;
+        stats.affiliationsRemoved += toRemove.length;
       } catch (err) {
-        console.warn('[syncPartnerOrg] affiliation upsert skipped:', err?.message || err);
+        console.warn('[syncPartnerOrg] affiliation sync skipped:', err?.message || err);
       }
     }
   }

@@ -51,6 +51,8 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       # 관리자 이메일(쉼표 구분). 비어 있으면 관리자 기능이 아무에게도 열리지 않는다.
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      # true면 로그인 토큰을 발급일(한국 시간) 당일 자정까지만 인정. 모바일 앱도 매일 다시 로그인하게 되므로 확인 후 켠다
+      SESSION_EXPIRE_AT_MIDNIGHT: ${SESSION_EXPIRE_AT_MIDNIGHT:-}
       UPLOAD_DIR: /app/uploads
       # 거래처 조직 sync (CSIN-Tech 배포 시 .env 에 PARTNER_* 설정)
       PARTNER_ORG_SOURCE: ${PARTNER_ORG_SOURCE:-off}
@@ -63,6 +65,8 @@ services:
       PARTNER_MSSQL_PASSWORD: ${PARTNER_MSSQL_PASSWORD:-}
       PARTNER_MSSQL_ENCRYPT: ${PARTNER_MSSQL_ENCRYPT:-false}
       PARTNER_MSSQL_TRUST_CERT: ${PARTNER_MSSQL_TRUST_CERT:-true}
+      # 겸직(HRA600)이 있는 ERP DB. 같은 SQL Server 안의 다른 DB이며 off 로 끄면 겸직을 읽지 않는다
+      PARTNER_MSSQL_MULTI_DB: ${PARTNER_MSSQL_MULTI_DB:-CSIN_DB}
       # createMissingUsers 사용 시 필수 — 기본값을 두지 않는다 (약한 공용 비밀번호 방지).
       # 신규 계정은 최초 로그인 시 비밀번호 변경이 강제된다 (mustChangePassword).
       PARTNER_DEFAULT_PASSWORD: ${PARTNER_DEFAULT_PASSWORD:-}
@@ -78,6 +82,8 @@ services:
       LDAP_LOCAL_EXCEPTIONS: ${LDAP_LOCAL_EXCEPTIONS:-}
       # 그룹웨어 SSO: 그룹웨어 서버가 토큰 검증 API(/sso/verify)를 부를 때 보내는 공유 키. 비어 있으면 검증 API가 꺼진다(503).
       SSO_SHARED_KEY: ${SSO_SHARED_KEY:-}
+      # 그룹웨어 서버가 /internal/* 를 부를 때 x-internal-secret 헤더로 보내는 공유 비밀번호. 비어 있으면 내부 API가 꺼진다(503).
+      INTEGRATION_SHARED_SECRET: ${INTEGRATION_SHARED_SECRET:-}
     # ldap.csin.kr은 사내망 전용 도메인이라 공인 DNS로 못 찾는다. 컨테이너
     # 내부 /etc/hosts에 직접 등록해서, 호스트 머신의 hosts 파일/DNS 설정과
     # 무관하게 항상 붙도록 한다. (IP가 바뀌면 이 값도 같이 바꿔야 함)

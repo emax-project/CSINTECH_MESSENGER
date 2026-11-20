@@ -1,6 +1,6 @@
 import { prisma } from '../db.js';
 
-/** ADMIN_EMAIL env (comma-separated) → lowercase email list */
+/** ADMIN_EMAIL env (comma-separated) → lowercase email list. 이 목록이 '최초 관리자'다. */
 export function getAdminEmails() {
   return (process.env.ADMIN_EMAIL || '')
     .split(',')
@@ -8,6 +8,7 @@ export function getAdminEmails() {
     .filter(Boolean);
 }
 
+/** 최초 관리자(ADMIN_EMAIL 목록) 여부. 관리자 권한을 다른 계정에 줄 수 있는 것은 이 계정뿐이다. */
 export function isAdminEmail(email) {
   const adminEmails = getAdminEmails();
   if (adminEmails.length === 0) return false;
@@ -15,11 +16,32 @@ export function isAdminEmail(email) {
   return adminEmails.includes(userEmail);
 }
 
+/** 관리자 여부 = 최초 관리자이거나 관리자 권한을 부여받은 계정. user: { email, adminGranted } */
+export function isAdminUser(user) {
+  if (!user) return false;
+  return isAdminEmail(user.email) || user.adminGranted === true;
+}
+
 /**
- * Require ADMIN_EMAIL whitelist match for req.userId.
+ * Require admin (ADMIN_EMAIL 목록 또는 권한을 부여받은 계정) for req.userId.
  * On failure, sends 503/403 and returns null. On success, returns { email }.
  */
 export async function assertAdmin(req, res) {
+  const user = await prisma.user.findUnique({
+    where: { id: req.userId },
+    select: { email: true, adminGranted: true },
+  });
+  if (user && isAdminUser(user)) return user;
+  if (getAdminEmails().length === 0 && !user?.adminGranted) {
+    res.status(503).json({ error: 'Admin not configured (ADMIN_EMAIL)' });
+    return null;
+  }
+  res.status(403).json({ error: 'Admin only' });
+  return null;
+}
+
+/** 최초 관리자(ADMIN_EMAIL 목록)만 통과. 관리자 권한 부여·해제에 쓴다. */
+export async function assertRootAdmin(req, res) {
   const adminEmails = getAdminEmails();
   if (adminEmails.length === 0) {
     res.status(503).json({ error: 'Admin not configured (ADMIN_EMAIL)' });
@@ -27,11 +49,10 @@ export async function assertAdmin(req, res) {
   }
   const user = await prisma.user.findUnique({
     where: { id: req.userId },
-    select: { email: true },
+    select: { id: true, email: true },
   });
-  const userEmail = (user?.email || '').trim().toLowerCase();
-  if (!user || !adminEmails.includes(userEmail)) {
-    res.status(403).json({ error: 'Admin only' });
+  if (!user || !isAdminEmail(user.email)) {
+    res.status(403).json({ error: 'ROOT_ADMIN_ONLY' });
     return null;
   }
   return user;

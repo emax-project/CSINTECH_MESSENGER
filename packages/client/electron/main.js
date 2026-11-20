@@ -17,6 +17,7 @@ app.setName('CSIN-Tech');
 // GPU 샌드박스는 끄지 않는다 — 예전 무조건 --disable-gpu-sandbox 설정은 보안만 약하게 만들었다.
 const gpuPolicy = require('./gpuPolicy');
 const policyHelpers = require('./policyHelpers');
+const { canAutoOpen } = require('./downloadHelpers');
 const GPU_STATE_FILE = path.join(app.getPath('userData'), 'gpu-state.json');
 
 function readGpuState() {
@@ -1076,6 +1077,20 @@ ipcMain.handle('clear-download-path', () => writeDownloadPref({ path: null }));
 // 저장한다 — 큰 파일을 통째로 메모리(blob/ArrayBuffer)에 올리지 않기 위함. 토큰·주소는
 // 렌더러가 보내는 값을 믿지 않고(아바타 요청과 동일한 이유) 로그인 시 저장해 둔
 // 암호화 토큰·신뢰 서버 주소를 그대로 쓴다.
+// 내려받은 파일을 연다. 실행 파일·스크립트는 열면 곧바로 실행되므로 폴더에서 위치만 보여 준다.
+async function openDownloaded(filePath) {
+  try {
+    if (canAutoOpen(filePath)) {
+      const failed = await shell.openPath(filePath);
+      if (failed) shell.showItemInFolder(filePath);
+    } else {
+      shell.showItemInFolder(filePath);
+    }
+  } catch (err) {
+    console.warn('[download] open failed:', err?.message || err);
+  }
+}
+
 ipcMain.handle('download-file-stream', async (event, { messageId, filename }) => {
   if (!messageId || !trustedBaseUrl) return { ok: false, error: 'NO_SERVER' };
   const token = readTokenFile();
@@ -1096,13 +1111,26 @@ ipcMain.handle('download-file-stream', async (event, { messageId, filename }) =>
   } else {
     target = path.join(defaultDir, safeName);
     if (fs.existsSync(target)) {
-      const ext = path.extname(safeName);
-      const base = path.basename(safeName, ext);
-      target = path.join(defaultDir, `${base}-${Date.now()}${ext}`);
+      // 같은 이름이 있으면 덮어쓸지 묻는다. '아니요'면 내려받지 않고 기존 파일을 연다.
+      const { response } = await dialog.showMessageBox(win || undefined, {
+        type: 'question',
+        title: '파일 저장',
+        message: '동일한 파일명이 존재합니다. 덮어쓰시겠습니까?',
+        detail: target,
+        buttons: ['예', '아니요'],
+        defaultId: 1,
+        cancelId: 1,
+        noLink: true,
+      });
+      if (response !== 0) {
+        await openDownloaded(target);
+        return { ok: false, error: 'CANCELED', openedExisting: true };
+      }
     }
   }
 
   const url = `${trustedBaseUrl.replace(/\/$/, '')}/files/download/${messageId}`;
+  const partPath = `${target}.${process.pid}.part`;
   try {
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (!res.ok) {
@@ -1111,11 +1139,14 @@ ipcMain.handle('download-file-stream', async (event, { messageId, filename }) =>
       return { ok: false, error };
     }
     if (!res.body) return { ok: false, error: 'DOWNLOAD_FAILED' };
-    await pipeline(Readable.fromWeb(res.body), fs.createWriteStream(target));
+    // 임시 파일로 받은 뒤 이름을 바꾼다 — 덮어쓰기 중 실패해도 기존 파일이 깨지지 않게
+    await pipeline(Readable.fromWeb(res.body), fs.createWriteStream(partPath));
+    fs.renameSync(partPath, target);
+    await openDownloaded(target);
     return { ok: true, path: target };
   } catch (err) {
     try {
-      if (fs.existsSync(target)) fs.unlinkSync(target); // 실패·취소 시 불완전 파일 정리
+      if (fs.existsSync(partPath)) fs.unlinkSync(partPath); // 실패·취소 시 불완전 파일 정리
     } catch {
       // ignore
     }

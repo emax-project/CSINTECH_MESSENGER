@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { prisma } from './db.js';
+import { isIssuedToday, isMidnightExpiryEnabled } from './lib/sessionDay.js';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -35,6 +36,8 @@ export function verifyToken(token) {
 export async function verifySessionToken(token) {
   const payload = verifyToken(token);
   if (!payload?.userId || !payload?.sessionId) return null;
+  // 로그인 유지는 당일 자정(한국 시간)까지 — 앱의 PC 날짜 판정과 별개로 서버도 거부한다
+  if (isMidnightExpiryEnabled() && !isIssuedToday(payload.iat)) return null;
   const session = await prisma.userSession.findUnique({
     where: { id: payload.sessionId },
     select: { userId: true },

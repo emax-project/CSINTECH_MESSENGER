@@ -5,6 +5,7 @@ import { useAccentStyles } from '../../../hooks/useAccentStyles';
 import { cn } from '../../../utils/cn';
 import { companyUsers, departmentUsers, formatJobTitle } from '../../../utils/orgTree';
 import UIPromptModal from '../../../components/ui/UIPromptModal';
+import { useAuthStore } from '../../../store';
 
 type Props = {
   isDark: boolean;
@@ -26,6 +27,8 @@ function friendlyError(err: unknown): string {
     LDAP_UNAVAILABLE: 'LDAP 서버에 연결할 수 없습니다.',
     MESSAGE_COUNT_MISMATCH: '화면을 띄운 사이 대화가 늘었습니다. 새로고침 후 다시 시도하세요.',
     'Admin only': '관리자만 사용할 수 있습니다.',
+    ROOT_ADMIN_ONLY: '관리자 권한은 최초 관리자 계정만 부여·해제할 수 있습니다.',
+    ROOT_ADMIN_FIXED: '최초 관리자 계정의 권한은 바꿀 수 없습니다.',
   };
   return map[msg] || msg;
 }
@@ -46,6 +49,17 @@ function BadgeIcon() {
     >
       <path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6l-8-3Z" />
       <path d="m9 12 2 2 4-4" />
+    </svg>
+  );
+}
+
+/** 관리자 권한 부여·해제 */
+function AdminKeyIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="8" r="3.5" />
+      <path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6" />
+      <path d="m17 4 1.2 1.2L20.5 3" />
     </svg>
   );
 }
@@ -122,6 +136,15 @@ function UserManageSection({ isDark, isNarrowLayout = false, currentUserId, embe
     queryFn: orgApi.jobTitles,
   });
 
+  // 관리자 권한은 최초 관리자(ADMIN_EMAIL)만 부여·해제할 수 있다
+  const isRootAdmin = useAuthStore((s) => s.user?.isRootAdmin === true);
+  const { data: adminInfo } = useQuery({
+    queryKey: ['users', 'admins'],
+    queryFn: usersApi.adminList,
+  });
+  const rootIds = new Set((adminInfo?.rootIds ?? []).map(String));
+  const grantedIds = new Set((adminInfo?.grantedIds ?? []).map(String));
+
   const selectable = (u: OrgUser) => String(u.id) !== String(currentUserId);
 
   const toggleOne = (id: string) =>
@@ -183,6 +206,27 @@ function UserManageSection({ isDark, isNarrowLayout = false, currentUserId, embe
     try {
       const r = await usersApi.resetPassword(user.id, password);
       setNotice(`'${r.name}'의 비밀번호를 바꿨습니다. 새 비밀번호로 다시 로그인하도록 안내해 주세요.`);
+    } catch (e) {
+      setError(friendlyError(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggleAdmin = async (user: OrgUser) => {
+    const grant = !grantedIds.has(String(user.id));
+    setError(null);
+    setNotice(null);
+    if (!window.confirm(grant
+      ? `'${user.name}'에게 관리자 권한을 부여합니다.\n사용자 관리·조직 관리·공지 등 관리자 기능을 쓸 수 있게 됩니다.`
+      : `'${user.name}'의 관리자 권한을 해제합니다.`)) {
+      return;
+    }
+    setBusy(true);
+    try {
+      const r = await usersApi.setAdmin(user.id, grant);
+      setNotice(r.admin ? `'${r.name}'에게 관리자 권한을 부여했습니다.` : `'${r.name}'의 관리자 권한을 해제했습니다.`);
+      await queryClient.invalidateQueries({ queryKey: ['users', 'admins'] });
     } catch (e) {
       setError(friendlyError(e));
     } finally {
@@ -328,6 +372,9 @@ function UserManageSection({ isDark, isNarrowLayout = false, currentUserId, embe
                 <span className={cn('min-w-0 truncate text-[13px]', text)}>
                   {u.name}
                   {formatJobTitle(u.jobTitle) && <span className={cn('ml-1 text-[11px]', muted)}>{formatJobTitle(u.jobTitle)}</span>}
+                  {(rootIds.has(String(u.id)) || grantedIds.has(String(u.id))) && (
+                    <span className={cn('ml-1 rounded px-1 text-[10px] font-semibold', isDark ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-600')}>관리자</span>
+                  )}
                 </span>
                 <span className={cn('min-w-0 flex-1 truncate text-[11px]', muted)}>{u.email}</span>
                 {!selectable(u) && <span className={cn('shrink-0 text-[11px]', muted)}>본인</span>}
@@ -387,6 +434,23 @@ function UserManageSection({ isDark, isNarrowLayout = false, currentUserId, embe
                 >
                   <KeyIcon />
                 </button>
+                {isRootAdmin && !rootIds.has(String(u.id)) && String(u.id) !== String(currentUserId) && (
+                  <button
+                    type="button"
+                    title={grantedIds.has(String(u.id)) ? '관리자 권한 해제' : '관리자 권한 부여'}
+                    aria-label={`${u.name} ${grantedIds.has(String(u.id)) ? '관리자 권한 해제' : '관리자 권한 부여'}`}
+                    disabled={busy}
+                    onClick={() => { void toggleAdmin(u); }}
+                    className={cn(
+                      'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded border-none bg-transparent p-0 cursor-pointer disabled:opacity-40',
+                      grantedIds.has(String(u.id))
+                        ? 'text-emerald-500'
+                        : isDark ? 'text-slate-300 hover:bg-slate-700' : accent.custom ? 'text-[var(--color-brand-dark)] hover:bg-[rgba(var(--color-brand-dark-rgb),0.1)]' : 'text-slate-500 hover:bg-slate-200',
+                    )}
+                  >
+                    <AdminKeyIcon />
+                  </button>
+                )}
                 <button
                   type="button"
                   title="2차 인증 초기화"

@@ -158,6 +158,58 @@ async function fetchEmployeesFromMssql(pool, asOf = yyyymmdd()) {
 }
 
 /**
+ * 겸직 정보가 있는 ERP DB 이름. 그룹웨어 인사발령(HR_EMPLOYEE_APPOINTMENT)이 아니라
+ * ERP DB의 HRA600(사번·부서·기간) 테이블에서 관리한다. 같은 SQL Server 안의 다른 DB라 접속 정보는 그대로 쓴다.
+ * PARTNER_MSSQL_MULTI_DB 로 바꾸거나 off 로 끌 수 있다. DB 이름은 쿼리에 직접 들어가므로 식별자 문자만 허용한다.
+ * @returns {string | null} 사용할 DB 이름, 끄면 null
+ */
+export function multiDeptDbName(env = process.env) {
+  const raw = String(env.PARTNER_MSSQL_MULTI_DB ?? 'CSIN_DB').trim();
+  if (!raw || raw.toLowerCase() === 'off') return null;
+  if (!/^[A-Za-z0-9_]+$/.test(raw)) {
+    console.warn('[partnerOrg] PARTNER_MSSQL_MULTI_DB 값이 올바르지 않아 겸직을 건너뜁니다:', raw);
+    return null;
+  }
+  return raw;
+}
+
+/**
+ * 사원별 현재 겸직 부서코드 목록(ERP HRA600: emp_no, dept_cd, 적용 기간 fr_dt~to_dt).
+ * 시작일이 지났고 종료일이 없거나 아직 지나지 않은 행만 현재 겸직으로 본다.
+ * 테이블·권한이 없는 등 조회가 실패하면 겸직 없이 계속한다(동기화 전체를 막지 않는다).
+ * @returns {Promise<Map<string, string[]>>} masterId → deptCode[]
+ */
+async function fetchMultiDeptsFromMssql(pool, asOf = yyyymmdd()) {
+  const result = new Map();
+  const db = multiDeptDbName();
+  if (!db) return result;
+  try {
+    const req = pool.request();
+    req.input('asOf', sql.VarChar(8), asOf);
+    const rs = await req.query(`
+      SELECT m.hr_employee_master_id AS masterId, h.dept_cd AS deptCode
+      FROM [${db}].dbo.HRA600 h
+      INNER JOIN HR_EMPLOYEE_MASTER m
+        ON m.emp_no COLLATE DATABASE_DEFAULT = h.emp_no COLLATE DATABASE_DEFAULT
+      WHERE h.fr_dt <= CONVERT(datetime, @asOf, 112)
+        AND (h.to_dt IS NULL OR h.to_dt >= CONVERT(datetime, @asOf, 112))
+      ORDER BY h.sq_no
+    `);
+    for (const r of rs.recordset || []) {
+      const code = r.deptCode == null ? '' : String(r.deptCode).trim();
+      if (!code) continue;
+      const key = String(r.masterId);
+      const list = result.get(key) || [];
+      if (!list.includes(code)) list.push(code);
+      result.set(key, list);
+    }
+  } catch (err) {
+    console.warn('[partnerOrg] 겸직(HRA600) 조회 실패 — 겸직 없이 진행:', err?.message || err);
+  }
+  return result;
+}
+
+/**
  * @returns {Promise<{ departments: PartnerDept[], employees: PartnerEmployee[], source: string }>}
  */
 export async function fetchPartnerOrg() {
@@ -170,16 +222,18 @@ export async function fetchPartnerOrg() {
   }
 
   const pool = await getPartnerPool();
-  const [departments, employees, titleMap] = await Promise.all([
+  const [departments, employees, titleMap, multiDepts] = await Promise.all([
     fetchDepartmentsFromMssql(pool),
     fetchEmployeesFromMssql(pool),
     fetchHrTitleMap(pool),
+    fetchMultiDeptsFromMssql(pool),
   ]);
   return {
     departments,
     employees: employees.map((e) => ({
       ...e,
       jobTitle: pickEmployeeJobTitle(e, titleMap),
+      multiDeptCodes: multiDepts.get(e.masterId) ?? [],
     })),
     source: 'mssql',
   };

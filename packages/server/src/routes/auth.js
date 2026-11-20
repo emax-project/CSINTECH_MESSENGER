@@ -2,7 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../db.js';
 import { authMiddleware, signToken, signPurposeToken, verifyPurposeToken, verifySessionToken } from '../auth.js';
-import { isAdminEmail } from '../lib/admin.js';
+import { isAdminEmail, isAdminUser } from '../lib/admin.js';
 import {
   authenticateLdap,
   getLdapEmailDomain,
@@ -101,7 +101,8 @@ async function issueLogin(req, res, user, mustChangePassword, extra = {}) {
       email: user.email,
       name: user.name,
       createdAt: user.createdAt,
-      isAdmin: isAdminEmail(user.email),
+      isAdmin: isAdminUser(user),
+      isRootAdmin: isAdminEmail(user.email),
       mustChangePassword,
     },
     token,
@@ -180,7 +181,7 @@ authRouter.get('/me', authMiddleware, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
-      select: { id: true, email: true, name: true, phone: true, extension: true, deskPhone: true, jobTitle: true, statusMessage: true, statusNote: true, notepad: true, createdAt: true, avatarUrl: true, updatedAt: true },
+      select: { id: true, email: true, name: true, phone: true, extension: true, deskPhone: true, jobTitle: true, statusMessage: true, statusNote: true, notepad: true, createdAt: true, avatarUrl: true, updatedAt: true, adminGranted: true },
     });
     if (!user) return res.status(401).json({ error: 'User not found' });
     const avatarVer = user.updatedAt ? `?v=${new Date(user.updatedAt).getTime()}` : '';
@@ -188,7 +189,8 @@ authRouter.get('/me', authMiddleware, async (req, res) => {
       user: {
         ...user,
         avatarUrl: user.avatarUrl ? `/users/${user.id}/avatar${avatarVer}` : null,
-        isAdmin: isAdminEmail(user.email),
+        isAdmin: isAdminUser(user),
+        isRootAdmin: isAdminEmail(user.email),
       },
     });
   } catch (err) {
