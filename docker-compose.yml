@@ -65,6 +65,8 @@ services:
       PARTNER_MSSQL_PASSWORD: ${PARTNER_MSSQL_PASSWORD:-}
       PARTNER_MSSQL_ENCRYPT: ${PARTNER_MSSQL_ENCRYPT:-false}
       PARTNER_MSSQL_TRUST_CERT: ${PARTNER_MSSQL_TRUST_CERT:-true}
+      # 겸직(HRA600)이 있는 ERP DB. 같은 SQL Server 안의 다른 DB이며 off 로 끄면 겸직을 읽지 않는다
+      PARTNER_MSSQL_MULTI_DB: ${PARTNER_MSSQL_MULTI_DB:-CSIN_DB}
       # createMissingUsers 사용 시 필수 — 기본값을 두지 않는다 (약한 공용 비밀번호 방지).
       # 신규 계정은 최초 로그인 시 비밀번호 변경이 강제된다 (mustChangePassword).
       PARTNER_DEFAULT_PASSWORD: ${PARTNER_DEFAULT_PASSWORD:-}

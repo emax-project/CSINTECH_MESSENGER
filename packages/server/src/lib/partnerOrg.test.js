@@ -17,10 +17,21 @@ describe('partnerOrg mock', () => {
   });
 });
 
-describe('겸직 발령 유형', () => {
-  it('그룹웨어(자동결재선)와 같은 코드를 쓴다', async () => {
-    const { MULTI_APPOINTMENT_TYPE, MULTI_RELEASE_TYPE } = await import('./partnerOrg.js');
-    assert.equal(MULTI_APPOINTMENT_TYPE, 'hr013310');
-    assert.equal(MULTI_RELEASE_TYPE, 'hr013070');
+describe('겸직 조회 DB 이름', () => {
+  it('기본은 ERP DB(CSIN_DB)', async () => {
+    const { multiDeptDbName } = await import('./partnerOrg.js');
+    assert.equal(multiDeptDbName({}), 'CSIN_DB');
+  });
+
+  it('환경변수로 바꾸거나 끌 수 있다', async () => {
+    const { multiDeptDbName } = await import('./partnerOrg.js');
+    assert.equal(multiDeptDbName({ PARTNER_MSSQL_MULTI_DB: 'ERP_2' }), 'ERP_2');
+    assert.equal(multiDeptDbName({ PARTNER_MSSQL_MULTI_DB: 'off' }), null);
+    assert.equal(multiDeptDbName({ PARTNER_MSSQL_MULTI_DB: ' ' }), null);
+  });
+
+  it('식별자가 아닌 값은 쿼리에 넣지 않는다', async () => {
+    const { multiDeptDbName } = await import('./partnerOrg.js');
+    assert.equal(multiDeptDbName({ PARTNER_MSSQL_MULTI_DB: 'X]; DROP TABLE a;--' }), null);
   });
 });

@@ -102,7 +102,7 @@ export async function syncPartnerOrg(opts = {}) {
         continue;
       }
       if (!e.deptCode) stats.employeesWithoutDept += 1;
-      if (e.multiDeptCode) stats.employeesWithMultiDept += 1;
+      if (e.multiDeptCodes?.length) stats.employeesWithMultiDept += 1;
       if (existingSet.has(e.email)) stats.usersMatched += 1;
       else if (createMissingUsers && e.name) {
         stats.usersCreated += 1;
@@ -282,10 +282,19 @@ export async function syncPartnerOrg(opts = {}) {
     // 소속 표(UserAffiliation)를 그룹웨어 기준으로 맞춘다: 직속 부서 + 현재 겸직 부서.
     // 겸직 해제·인사이동으로 더 이상 해당하지 않는 소속은 지운다(조직도에 옛 소속이 남지 않게).
     // 직속 부서를 못 정했거나(departmentId 없음) 겸직 부서코드를 메신저 부서에서 못 찾으면 지우지는 않는다.
-    if (e.multiDeptCode) stats.employeesWithMultiDept += 1;
-    const multiId = e.multiDeptCode ? deptIdByCode.get(e.multiDeptCode) ?? null : null;
-    if (e.multiDeptCode && !multiId) stats.multiDeptUnresolved += 1;
-    const desiredIds = [departmentId, multiId].filter(Boolean);
+    const multiCodes = e.multiDeptCodes || [];
+    if (multiCodes.length) stats.employeesWithMultiDept += 1;
+    const multiIds = [];
+    let multiAllResolved = true;
+    for (const code of multiCodes) {
+      const id = deptIdByCode.get(code) ?? null;
+      if (id) multiIds.push(id);
+      else {
+        multiAllResolved = false;
+        stats.multiDeptUnresolved += 1;
+      }
+    }
+    const desiredIds = [...new Set([departmentId, ...multiIds].filter(Boolean))];
     if (desiredIds.length > 0) {
       try {
         const current = await prisma.userAffiliation.findMany({
@@ -296,7 +305,7 @@ export async function syncPartnerOrg(opts = {}) {
           current.map((r) => r.departmentId),
           desiredIds,
           departmentId,
-          !e.multiDeptCode || !!multiId,
+          multiAllResolved,
           !!departmentId,
         );
         for (const id of toAdd) {
