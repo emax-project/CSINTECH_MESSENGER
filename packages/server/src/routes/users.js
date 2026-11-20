@@ -3,7 +3,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../db.js';
 import { authMiddleware } from '../auth.js';
-import { assertAdmin, isAdminEmail } from '../lib/admin.js';
+import { assertAdmin, assertRootAdmin, getAdminEmails, isAdminEmail, isAdminUser } from '../lib/admin.js';
 import { avatarUpload, UPLOAD_DIR } from '../upload.js';
 import { isLdapEnabled, isLocalExceptionEmail, loginIdentifierToUid, resetLdapPassword } from '../lib/ldap.js';
 import { validatePassword } from '../lib/passwordPolicy.js';
@@ -213,6 +213,28 @@ usersRouter.get('/', async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+/**
+ * GET /users/admins - 관리자 계정 목록(관리자만). 관리자 화면에서 권한 부여·해제 상태를 보여 준다.
+ * rootIds: 최초 관리자(ADMIN_EMAIL, 권한을 해제할 수 없음), grantedIds: 권한을 부여받은 계정.
+ * ('/:id'보다 먼저 선언해야 id로 해석되지 않는다)
+ */
+usersRouter.get('/admins', async (req, res) => {
+  try {
+    if (!(await assertAdmin(req, res))) return;
+    const rootEmails = getAdminEmails();
+    const [roots, granted] = await Promise.all([
+      rootEmails.length
+        ? prisma.user.findMany({ where: { email: { in: rootEmails, mode: 'insensitive' } }, select: { id: true } })
+        : Promise.resolve([]),
+      prisma.user.findMany({ where: { adminGranted: true }, select: { id: true } }),
+    ]);
+    return res.json({ rootIds: roots.map((u) => u.id), grantedIds: granted.map((u) => u.id) });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to list admins' });
   }
 });
 
@@ -567,14 +589,14 @@ usersRouter.delete('/:id', async (req, res) => {
 
     const target = await prisma.user.findUnique({
       where: { id: req.params.id },
-      select: { id: true, name: true, email: true, _count: { select: { sentMessages: true } } },
+      select: { id: true, name: true, email: true, adminGranted: true, _count: { select: { sentMessages: true } } },
     });
     if (!target) return res.status(404).json({ error: 'USER_NOT_FOUND' });
 
     if (String(target.id) === String(req.userId)) {
       return res.status(400).json({ error: 'CANNOT_DELETE_SELF' });
     }
-    if (isAdminEmail(target.email)) {
+    if (isAdminUser(target)) {
       return res.status(400).json({ error: 'CANNOT_DELETE_ADMIN' });
     }
 
@@ -636,6 +658,33 @@ usersRouter.post('/:id/reset-password', async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Failed to reset password' });
+  }
+});
+
+/**
+ * PUT /users/:id/admin - 최초 관리자(ADMIN_EMAIL)가 다른 계정에 관리자 권한을 주거나 회수한다.
+ * body: { admin: boolean }
+ * 권한을 받은 관리자는 관리자 기능을 쓸 수 있지만, 다른 계정의 관리자 권한은 바꿀 수 없다.
+ */
+usersRouter.put('/:id/admin', async (req, res) => {
+  try {
+    const me = await assertRootAdmin(req, res);
+    if (!me) return;
+    if (typeof req.body?.admin !== 'boolean') return res.status(400).json({ error: 'INVALID_ADMIN_FLAG' });
+
+    const target = await prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, name: true, email: true },
+    });
+    if (!target) return res.status(404).json({ error: 'USER_NOT_FOUND' });
+    if (isAdminEmail(target.email)) return res.status(400).json({ error: 'ROOT_ADMIN_FIXED' });
+
+    await prisma.user.update({ where: { id: target.id }, data: { adminGranted: req.body.admin } });
+    console.log(`[admin] 관리자 권한 ${req.body.admin ? '부여' : '해제'}: ${target.email} (by ${me.email})`);
+    return res.json({ ok: true, id: target.id, name: target.name, email: target.email, admin: req.body.admin });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to update admin' });
   }
 });
 

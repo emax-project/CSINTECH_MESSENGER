@@ -265,7 +265,7 @@ function BrandSettingField({ isDark }: { isDark: boolean }) {
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="회사명 (예: TPA코리아)"
+          placeholder="회사명 (예: 주식회사 OOO)"
           style={{ ...inputStyle, ...accent.inputStyle }}
         />
       </div>
