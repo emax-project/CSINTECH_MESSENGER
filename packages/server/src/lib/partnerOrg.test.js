@@ -16,3 +16,11 @@ describe('partnerOrg mock', () => {
     assert.match(yyyymmdd(new Date('2026-08-25T00:00:00Z')), /^\d{8}$/);
   });
 });
+
+describe('겸직 발령 유형', () => {
+  it('그룹웨어(자동결재선)와 같은 코드를 쓴다', async () => {
+    const { MULTI_APPOINTMENT_TYPE, MULTI_RELEASE_TYPE } = await import('./partnerOrg.js');
+    assert.equal(MULTI_APPOINTMENT_TYPE, 'hr013310');
+    assert.equal(MULTI_RELEASE_TYPE, 'hr013070');
+  });
+});

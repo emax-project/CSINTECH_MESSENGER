@@ -157,6 +157,49 @@ async function fetchEmployeesFromMssql(pool, asOf = yyyymmdd()) {
   });
 }
 
+/** 겸직 발령 유형 — 그룹웨어(자동결재선)와 같은 기준: hr013310 겸직발령, hr013070 겸직해제 */
+export const MULTI_APPOINTMENT_TYPE = 'hr013310';
+export const MULTI_RELEASE_TYPE = 'hr013070';
+
+/**
+ * 사원별 현재 겸직 부서코드. 겸직 관련 발령(겸직발령·겸직해제) 중 가장 최근 것이 겸직발령이면 그 MULTI_DEPT_CODE.
+ * 컬럼이 없는 DB 등 조회가 실패하면 겸직 없이 계속한다(동기화 전체를 막지 않는다).
+ * @returns {Promise<Map<string, string>>} masterId → deptCode
+ */
+async function fetchMultiDeptsFromMssql(pool, asOf = yyyymmdd()) {
+  const result = new Map();
+  try {
+    const req = pool.request();
+    req.input('asOf', sql.VarChar(8), asOf);
+    req.input('multiType', sql.VarChar(32), MULTI_APPOINTMENT_TYPE);
+    req.input('releaseType', sql.VarChar(32), MULTI_RELEASE_TYPE);
+    const rs = await req.query(`
+      SELECT t.masterId, t.deptCode
+      FROM (
+        SELECT a.hr_employee_master_id AS masterId,
+               a.appointment_type_code AS typeCode,
+               a.multi_dept_code       AS deptCode,
+               ROW_NUMBER() OVER (
+                 PARTITION BY a.hr_employee_master_id
+                 ORDER BY a.appointment_date DESC, a.hr_employee_appointment_id DESC
+               ) AS rk
+        FROM HR_EMPLOYEE_APPOINTMENT a
+        WHERE a.approve_yn = 1
+          AND a.appointment_date <= @asOf
+          AND a.appointment_type_code IN (@multiType, @releaseType)
+      ) t
+      WHERE t.rk = 1 AND t.typeCode = @multiType
+    `);
+    for (const r of rs.recordset || []) {
+      const code = r.deptCode == null ? '' : String(r.deptCode).trim();
+      if (code) result.set(String(r.masterId), code);
+    }
+  } catch (err) {
+    console.warn('[partnerOrg] 겸직 발령 조회 실패 — 겸직 없이 진행:', err?.message || err);
+  }
+  return result;
+}
+
 /**
  * @returns {Promise<{ departments: PartnerDept[], employees: PartnerEmployee[], source: string }>}
  */
@@ -170,16 +213,18 @@ export async function fetchPartnerOrg() {
   }
 
   const pool = await getPartnerPool();
-  const [departments, employees, titleMap] = await Promise.all([
+  const [departments, employees, titleMap, multiDepts] = await Promise.all([
     fetchDepartmentsFromMssql(pool),
     fetchEmployeesFromMssql(pool),
     fetchHrTitleMap(pool),
+    fetchMultiDeptsFromMssql(pool),
   ]);
   return {
     departments,
     employees: employees.map((e) => ({
       ...e,
       jobTitle: pickEmployeeJobTitle(e, titleMap),
+      multiDeptCode: multiDepts.get(e.masterId) ?? null,
     })),
     source: 'mssql',
   };
