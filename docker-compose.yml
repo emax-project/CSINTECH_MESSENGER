@@ -51,6 +51,8 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       # 관리자 이메일(쉼표 구분). 비어 있으면 관리자 기능이 아무에게도 열리지 않는다.
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      # true면 로그인 토큰을 발급일(한국 시간) 당일 자정까지만 인정. 모바일 앱도 매일 다시 로그인하게 되므로 확인 후 켠다
+      SESSION_EXPIRE_AT_MIDNIGHT: ${SESSION_EXPIRE_AT_MIDNIGHT:-}
       UPLOAD_DIR: /app/uploads
       # 거래처 조직 sync (CSIN-Tech 배포 시 .env 에 PARTNER_* 설정)
       PARTNER_ORG_SOURCE: ${PARTNER_ORG_SOURCE:-off}
