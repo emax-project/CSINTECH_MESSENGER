@@ -224,9 +224,20 @@ function OrgUserRow({
             style={accentColor ? { accentColor: accentColor.checkbox } : undefined}
           />
         </label>
-        {u.statusMessage && hasStatusIcon(u.statusMessage) && (
-          <span className="inline-flex shrink-0" title={u.statusMessage}>
-            {renderStatusIcon(u.statusMessage, 12)}
+        {/* 접속 중일 때만 사용자가 정한 상태 아이콘을 보인다. DB에 '온라인' 등이 남아 있어도
+            로그아웃·연결 종료 후에는 오프라인(회색)으로 표시한다. */}
+        {isOnline ? (
+          u.statusMessage && hasStatusIcon(u.statusMessage) && (
+            <span className="inline-flex shrink-0" title={u.statusMessage}>
+              {renderStatusIcon(u.statusMessage, 12)}
+            </span>
+          )
+        ) : (
+          <span className="inline-flex shrink-0" title="오프라인" aria-label="오프라인">
+            <svg width={12} height={12} viewBox="0 0 16 16" style={{ display: 'block', flexShrink: 0 }}>
+              <circle cx="8" cy="8" r="7" fill={isDark ? '#64748b' : '#cbd5e1'} />
+              <circle cx="8" cy="8" r="3" fill={isDark ? '#1e293b' : 'white'} />
+            </svg>
           </span>
         )}
         <button

@@ -489,7 +489,7 @@ export default function MainOverlays({
                   <span style={{ fontSize: 12, fontWeight: 600, color: isOnline ? '#16a34a' : isDark ? '#7c8ba1' : '#94a3b8' }}>
                     {isOnline ? '온라인' : '오프라인'}
                   </span>
-                  {profileModalUser.statusMessage && (
+                  {isOnline && profileModalUser.statusMessage && (
                     <span style={{ marginTop: 2, fontSize: 12.5, lineHeight: 1.5, color: isDark ? '#9fb0c6' : '#64748b' }}>
                       “{profileModalUser.statusMessage}”
                     </span>

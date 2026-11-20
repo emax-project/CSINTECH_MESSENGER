@@ -21,15 +21,28 @@ function ImageLightbox({ src, alt, onDownload, onClose }: {
   onDownload: () => void;
   onClose: () => void;
 }) {
+  // Esc로도 닫힌다
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
+
   return (
     <div className="fixed inset-0 z-[99999] bg-black/85 flex flex-col items-center justify-center" onClick={onClose}>
+      {/* 창 맨 위 제목 표시줄(최소화·최대화·닫기, 약 40px)에 가리지 않도록 그 아래에 고정한다 */}
+      <UICloseButton
+        size="lg"
+        tone="inverse"
+        className="fixed top-[52px] right-5 z-[1] bg-white/15 hover:bg-white/25"
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
+      />
       <div className="relative flex flex-col items-center max-w-[95vw] max-h-[95vh]" onClick={(e) => e.stopPropagation()}>
-        <UICloseButton
-          size="lg"
-          tone="inverse"
-          className="absolute top-[-40px] right-[-4px] opacity-80 z-[1]"
-          onClick={onClose}
-        />
         <img src={src} alt={alt} className="max-w-[90vw] max-h-[calc(90vh-60px)] object-contain rounded select-none" />
         <div className="flex items-center justify-center gap-5 mt-4 px-5 py-2.5 bg-white/10 rounded-[10px]">
           <span className="text-white/70 text-[13px] max-w-[300px] truncate">{alt}</span>
@@ -56,6 +69,7 @@ export default function FileMessage({ message }: Props) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState(false);
+  const [downloadBlocked, setDownloadBlocked] = useState(false);
   const isDark = useThemeStore((s) => s.isDark);
 
   useEffect(() => {
@@ -66,8 +80,11 @@ export default function FileMessage({ message }: Props) {
         if (!active) return;
         objectUrl = URL.createObjectURL(blob);
         setPreviewUrl(objectUrl);
-      }).catch(() => {
-        if (active) setPreviewError(true);
+      }).catch((err: unknown) => {
+        if (!active) return;
+        // 관리자가 파일 내려받기를 끄면 미리보기용 내려받기도 막힌다 — 사유를 알려 준다
+        if ((err as { code?: string } | null)?.code === 'FILE_DOWNLOAD_DISABLED') setDownloadBlocked(true);
+        setPreviewError(true);
       });
     }
     return () => {
@@ -116,7 +133,14 @@ export default function FileMessage({ message }: Props) {
               onClick={() => setLightboxOpen(true)}
             />
           ) : previewError ? (
-            <span className={fileLinkClass}>미리보기를 불러올 수 없습니다</span>
+            <span className={cn(fileLinkClass, 'flex-col !items-start gap-0.5')}>
+              <span>미리보기를 불러올 수 없습니다</span>
+              {downloadBlocked && (
+                <span className="text-[11px] opacity-70">
+                  관리자가 파일 내려받기를 제한해 미리보기와 다운로드를 사용할 수 없습니다
+                </span>
+              )}
+            </span>
           ) : (
             <span className={fileLinkClass}>미리보기 로딩 중...</span>
           )}

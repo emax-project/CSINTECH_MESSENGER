@@ -185,7 +185,7 @@ export type LoginResponse =
   | { mfaSetupRequired: true; mfaRequired?: undefined; mfaToken: string };
 export type MfaStatus = { enabled: boolean; required: boolean; recoveryCodesLeft: number };
 
-export type User = { id: string; email: string; name: string; phone?: string | null; extension?: string | null; deskPhone?: string | null; jobTitle?: string | null; createdAt?: string; isAdmin?: boolean; statusMessage?: string | null; statusNote?: string | null; notepad?: string | null; avatarUrl?: string; mustChangePassword?: boolean };
+export type User = { id: string; email: string; name: string; phone?: string | null; extension?: string | null; deskPhone?: string | null; jobTitle?: string | null; createdAt?: string; isAdmin?: boolean; isRootAdmin?: boolean; statusMessage?: string | null; statusNote?: string | null; notepad?: string | null; avatarUrl?: string; mustChangePassword?: boolean };
 
 export type UserAffiliation = {
   departmentId: string;
@@ -461,6 +461,11 @@ export const usersApi = {
   /** 2차 인증 초기화 (관리자 전용) — 인증 앱을 잃어버린 사용자용. 대상 사용자의 세션은 모두 끊긴다. */
   resetMfa: (id: string) =>
     api.post(`/users/${id}/reset-mfa`, {}) as Promise<{ ok: boolean; name: string; email: string; wasEnabled: boolean }>,
+  /** 관리자 계정 목록 (관리자 전용) — rootIds: 최초 관리자(해제 불가), grantedIds: 권한을 부여받은 계정 */
+  adminList: () => api.get('/users/admins') as Promise<{ rootIds: string[]; grantedIds: string[] }>,
+  /** 관리자 권한 부여·해제 (최초 관리자 전용) */
+  setAdmin: (id: string, admin: boolean) =>
+    api.put(`/users/${id}/admin`, { admin }) as Promise<{ ok: boolean; id: string; name: string; email: string; admin: boolean }>,
   /** 삭제 시 함께 사라지는 데이터 (관리자 전용) */
   deleteImpact: (id: string) => api.get(`/users/${id}/impact`) as Promise<UserDeleteImpact>,
   /**
@@ -851,8 +856,8 @@ export const filesApi = {
       headers: authHeaders(),
     });
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error((data as { error?: string }).error || res.statusText);
+      const data = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
+      throw Object.assign(new Error(data.error || res.statusText), { code: data.code });
     }
     return res.blob();
   },
