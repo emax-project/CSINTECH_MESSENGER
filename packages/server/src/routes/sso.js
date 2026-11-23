@@ -68,10 +68,10 @@ ssoRouter.post('/verify', ssoVerifyLimiter, async (req, res) => {
 
     const row = await prisma.ssoToken.findUnique({
       where: { tokenHash },
-      select: { user: { select: { id: true, email: true, name: true } } },
+      select: { user: { select: { id: true, email: true, name: true, disabled: true } } },
     });
     const user = row?.user;
-    if (!user) return res.status(401).json({ ok: false });
+    if (!user || user.disabled) return res.status(401).json({ ok: false });
     return res.json({
       ok: true,
       userId: user.id,

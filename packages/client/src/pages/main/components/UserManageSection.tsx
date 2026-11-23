@@ -29,6 +29,7 @@ function friendlyError(err: unknown): string {
     'Admin only': '관리자만 사용할 수 있습니다.',
     ROOT_ADMIN_ONLY: '관리자 권한은 최초 관리자 계정만 부여·해제할 수 있습니다.',
     ROOT_ADMIN_FIXED: '최초 관리자 계정의 권한은 바꿀 수 없습니다.',
+    CANNOT_DISABLE_SELF: '자기 자신의 계정은 사용 중지할 수 없습니다.',
   };
   return map[msg] || msg;
 }
@@ -144,6 +145,8 @@ function UserManageSection({ isDark, isNarrowLayout = false, currentUserId, embe
   });
   const rootIds = new Set((adminInfo?.rootIds ?? []).map(String));
   const grantedIds = new Set((adminInfo?.grantedIds ?? []).map(String));
+  const disabledIds = new Set((adminInfo?.disabledIds ?? []).map(String));
+  const lockedIds = new Set((adminInfo?.lockedIds ?? []).map(String));
 
   const selectable = (u: OrgUser) => String(u.id) !== String(currentUserId);
 
@@ -226,6 +229,43 @@ function UserManageSection({ isDark, isNarrowLayout = false, currentUserId, embe
     try {
       const r = await usersApi.setAdmin(user.id, grant);
       setNotice(r.admin ? `'${r.name}'에게 관리자 권한을 부여했습니다.` : `'${r.name}'의 관리자 권한을 해제했습니다.`);
+      await queryClient.invalidateQueries({ queryKey: ['users', 'admins'] });
+    } catch (e) {
+      setError(friendlyError(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggleDisabled = async (user: OrgUser) => {
+    const disable = !disabledIds.has(String(user.id));
+    setError(null);
+    setNotice(null);
+    if (!window.confirm(disable
+      ? `'${user.name}'의 계정 사용을 중지합니다.\n로그인이 막히고, 접속 중이면 바로 로그아웃됩니다.`
+      : `'${user.name}'의 계정 사용을 다시 허용합니다.`)) {
+      return;
+    }
+    setBusy(true);
+    try {
+      const r = await usersApi.setDisabled(user.id, disable);
+      setNotice(r.disabled ? `'${r.name}'의 계정 사용을 중지했습니다.` : `'${r.name}'의 계정 사용을 다시 허용했습니다.`);
+      await queryClient.invalidateQueries({ queryKey: ['users', 'admins'] });
+    } catch (e) {
+      setError(friendlyError(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const unlockAccount = async (user: OrgUser) => {
+    setError(null);
+    setNotice(null);
+    if (!window.confirm(`'${user.name}'의 계정 잠금을 강제로 해제합니다.`)) return;
+    setBusy(true);
+    try {
+      const r = await usersApi.unlock(user.id);
+      setNotice(r.wasLocked ? `'${r.name}'의 계정 잠금을 해제했습니다.` : `'${r.name}'은(는) 잠겨 있지 않았습니다.`);
       await queryClient.invalidateQueries({ queryKey: ['users', 'admins'] });
     } catch (e) {
       setError(friendlyError(e));
@@ -375,6 +415,12 @@ function UserManageSection({ isDark, isNarrowLayout = false, currentUserId, embe
                   {(rootIds.has(String(u.id)) || grantedIds.has(String(u.id))) && (
                     <span className={cn('ml-1 rounded px-1 text-[10px] font-semibold', isDark ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-600')}>관리자</span>
                   )}
+                  {disabledIds.has(String(u.id)) && (
+                    <span className="ml-1 rounded bg-red-100 px-1 text-[10px] font-semibold text-red-600">사용 중지</span>
+                  )}
+                  {lockedIds.has(String(u.id)) && (
+                    <span className="ml-1 rounded bg-amber-100 px-1 text-[10px] font-semibold text-amber-700">잠김</span>
+                  )}
                 </span>
                 <span className={cn('min-w-0 flex-1 truncate text-[11px]', muted)}>{u.email}</span>
                 {!selectable(u) && <span className={cn('shrink-0 text-[11px]', muted)}>본인</span>}
@@ -464,6 +510,35 @@ function UserManageSection({ isDark, isNarrowLayout = false, currentUserId, embe
                 >
                   <ShieldIcon />
                 </button>
+                {lockedIds.has(String(u.id)) && (
+                  <button
+                    type="button"
+                    title="잠금 강제 해제"
+                    aria-label={`${u.name} 잠금 강제 해제`}
+                    disabled={busy}
+                    onClick={() => { void unlockAccount(u); }}
+                    className="shrink-0 rounded border-none bg-amber-100 px-1.5 py-0.5 text-[11px] font-semibold text-amber-700 cursor-pointer disabled:opacity-40"
+                  >
+                    잠금 해제
+                  </button>
+                )}
+                {!rootIds.has(String(u.id)) && String(u.id) !== String(currentUserId) && (
+                  <button
+                    type="button"
+                    title={disabledIds.has(String(u.id)) ? '사용 재개' : '사용 중지'}
+                    aria-label={`${u.name} ${disabledIds.has(String(u.id)) ? '사용 재개' : '사용 중지'}`}
+                    disabled={busy}
+                    onClick={() => { void toggleDisabled(u); }}
+                    className={cn(
+                      'shrink-0 rounded border-none px-1.5 py-0.5 text-[11px] font-semibold cursor-pointer disabled:opacity-40',
+                      disabledIds.has(String(u.id))
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : isDark ? 'bg-slate-700 text-slate-200' : 'bg-slate-200 text-slate-600',
+                    )}
+                  >
+                    {disabledIds.has(String(u.id)) ? '사용 재개' : '사용 중지'}
+                  </button>
+                )}
               </div>
             ))}
             {(dept.children ?? []).map((child) => renderDept(child, depth + 1))}

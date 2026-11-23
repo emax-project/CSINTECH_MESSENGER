@@ -43,3 +43,15 @@ export function recordFailure(userId) {
 export function recordSuccess(userId) {
   attempts.delete(String(userId));
 }
+
+/**
+ * 관리자 강제 해제: 비밀번호 연속 실패 잠금과 2차 인증(mfa:<id>) 잠금을 모두 푼다.
+ * 해제할 잠금이 하나라도 있었으면 true.
+ */
+export function clearLock(userId) {
+  const id = String(userId);
+  const had = isLocked(id) || isLocked(`mfa:${id}`);
+  attempts.delete(id);
+  attempts.delete(`mfa:${id}`);
+  return had;
+}

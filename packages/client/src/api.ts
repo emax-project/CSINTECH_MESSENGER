@@ -462,7 +462,20 @@ export const usersApi = {
   resetMfa: (id: string) =>
     api.post(`/users/${id}/reset-mfa`, {}) as Promise<{ ok: boolean; name: string; email: string; wasEnabled: boolean }>,
   /** 관리자 계정 목록 (관리자 전용) — rootIds: 최초 관리자(해제 불가), grantedIds: 권한을 부여받은 계정 */
-  adminList: () => api.get('/users/admins') as Promise<{ rootIds: string[]; grantedIds: string[] }>,
+  adminList: () => api.get('/users/admins') as Promise<{
+    rootIds: string[];
+    grantedIds: string[];
+    /** 사용이 중지된 계정 */
+    disabledIds?: string[];
+    /** 로그인 연속 실패 등으로 잠긴 계정 */
+    lockedIds?: string[];
+  }>,
+  /** 계정 사용 중지·재개 (관리자 전용). 중지하면 로그인이 막히고 접속 중인 세션이 끊긴다. */
+  setDisabled: (id: string, disabled: boolean) =>
+    api.put(`/users/${id}/disabled`, { disabled }) as Promise<{ ok: boolean; id: string; name: string; email: string; disabled: boolean }>,
+  /** 잠긴 계정 강제 해제 (관리자 전용) */
+  unlock: (id: string) =>
+    api.post(`/users/${id}/unlock`, {}) as Promise<{ ok: boolean; id: string; name: string; email: string; wasLocked: boolean }>,
   /** 관리자 권한 부여·해제 (최초 관리자 전용) */
   setAdmin: (id: string, admin: boolean) =>
     api.put(`/users/${id}/admin`, { admin }) as Promise<{ ok: boolean; id: string; name: string; email: string; admin: boolean }>,

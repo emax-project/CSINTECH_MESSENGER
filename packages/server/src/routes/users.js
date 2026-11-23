@@ -7,6 +7,7 @@ import { assertAdmin, assertRootAdmin, getAdminEmails, isAdminEmail, isAdminUser
 import { avatarUpload, UPLOAD_DIR } from '../upload.js';
 import { isLdapEnabled, isLocalExceptionEmail, loginIdentifierToUid, resetLdapPassword } from '../lib/ldap.js';
 import { validatePassword } from '../lib/passwordPolicy.js';
+import { clearLock, isLocked } from '../lib/loginAttempts.js';
 
 export const usersRouter = Router();
 
@@ -231,7 +232,18 @@ usersRouter.get('/admins', async (req, res) => {
         : Promise.resolve([]),
       prisma.user.findMany({ where: { adminGranted: true }, select: { id: true } }),
     ]);
-    return res.json({ rootIds: roots.map((u) => u.id), grantedIds: granted.map((u) => u.id) });
+    const disabled = await prisma.user.findMany({ where: { disabled: true }, select: { id: true } });
+    // 연속 실패로 잠긴 계정(서버 메모리 기준)도 함께 알려 준다 — 강제 해제 버튼 표시용
+    const lockCandidates = await prisma.user.findMany({ select: { id: true } });
+    const lockedIds = lockCandidates
+      .map((u) => u.id)
+      .filter((id) => isLocked(id) || isLocked(`mfa:${id}`));
+    return res.json({
+      rootIds: roots.map((u) => u.id),
+      grantedIds: granted.map((u) => u.id),
+      disabledIds: disabled.map((u) => u.id),
+      lockedIds,
+    });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Failed to list admins' });
@@ -685,6 +697,66 @@ usersRouter.put('/:id/admin', async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Failed to update admin' });
+  }
+});
+
+/**
+ * PUT /users/:id/disabled - 관리자가 계정 사용을 중지하거나 다시 허용한다.
+ * body: { disabled: boolean }
+ * 중지하면 그 계정의 세션을 모두 지우고 접속 중인 소켓도 끊는다. 본인과 최초 관리자는 중지할 수 없다.
+ */
+usersRouter.put('/:id/disabled', async (req, res) => {
+  try {
+    if (!(await assertAdmin(req, res))) return;
+    if (typeof req.body?.disabled !== 'boolean') return res.status(400).json({ error: 'INVALID_DISABLED_FLAG' });
+    if (String(req.params.id) === String(req.userId)) return res.status(400).json({ error: 'CANNOT_DISABLE_SELF' });
+
+    const target = await prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, name: true, email: true },
+    });
+    if (!target) return res.status(404).json({ error: 'USER_NOT_FOUND' });
+    if (isAdminEmail(target.email)) return res.status(400).json({ error: 'ROOT_ADMIN_FIXED' });
+
+    const disabled = req.body.disabled;
+    let sessionIds = [];
+    if (disabled) {
+      sessionIds = (await prisma.userSession.findMany({ where: { userId: target.id }, select: { id: true } })).map((s) => s.id);
+    }
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: target.id }, data: { disabled } }),
+      ...(disabled ? [prisma.userSession.deleteMany({ where: { userId: target.id } })] : []),
+    ]);
+    if (disabled) {
+      const io = req.app.get('io');
+      for (const sid of sessionIds) io?.in(`session:${sid}`).disconnectSockets(true);
+    }
+    console.log(`[admin] 계정 사용 ${disabled ? '중지' : '재개'}: ${target.email} (by ${req.userId})`);
+    return res.json({ ok: true, id: target.id, name: target.name, email: target.email, disabled });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to update disabled' });
+  }
+});
+
+/**
+ * POST /users/:id/unlock - 로그인 연속 실패 등으로 잠긴 계정을 관리자가 강제로 해제한다.
+ * 비밀번호·2차 인증 잠금을 모두 푼다. 사용 중지(disabled)는 건드리지 않는다.
+ */
+usersRouter.post('/:id/unlock', async (req, res) => {
+  try {
+    if (!(await assertAdmin(req, res))) return;
+    const target = await prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, name: true, email: true },
+    });
+    if (!target) return res.status(404).json({ error: 'USER_NOT_FOUND' });
+    const wasLocked = clearLock(target.id);
+    console.log(`[admin] 계정 잠금 해제: ${target.email} (by ${req.userId}, wasLocked=${wasLocked})`);
+    return res.json({ ok: true, id: target.id, name: target.name, email: target.email, wasLocked });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to unlock' });
   }
 });
 
