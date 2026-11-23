@@ -81,7 +81,11 @@ const MFA_SETUP = 'mfa-setup';
 const MFA_ISSUER = 'CSIN-Tech';
 
 /** 세션을 만들고 로그인 응답을 돌려준다(비밀번호·2차 인증을 모두 통과한 뒤에만 호출). */
+const DISABLED_MESSAGE = '사용이 중지된 계정입니다. 관리자에게 문의해 주세요.';
+
 async function issueLogin(req, res, user, mustChangePassword, extra = {}) {
+  // 비밀번호·2차 인증을 통과하는 사이 관리자가 사용을 중지했을 수 있어 세션 발급 직전에 다시 막는다.
+  if (user.disabled) return res.status(403).json({ error: DISABLED_MESSAGE });
   await prisma.userSession.deleteMany({ where: { userId: user.id } });
   const session = await prisma.userSession.create({ data: { userId: user.id } });
   const token = signToken({ userId: user.id, sessionId: session.id });
@@ -121,6 +125,11 @@ authRouter.post('/login', loginLimiter, async (req, res) => {
     const user = await findLocalUserForLogin(identifier);
     if (!user) {
       return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    // 사용 중지된 계정은 비밀번호 확인 전에 막는다(LDAP 인증 요청도 보내지 않는다).
+    if (user.disabled) {
+      return res.status(403).json({ error: DISABLED_MESSAGE });
     }
 
     // 거래처 자동계정처럼 공용 초기비밀번호로 생성된 로컬 계정은 DB에 저장된
