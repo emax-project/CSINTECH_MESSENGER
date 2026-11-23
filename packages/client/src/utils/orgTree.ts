@@ -115,6 +115,8 @@ export function allOrgUsers(orgTree: OrgCompany[]): OrgUser[] {
  * userCount(서버가 내려주는 메타데이터)로 정확한 수를 보여줄 수 있다.
  */
 export function departmentUserCount(department: OrgDepartment): number {
+  // 서버가 사람 기준(겸직 중복 제외)으로 센 하위 부서 포함 총원이 있으면 그것을 쓴다.
+  if (department.totalUserCount !== undefined) return department.totalUserCount;
   const own = department.userCount ?? department.users?.length ?? 0;
   return own + (department.children ?? []).reduce((sum, c) => sum + departmentUserCount(c), 0);
 }
@@ -127,7 +129,26 @@ export function departmentUserCount(department: OrgDepartment): number {
  * 실제로 보이는 인원수를 보여줘야 하기 때문. 아직 지연 로드 전인 부서만 메타데이터
  * userCount(필터와 무관한 참고용 총원)로 대체한다.
  */
+/** 이 부서와 모든 하위 부서의 사용자 목록이 화면에 로드돼 있나(지연 로드 전인 부서가 없나). */
+function subtreeFullyLoaded(department: OrgDepartment): boolean {
+  const loaded = department.userCount === undefined || department.usersLoaded;
+  return !!loaded && (department.children ?? []).every(subtreeFullyLoaded);
+}
+
+function collectUserIds(department: OrgDepartment, into: Set<string>): void {
+  (department.users ?? []).forEach((u) => into.add(String(u.id)));
+  (department.children ?? []).forEach((c) => collectUserIds(c, into));
+}
+
 export function displayDepartmentUserCount(department: OrgDepartment): number {
+  // 전부 로드돼 있으면 화면에 보이는 사람을 id 기준으로 센다(겸직자가 여러 부서에 있어도 한 명).
+  if (subtreeFullyLoaded(department)) {
+    const ids = new Set<string>();
+    collectUserIds(department, ids);
+    return ids.size;
+  }
+  // 일부만 로드된 상태: 서버가 내려준 사람 기준 총원(필터와 무관한 참고용).
+  if (department.totalUserCount !== undefined) return department.totalUserCount;
   const loaded = department.userCount === undefined || department.usersLoaded;
   const own = loaded ? (department.users?.length ?? 0) : (department.userCount ?? 0);
   return own + (department.children ?? []).reduce((sum, c) => sum + displayDepartmentUserCount(c), 0);
@@ -135,6 +156,7 @@ export function displayDepartmentUserCount(department: OrgDepartment): number {
 
 /** 회사 전체 인원수 (지연 로드 여부와 무관하게 정확). */
 export function companyUserCount(company: OrgCompany): number {
+  if (company.userCount !== undefined) return company.userCount;
   return (company.departments ?? []).reduce((sum, d) => sum + departmentUserCount(d), 0);
 }
 

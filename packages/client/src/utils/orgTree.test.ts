@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { OrgDepartment } from '../api';
-import { filterDepartments, pruneEmptyDepartments } from './orgTree';
+import { companyUserCount, departmentUserCount, displayDepartmentUserCount, filterDepartments, pruneEmptyDepartments } from './orgTree';
 
 const user = (id: string, name: string) => ({ id, name }) as never;
 const dept = (id: string, name: string, users: unknown[] = [], children: OrgDepartment[] = []) =>
@@ -37,5 +37,24 @@ describe('filterDepartments (부서 이름 검색)', () => {
     expect(out.map((d) => d.name)).toEqual(['업무지원실']);
     expect(out[0].children.map((d) => d.name)).toEqual(['하위팀']);
     expect(out[0].children[0].users).toHaveLength(1);
+  });
+});
+
+describe('인원수(겸직 중복 제외)', () => {
+  const kim = user('k', '겸직자');
+  it('전부 로드된 부서는 같은 사람을 한 번만 센다', () => {
+    const d = dept('p', '상위', [kim], [dept('c', '하위', [kim, user('2', '나')])]);
+    expect(displayDepartmentUserCount(d)).toBe(2);
+  });
+
+  it('서버가 준 totalUserCount를 우선 쓴다', () => {
+    const d = { ...dept('p', '상위'), totalUserCount: 5, userCount: 1, usersLoaded: false } as unknown as OrgDepartment;
+    expect(departmentUserCount(d)).toBe(5);
+    expect(displayDepartmentUserCount(d)).toBe(5);
+  });
+
+  it('회사 userCount가 있으면 부서 합계 대신 그 값을 쓴다', () => {
+    const company = { id: 'c', name: '회사', userCount: 7, departments: [{ ...dept('a', 'A'), totalUserCount: 4 }, { ...dept('b', 'B'), totalUserCount: 4 }] };
+    expect(companyUserCount(company as never)).toBe(7);
   });
 });

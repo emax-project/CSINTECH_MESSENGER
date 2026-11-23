@@ -90,10 +90,23 @@ orgRouter.get('/tree', async (req, res) => {
           if (parent) parent.children.push(node);
           else roots.push(node);
         });
-        return roots;
+        // 하위 부서까지 합친 인원수(totalUserCount)는 사람 기준으로 중복 없이 센다.
+        // 겸직자는 직속 부서와 겸직 부서에 모두 걸려 있어 부서별 인원수를 단순히 더하면 부풀려진다.
+        const subtreeIds = (node) => {
+          const ids = new Set(userIdsByDept.get(node.id) ?? []);
+          node.children.forEach((child) => subtreeIds(child).forEach((id) => ids.add(id)));
+          node.totalUserCount = ids.size;
+          return ids;
+        };
+        const all = new Set();
+        roots.forEach((root) => subtreeIds(root).forEach((id) => all.add(id)));
+        return { roots, uniqueUserCount: all.size };
       };
 
-      const tree = companies.map((c) => ({ id: c.id, name: c.name, departments: nestShallow(c.departments) }));
+      const tree = companies.map((c) => {
+        const { roots, uniqueUserCount } = nestShallow(c.departments);
+        return { id: c.id, name: c.name, userCount: uniqueUserCount, departments: roots };
+      });
       return res.json(tree);
     }
 
