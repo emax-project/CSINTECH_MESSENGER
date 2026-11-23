@@ -200,8 +200,11 @@ export function filterDepartments(
 ): OrgDepartment[] {
   return (departments ?? [])
     .map((dept) => {
-      const children = filterDepartments(dept.children ?? [], keepUser, keepDept);
       const deptMatched = keepDept?.(dept) === true;
+      // 이름이 매칭된 부서는 하위 부서까지 통째로 유지한다.
+      const children = deptMatched
+        ? filterDepartments(dept.children ?? [], () => true, () => true)
+        : filterDepartments(dept.children ?? [], keepUser, keepDept);
       const users = deptMatched
         ? (dept.users ?? [])
         : (dept.users ?? []).filter(keepUser);

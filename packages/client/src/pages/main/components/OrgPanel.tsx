@@ -13,13 +13,12 @@ import { cn } from '../../../utils/cn';
 import { getOrgTheme, type OrgThemeId } from '../../../utils/orgTheme';
 
 type OrgTab = 'org' | 'friends' | 'groups';
-export type OrgSearchField = 'all' | 'name' | 'dept' | 'job' | 'email' | 'extension' | 'phone';
+export type OrgSearchField = 'all' | 'name' | 'dept' | 'email' | 'extension' | 'phone';
 
 const SEARCH_FIELD_OPTIONS: { id: OrgSearchField; label: string }[] = [
   { id: 'all', label: '전체' },
   { id: 'name', label: '이름' },
   { id: 'dept', label: '부서' },
-  { id: 'job', label: '업무' },
   { id: 'email', label: '메일' },
   { id: 'extension', label: '내선' },
   { id: 'phone', label: '휴대폰' },

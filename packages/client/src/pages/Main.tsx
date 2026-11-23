@@ -45,7 +45,7 @@ const STATUS_OPTIONS = [
 const AWAY_MINUTES_KEY = 'emax_away_minutes';
 const ORG_SEARCH_FIELD_KEY = 'emax_org_search_field';
 
-export type OrgSearchField = 'all' | 'name' | 'dept' | 'job' | 'email' | 'extension' | 'phone';
+export type OrgSearchField = 'all' | 'name' | 'dept' | 'email' | 'extension' | 'phone';
 
 function StatusIcon({ status, size = 16 }: { status: string; size?: number }) {
   // 온라인: 초록 점
@@ -152,7 +152,7 @@ export default function Main() {
   const [orgSearchField, setOrgSearchField] = useState<OrgSearchField>(() => {
     try {
       const raw = localStorage.getItem(ORG_SEARCH_FIELD_KEY);
-      if (raw === 'all' || raw === 'name' || raw === 'dept' || raw === 'job' || raw === 'email' || raw === 'extension' || raw === 'phone') return raw;
+      if (raw === 'all' || raw === 'name' || raw === 'dept' || raw === 'email' || raw === 'extension' || raw === 'phone') return raw;
     } catch { /* ignore */ }
     return 'all';
   });
@@ -455,11 +455,10 @@ export default function Main() {
       if (!onlineMatch) return false;
       if (!q) return true;
       if (orgSearchField === 'name') return !!u.name?.toLowerCase().includes(q);
-      if (orgSearchField === 'job') return !!u.jobTitle?.toLowerCase().includes(q);
       if (orgSearchField === 'email') return !!u.email?.toLowerCase().includes(q);
       if (orgSearchField === 'extension') return !!u.extension?.toLowerCase().includes(q);
       if (orgSearchField === 'phone') return !!u.phone?.toLowerCase().includes(q);
-      if (orgSearchField === 'dept') return true; // 부서 매칭은 keepDept에서
+      if (orgSearchField === 'dept') return false; // 부서 검색은 부서 이름 매칭(keepDept)으로만 거른다
       // all
       return !!(
         u.name?.toLowerCase().includes(q)
@@ -494,8 +493,7 @@ export default function Main() {
           if (!onlineMatch) return false;
           if (!q) return true;
           if (orgSearchField === 'name') return !!u.name?.toLowerCase().includes(q);
-          if (orgSearchField === 'job') return !!u.jobTitle?.toLowerCase().includes(q);
-          if (orgSearchField === 'email') return !!u.email?.toLowerCase().includes(q);
+              if (orgSearchField === 'email') return !!u.email?.toLowerCase().includes(q);
           if (orgSearchField === 'extension') return !!u.extension?.toLowerCase().includes(q);
           if (orgSearchField === 'phone') return !!u.phone?.toLowerCase().includes(q);
           if (orgSearchField === 'dept') return true;
