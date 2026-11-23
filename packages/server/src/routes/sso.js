@@ -9,6 +9,8 @@ import {
   hashSsoToken,
   sharedKeyMatches,
 } from '../lib/ssoToken.js';
+import { findCommUserId, groupwareTicketConfig, requestGroupwareTicket } from '../lib/groupwareTicket.js';
+import { getPartnerPool } from '../lib/partnerMssql.js';
 
 /**
  * 그룹웨어 SSO — 메신저가 1회용 토큰을 발급하고, 그룹웨어 서버가 서버 간 호출로 검증(소비)한다.
@@ -29,6 +31,22 @@ ssoRouter.post('/token', ssoTokenLimiter, authMiddleware, async (req, res) => {
   try {
     if (!(await isSsoEnabled())) {
       return res.status(403).json({ error: '그룹웨어 SSO가 사용 설정되어 있지 않습니다' });
+    }
+    // 그룹웨어 기존 SSO(티켓)가 설정돼 있으면 그쪽으로 발급한다 — 클라이언트는 /sso?ticket= 으로 연다.
+    const gw = groupwareTicketConfig();
+    if (gw) {
+      const me = await prisma.user.findUnique({ where: { id: req.userId }, select: { externalEmpId: true, disabled: true } });
+      if (!me || me.disabled) return res.status(403).json({ error: 'SSO not allowed' });
+      if (!me.externalEmpId) return res.status(409).json({ error: 'NO_GROUPWARE_ACCOUNT' });
+      try {
+        const commUserId = await findCommUserId(await getPartnerPool(), me.externalEmpId);
+        if (!commUserId) return res.status(409).json({ error: 'NO_GROUPWARE_ACCOUNT' });
+        const { ticket, expiresInMs } = await requestGroupwareTicket(commUserId, req.body?.redirect, { config: gw });
+        return res.json({ token: ticket, expiresIn: Math.round(expiresInMs / 1000), mode: 'ticket' });
+      } catch (err) {
+        console.error('[sso] groupware ticket failed', err?.message || err);
+        return res.status(502).json({ error: '그룹웨어 SSO 티켓을 발급하지 못했습니다' });
+      }
     }
     const token = generateSsoToken();
     const expiresAt = new Date(Date.now() + SSO_TOKEN_TTL_SECONDS * 1000);

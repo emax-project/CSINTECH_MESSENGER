@@ -709,7 +709,8 @@ export type GroupwareSsoSetting = { enabled: boolean; path: string };
 
 export const ssoApi = {
   /** 로그인한 사용자 본인의 그룹웨어 SSO 1회용 토큰 발급(유효 약 60초) */
-  createToken: () => api.post('/sso/token', {}) as Promise<{ token: string; expiresIn: number }>,
+  createToken: (redirect?: string) =>
+    api.post('/sso/token', redirect ? { redirect } : {}) as Promise<{ token: string; expiresIn: number; mode?: 'ticket' }>,
 };
 
 export const appSettingsApi = {
