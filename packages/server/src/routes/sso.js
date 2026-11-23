@@ -20,6 +20,19 @@ import { getPartnerPool } from '../lib/partnerMssql.js';
  */
 export const ssoRouter = Router();
 
+/** 사용자의 직속 부서에서 최상위 부서(= 법인) 이름을 찾는다. 부서가 없으면 null. */
+async function topDepartmentName(departmentId) {
+  let id = departmentId;
+  let name = null;
+  for (let i = 0; id && i < 12; i += 1) {
+    const d = await prisma.department.findUnique({ where: { id }, select: { name: true, parentId: true } });
+    if (!d) break;
+    name = d.name;
+    id = d.parentId;
+  }
+  return name;
+}
+
 export const SSO_ENABLED_KEY = 'groupware_sso_enabled';
 
 async function isSsoEnabled() {
@@ -35,11 +48,15 @@ ssoRouter.post('/token', ssoTokenLimiter, authMiddleware, async (req, res) => {
     // 그룹웨어 기존 SSO(티켓)가 설정돼 있으면 그쪽으로 발급한다 — 클라이언트는 /sso?ticket= 으로 연다.
     const gw = groupwareTicketConfig();
     if (gw) {
-      const me = await prisma.user.findUnique({ where: { id: req.userId }, select: { externalEmpId: true, disabled: true } });
+      const me = await prisma.user.findUnique({ where: { id: req.userId }, select: { externalEmpId: true, disabled: true, departmentId: true } });
       if (!me || me.disabled) return res.status(403).json({ error: 'SSO not allowed' });
       if (!me.externalEmpId) return res.status(409).json({ error: 'NO_GROUPWARE_ACCOUNT' });
       try {
-        const commUserId = await findCommUserId(await getPartnerPool(), me.externalEmpId);
+        const commUserId = await findCommUserId(
+          await getPartnerPool(),
+          me.externalEmpId,
+          await topDepartmentName(me.departmentId),
+        );
         if (!commUserId) return res.status(409).json({ error: 'NO_GROUPWARE_ACCOUNT' });
         const { ticket, expiresInMs } = await requestGroupwareTicket(commUserId, req.body?.redirect, { config: gw });
         return res.json({ token: ticket, expiresIn: Math.round(expiresInMs / 1000), mode: 'ticket' });

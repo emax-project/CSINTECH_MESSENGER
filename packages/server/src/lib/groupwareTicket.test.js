@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { groupwareTicketConfig, safeRedirectPath, requestGroupwareTicket } from './groupwareTicket.js';
+import { groupwareTicketConfig, safeRedirectPath, requestGroupwareTicket, normalizeCorporationName, pickCommUser } from './groupwareTicket.js';
 
 describe('groupwareTicketConfig', () => {
   it('시크릿이 없거나 예시 값이면 null', () => {
@@ -47,5 +47,29 @@ describe('requestGroupwareTicket', () => {
   it('HTTP 오류·설정 없음은 던진다', async () => {
     await assert.rejects(requestGroupwareTicket('1', null, { config, fetchImpl: async () => ({ ok: false, status: 503 }) }), /HTTP_503/);
     await assert.rejects(requestGroupwareTicket('1', null, { config: null }), /NOT_CONFIGURED/);
+  });
+});
+
+describe('법인 이름으로 계정 고르기', () => {
+  const rows = [
+    { comm_user_id: '1', corporation_name: '씨에스아이엔테크' },
+    { comm_user_id: '62', corporation_name: '천수' },
+    { comm_user_id: '65', corporation_name: '씨에스산전' },
+  ];
+  it('(주)·㈜ 표기를 무시하고 비교한다', () => {
+    assert.equal(normalizeCorporationName('(주)천수'), '천수');
+    assert.equal(normalizeCorporationName('㈜ 씨에스산전'), '씨에스산전');
+    assert.equal(normalizeCorporationName('주식회사 천수'), '천수');
+  });
+  it('소속 법인과 이름이 맞는 계정을 고른다', () => {
+    assert.equal(pickCommUser(rows, '(주)천수'), '62');
+    assert.equal(pickCommUser(rows, '㈜씨에스산전'), '65');
+  });
+  it('맞는 법인이 없거나 이름을 모르면 가장 작은 id', () => {
+    assert.equal(pickCommUser(rows, '없는법인'), '1');
+    assert.equal(pickCommUser(rows, null), '1');
+  });
+  it('계정이 없으면 null', () => {
+    assert.equal(pickCommUser([], '천수'), null);
   });
 });

@@ -40,14 +40,37 @@ export async function requestGroupwareTicket(commUserId, redirect, { config, fet
   return { ticket: data.ticket, expiresInMs: Number(data.expiresInMs) || 30_000 };
 }
 
-/** 사번으로 그룹웨어 comm_user_id 조회. 중복이면 가장 작은 id(결정적). 없으면 null. */
-export async function findCommUserId(pool, employeeId) {
+/** 법인·부서 이름 비교용 정규화: (주)/㈜/주식회사와 공백을 떼고 소문자로 만든다. */
+export function normalizeCorporationName(name) {
+  return String(name || '')
+    .replace(/\(주\)|㈜|주식회사/g, '')
+    .replace(/\s+/g, '')
+    .toLowerCase();
+}
+
+/**
+ * 같은 사번의 계정이 법인마다 있을 수 있어 사용자의 소속 법인과 이름이 맞는 계정을 고른다.
+ * rows: [{ comm_user_id, corporation_name }] (comm_user_id 오름차순). 이름이 맞는 계정이 없으면 가장 작은 id.
+ */
+export function pickCommUser(rows, corporationName) {
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+  const want = normalizeCorporationName(corporationName);
+  const hit = want ? rows.find((r) => normalizeCorporationName(r.corporation_name) === want) : null;
+  const picked = hit || rows[0];
+  return picked?.comm_user_id == null ? null : String(picked.comm_user_id);
+}
+
+/** 사번(+소속 법인 이름)으로 그룹웨어 comm_user_id 조회. 없으면 null. */
+export async function findCommUserId(pool, employeeId, corporationName) {
   const emp = String(employeeId || '').trim();
   if (!emp) return null;
   const r = await pool
     .request()
     .input('emp', emp)
-    .query("SELECT TOP 1 comm_user_id FROM dbo.comm_user WHERE use_yn = '1' AND CAST(employee_id AS VARCHAR(100)) = @emp ORDER BY comm_user_id");
-  const id = r.recordset?.[0]?.comm_user_id;
-  return id == null ? null : String(id);
+    .query(`SELECT u.comm_user_id, c.corporation_name
+              FROM dbo.comm_user u
+              LEFT JOIN dbo.comm_corporation c ON c.comm_corporation_id = u.comm_corporation_id
+             WHERE u.use_yn = '1' AND CAST(u.employee_id AS VARCHAR(100)) = @emp
+             ORDER BY u.comm_user_id`);
+  return pickCommUser(r.recordset, corporationName);
 }
