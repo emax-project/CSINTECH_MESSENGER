@@ -29,7 +29,7 @@ import { hasUnreadAnnouncements, getNewestUnreadAnnouncement } from './main/comp
 import MainOverlays from './main/components/MainOverlays';
 import PasswordChangeModal from './main/components/PasswordChangeModal';
 import { cn } from '../utils/cn';
-import { filterDepartments, flattenDepartments, defaultOpenDepartmentIds, companyUserCount, visibleOpenDepartmentIds } from '../utils/orgTree';
+import { filterDepartments, pruneEmptyDepartments, flattenDepartments, defaultOpenDepartmentIds, companyUserCount, visibleOpenDepartmentIds } from '../utils/orgTree';
 import { presenceFromList, type OnlinePresenceMap } from '../utils/presence';
 import { openChatRoomWindow } from '../utils/chatPopout';
 import { openGroupwareWithSso } from '../utils/groupware';
@@ -477,7 +477,7 @@ export default function Main() {
     };
     const filtered = tree.map((company) => ({
       ...company,
-      departments: filterDepartments(company.departments ?? [], keepUser, keepDept),
+      departments: pruneEmptyDepartments(filterDepartments(company.departments ?? [], keepUser, keepDept)),
     })).filter((company) => (company.departments?.length ?? 0) > 0);
     return filtered
       .map((c) => ({ ...c, departments: [...c.departments].sort((a, b) => (orgStarred.has(b.id) ? 1 : 0) - (orgStarred.has(a.id) ? 1 : 0)) }))

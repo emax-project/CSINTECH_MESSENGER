@@ -218,6 +218,17 @@ export function filterDepartments(
 }
 
 /**
+ * 인원이 하나도 없는 부서(하위 부서 포함 0명)를 조직도에서 뺀다.
+ * 겸직 부서처럼 직속 인원이 없는 빈 부서가 "(0)"으로 줄줄이 보이는 것을 막는다.
+ * 하위 부서에 사람이 있으면 그 부서는 유지된다.
+ */
+export function pruneEmptyDepartments(departments: OrgDepartment[]): OrgDepartment[] {
+  return (departments ?? [])
+    .map((dept) => ({ ...dept, children: pruneEmptyDepartments(dept.children ?? []) }))
+    .filter((dept) => displayDepartmentUserCount(dept) > 0);
+}
+
+/**
  * 부서 트리를 '본부 > 팀 > 파트' 경로 문자열 목록으로 편다.
  * 서로 다른 본부에 같은 이름의 팀이 있을 수 있으므로,
  * 사용자 등록처럼 부서를 지목해야 하는 곳에서는 이름 대신 경로를 쓴다.
