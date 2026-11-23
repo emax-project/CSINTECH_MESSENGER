@@ -31,6 +31,25 @@ export function buildSsoUrl(groupwareUrl: string, ssoPath: string, token: string
   return `${base}${path}?${params.toString()}`;
 }
 
+/** 그룹웨어 기존 SSO 진입 주소: `그룹웨어주소/sso?ticket=...` (이동할 경로는 티켓 발급 때 서버에 맡긴다). */
+export function buildTicketUrl(groupwareUrl: string, ticket: string): string {
+  const base = groupwareUrl.trim().replace(/\/$/, '');
+  return `${base}/sso?${new URLSearchParams({ ticket }).toString()}`;
+}
+
+/** target이 그룹웨어와 같은 사이트의 하위 주소면 경로(+쿼리)만 돌려준다. 그 외는 undefined. */
+export function sameSiteRedirectPath(groupwareUrl: string, target: string): string | undefined {
+  try {
+    const gw = new URL(groupwareUrl.trim());
+    const t = new URL(target.trim());
+    if (gw.origin !== t.origin) return undefined;
+    const path = `${t.pathname}${t.search}`;
+    return path && path !== '/' ? path : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * 그룹웨어(또는 메일) 열기. SSO가 켜져 있으면 1회용 토큰을 받아 SSO 주소로 열고,
  * 꺼져 있거나 토큰을 못 받으면(서버 오류·네트워크) 기존처럼 주소만 연다 — 로그인은 사용자가 직접 한다.
@@ -41,12 +60,18 @@ export async function openGroupwareWithSso(
   groupwareUrl: string,
   target: string,
   sso: GroupwareSso | undefined,
-  fetchToken: () => Promise<{ token: string }>,
+  fetchToken: (redirect?: string) => Promise<{ token: string; mode?: 'ticket' }>,
 ): Promise<'sso' | 'plain'> {
   const base = groupwareUrl.trim();
   if (sso?.enabled && base) {
     try {
-      const { token } = await fetchToken();
+      const redirect = sameSiteRedirectPath(base, target);
+      const { token, mode } = await fetchToken(redirect);
+      if (token && mode === 'ticket') {
+        // 그룹웨어 기존 SSO — 이동 경로는 발급 때 넘긴 redirect(같은 사이트일 때만)로 처리된다
+        openUrl(buildTicketUrl(base, token));
+        return 'sso';
+      }
       if (token) {
         const next = target.trim() && target.trim() !== base ? target.trim() : undefined;
         openUrl(buildSsoUrl(base, sso.path, token, next));

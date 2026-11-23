@@ -242,6 +242,8 @@ export type OrgDepartment = {
    * orgApi.tree()(전체 로드)로 받은 트리에는 없고, users.length를 그대로 쓰면 된다.
    */
   userCount?: number;
+  /** 하위 부서까지 합친 인원수(사람 기준, 겸직 중복 제외). treeShallow 트리에만 있다. */
+  totalUserCount?: number;
   /**
    * userCount와 짝을 이루는 필드(Main.tsx가 채움): 이 부서의 지연 로드가 실제로 끝났는지.
    * "users.length === 0"만으로는 로딩 중인지 필터(예: 온라인만 보기)로 걸러진 건지 구분이
@@ -249,7 +251,13 @@ export type OrgDepartment = {
    */
   usersLoaded?: boolean;
 };
-export type OrgCompany = { id: string; name: string; departments: OrgDepartment[] };
+export type OrgCompany = {
+  id: string;
+  name: string;
+  departments: OrgDepartment[];
+  /** 회사 전체 인원수(사람 기준, 겸직 중복 제외). orgApi.treeShallow()로 받은 트리에만 있다. */
+  userCount?: number;
+};
 
 export type ReactionGroup = { emoji: string; count: number; userIds: string[] };
 
@@ -709,7 +717,8 @@ export type GroupwareSsoSetting = { enabled: boolean; path: string };
 
 export const ssoApi = {
   /** 로그인한 사용자 본인의 그룹웨어 SSO 1회용 토큰 발급(유효 약 60초) */
-  createToken: () => api.post('/sso/token', {}) as Promise<{ token: string; expiresIn: number }>,
+  createToken: (redirect?: string) =>
+    api.post('/sso/token', redirect ? { redirect } : {}) as Promise<{ token: string; expiresIn: number; mode?: 'ticket' }>,
 };
 
 export const appSettingsApi = {
