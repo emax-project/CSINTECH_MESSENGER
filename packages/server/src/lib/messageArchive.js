@@ -25,11 +25,14 @@ export async function archiveMessage(message, reason, db) {
     }
     return existing;
   }
+  const sender = await db.user.findUnique({ where: { id: message.senderId }, select: { name: true, email: true } });
   return db.messageArchive.create({
     data: {
       messageId: message.id,
       roomId: message.roomId,
       senderId: message.senderId,
+      senderName: sender?.name ?? null,
+      senderEmail: sender?.email ?? null,
       content: message.content ?? '',
       messageCreatedAt: message.createdAt,
       fileUrl: message.fileUrl ?? null,
@@ -39,4 +42,22 @@ export async function archiveMessage(message, reason, db) {
       reason,
     },
   });
+}
+
+/**
+ * 계정을 삭제하면 그 계정이 보낸 메시지도 함께 지워지므로, 지우기 전에 모두 서버에 보존한다.
+ * 이미 보존된 메시지는 그대로 둔다. 반환값은 새로 보존한 건수.
+ */
+export async function archiveMessagesBySender(userId, db) {
+  if (!db) db = (await import('../db.js')).prisma;
+  return db.$executeRaw`
+    INSERT INTO "MessageArchive"
+      ("id", "messageId", "roomId", "senderId", "senderName", "senderEmail", "content", "messageCreatedAt",
+       "fileUrl", "fileName", "fileSize", "fileMimeType", "reason", "archivedAt")
+    SELECT gen_random_uuid()::text, m."id", m."roomId", m."senderId", u."name", u."email", m."content", m."createdAt",
+           m."fileUrl", m."fileName", m."fileSize", m."fileMimeType", 'USER_REMOVED', now()
+    FROM "Message" m
+    JOIN "User" u ON u."id" = m."senderId"
+    WHERE m."senderId" = ${userId}
+    ON CONFLICT ("messageId") DO NOTHING`;
 }

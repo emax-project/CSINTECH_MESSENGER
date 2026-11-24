@@ -57,3 +57,19 @@ export async function assertRootAdmin(req, res) {
   }
   return user;
 }
+
+/**
+ * 감사 권한자(대화·첨부 원본 조회·내보내기)만 통과. 관리자 권한과는 별개이며,
+ * 최초 관리자가 부여한 계정(auditGranted)만 가능하다. 실패하면 403을 보내고 null을 돌려준다.
+ */
+export async function assertAuditor(req, res) {
+  const user = await prisma.user.findUnique({
+    where: { id: req.userId },
+    select: { id: true, email: true, name: true, auditGranted: true, disabled: true },
+  });
+  if (!user || user.disabled || user.auditGranted !== true) {
+    res.status(403).json({ error: 'AUDITOR_ONLY' });
+    return null;
+  }
+  return user;
+}

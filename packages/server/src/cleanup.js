@@ -69,6 +69,11 @@ export function startCleanupJob() {
         const { count } = await prisma.fileTransferAudit.deleteMany({ where: { createdAt: { lt: cutoff } } });
         if (count > 0) console.log(`[cleanup] 파일 전송 감사 로그 ${count}건 삭제`);
       }
+      if (retention.auditAccessDays) {
+        const cutoff = new Date(Date.now() - retention.auditAccessDays * DAY_MS);
+        const { count } = await prisma.auditAccessLog.deleteMany({ where: { createdAt: { lt: cutoff } } });
+        if (count > 0) console.log(`[cleanup] 감사 조회 이력 ${count}건 삭제`);
+      }
       const purged = await purgeExpiredByRetention();
       if (purged.archives || purged.messages) {
         console.log(`[cleanup] 보관 기간 경과: 원본 ${purged.archives}건, 대화 ${purged.messages}건 삭제`);

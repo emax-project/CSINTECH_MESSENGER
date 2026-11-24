@@ -6,6 +6,7 @@ function fakeDb(existing = null) {
   const calls = { created: [], updated: [] };
   return {
     calls,
+    user: { findUnique: async () => ({ name: '홍길동', email: 'a@b.c' }) },
     messageArchive: {
       findUnique: async () => existing,
       create: async ({ data }) => { calls.created.push(data); return data; },
@@ -26,6 +27,9 @@ test('삭제 시 원본 내용과 파일 정보를 그대로 보존한다', asyn
   assert.equal(db.calls.created[0].content, '원본 내용');
   assert.equal(db.calls.created[0].fileUrl, '/uploads/a.pdf');
   assert.equal(db.calls.created[0].reason, 'DELETED');
+  // 보낸 계정이 나중에 지워져도 누구의 대화인지 알 수 있게 이름·이메일을 함께 남긴다
+  assert.equal(db.calls.created[0].senderName, '홍길동');
+  assert.equal(db.calls.created[0].senderEmail, 'a@b.c');
 });
 
 test('이미 보존된 메시지의 원본 내용은 덮어쓰지 않는다', async () => {

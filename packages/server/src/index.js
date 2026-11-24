@@ -45,6 +45,7 @@ import { orgGroupsRouter } from './routes/orgGroups.js';
 import { settingsRouter } from './routes/settings.js';
 import { ssoRouter } from './routes/sso.js';
 import { internalRouter } from './routes/internal.js';
+import { auditRouter } from './routes/audit.js';
 import { prisma } from './db.js';
 import { authMiddleware, verifySessionToken } from './auth.js';
 import { registerSocketHandlers } from './socket.js';
@@ -107,6 +108,7 @@ app.use('/api/org-groups', orgGroupsRouter);
 app.use('/api/settings', settingsRouter);
 app.use('/api/sso', ssoRouter);
 app.use('/api/internal', internalRouter);
+app.use('/api/audit', auditRouter);
 // 기존 경로도 유지 (하위 호환)
 app.use('/auth', authRouter);
 app.use('/users', usersRouter);
@@ -126,6 +128,7 @@ app.use('/org-groups', orgGroupsRouter);
 app.use('/settings', settingsRouter);
 app.use('/sso', ssoRouter);
 app.use('/internal', internalRouter);
+app.use('/audit', auditRouter);
 // Disable public uploads to enforce auth/expiry checks via /files/download
 // app.use('/uploads', express.static(UPLOAD_DIR));
 
