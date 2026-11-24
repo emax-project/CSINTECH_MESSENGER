@@ -47,6 +47,7 @@ import { ssoRouter } from './routes/sso.js';
 import { internalRouter } from './routes/internal.js';
 import { auditRouter } from './routes/audit.js';
 import { getKey as getDataEncryptionKey } from './lib/dataCrypto.js';
+import { registerIo } from './lib/revokeSessions.js';
 import { prisma } from './db.js';
 import { authMiddleware, verifySessionToken } from './auth.js';
 import { registerSocketHandlers } from './socket.js';
@@ -249,6 +250,7 @@ io.use(async (socket, next) => {
 
 registerSocketHandlers(io);
 app.set('io', io);
+registerIo(io);
 
 async function runMigrations() {
   // isTopic 컬럼이 추가되기 전에 생성된 아젠다 방들을 보정:

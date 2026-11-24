@@ -1,3 +1,4 @@
+import { revokeUserSessions } from '../lib/revokeSessions.js';
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../db.js';
@@ -161,6 +162,8 @@ authRouter.post('/login', loginLimiter, async (req, res) => {
       if (!(await bcrypt.compare(password, user.password))) {
         recordFailure(user.id);
         if (isLocked(user.id)) {
+          // 잠기는 순간 이 계정의 기존 로그인도 모두 무효화한다
+          await revokeUserSessions(user.id);
           return res.status(423).json({ error: loginErrorMessage('ACCOUNT_LOCKED') });
         }
         return res.status(401).json({ error: 'Invalid email or password' });
@@ -291,9 +294,11 @@ async function checkPassword(user, password) {
   if (isLocked(user.id)) return { ok: false, status: 423, code: 'ACCOUNT_LOCKED' };
   if (!(await bcrypt.compare(password, user.password))) {
     recordFailure(user.id);
-    return isLocked(user.id)
-      ? { ok: false, status: 423, code: 'ACCOUNT_LOCKED' }
-      : { ok: false, status: 400, code: 'PASSWORD_MISMATCH' };
+    if (isLocked(user.id)) {
+      await revokeUserSessions(user.id);
+      return { ok: false, status: 423, code: 'ACCOUNT_LOCKED' };
+    }
+    return { ok: false, status: 400, code: 'PASSWORD_MISMATCH' };
   }
   recordSuccess(user.id);
   return { ok: true };
@@ -398,7 +403,9 @@ async function checkSecondFactor(user, rawCode) {
   }
 
   recordFailure(key);
-  return { ok: false, locked: isLocked(key) };
+  const locked = isLocked(key);
+  if (locked) await revokeUserSessions(user.id);
+  return { ok: false, locked };
 }
 
 const MFA_LOCKED_MESSAGE = '인증 시도가 많아 잠시 잠겼습니다. 15분 뒤에 다시 시도해 주세요.';

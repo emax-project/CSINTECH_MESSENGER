@@ -1,4 +1,5 @@
 import { archiveMessagesBySender } from '../lib/messageArchive.js';
+import { revokeUserSessions } from '../lib/revokeSessions.js';
 import path from 'path';
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
@@ -774,7 +775,7 @@ usersRouter.put('/:id/disabled', async (req, res) => {
 
 /**
  * POST /users/:id/unlock - 로그인 연속 실패 등으로 잠긴 계정을 관리자가 강제로 해제한다.
- * 비밀번호·2차 인증 잠금을 모두 푼다. 사용 중지(disabled)는 건드리지 않는다.
+ * 비밀번호·2차 인증 잠금을 모두 풀고, 그 계정의 기존 로그인 세션은 모두 끊는다. 사용 중지(disabled)는 건드리지 않는다.
  */
 usersRouter.post('/:id/unlock', async (req, res) => {
   try {
@@ -785,6 +786,8 @@ usersRouter.post('/:id/unlock', async (req, res) => {
     });
     if (!target) return res.status(404).json({ error: 'USER_NOT_FOUND' });
     const wasLocked = clearLock(target.id);
+    // 강제 해제하면 이 계정의 기존 로그인도 모두 무효화한다(해제 후 다시 로그인해야 한다)
+    await revokeUserSessions(target.id);
     console.log(`[admin] 계정 잠금 해제: ${target.email} (by ${req.userId}, wasLocked=${wasLocked})`);
     return res.json({ ok: true, id: target.id, name: target.name, email: target.email, wasLocked });
   } catch (err) {
