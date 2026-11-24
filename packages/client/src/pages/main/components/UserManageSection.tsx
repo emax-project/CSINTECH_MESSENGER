@@ -145,6 +145,7 @@ function UserManageSection({ isDark, isNarrowLayout = false, currentUserId, embe
   });
   const rootIds = new Set((adminInfo?.rootIds ?? []).map(String));
   const grantedIds = new Set((adminInfo?.grantedIds ?? []).map(String));
+  const auditIds = new Set((adminInfo?.auditIds ?? []).map(String));
   const disabledIds = new Set((adminInfo?.disabledIds ?? []).map(String));
   const lockedIds = new Set((adminInfo?.lockedIds ?? []).map(String));
 
@@ -229,6 +230,27 @@ function UserManageSection({ isDark, isNarrowLayout = false, currentUserId, embe
     try {
       const r = await usersApi.setAdmin(user.id, grant);
       setNotice(r.admin ? `'${r.name}'에게 관리자 권한을 부여했습니다.` : `'${r.name}'의 관리자 권한을 해제했습니다.`);
+      await queryClient.invalidateQueries({ queryKey: ['users', 'admins'] });
+    } catch (e) {
+      setError(friendlyError(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggleAudit = async (user: OrgUser) => {
+    const grant = !auditIds.has(String(user.id));
+    setError(null);
+    setNotice(null);
+    if (!window.confirm(grant
+      ? `'${user.name}'에게 감사 권한을 부여합니다.\n모든 대화와 첨부 파일(삭제·만료된 원본 포함)을 조회·내보낼 수 있게 됩니다. 모든 조회는 이력에 기록됩니다.`
+      : `'${user.name}'의 감사 권한을 해제합니다.`)) {
+      return;
+    }
+    setBusy(true);
+    try {
+      const r = await usersApi.setAudit(user.id, grant);
+      setNotice(r.audit ? `'${r.name}'에게 감사 권한을 부여했습니다.` : `'${r.name}'의 감사 권한을 해제했습니다.`);
       await queryClient.invalidateQueries({ queryKey: ['users', 'admins'] });
     } catch (e) {
       setError(friendlyError(e));
@@ -415,6 +437,9 @@ function UserManageSection({ isDark, isNarrowLayout = false, currentUserId, embe
                   {(rootIds.has(String(u.id)) || grantedIds.has(String(u.id))) && (
                     <span className={cn('ml-1 rounded px-1 text-[10px] font-semibold', isDark ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-600')}>관리자</span>
                   )}
+                  {auditIds.has(String(u.id)) && (
+                    <span className="ml-1 rounded bg-indigo-100 px-1 text-[10px] font-semibold text-indigo-700">감사</span>
+                  )}
                   {disabledIds.has(String(u.id)) && (
                     <span className="ml-1 rounded bg-red-100 px-1 text-[10px] font-semibold text-red-600">사용 중지</span>
                   )}
@@ -495,6 +520,23 @@ function UserManageSection({ isDark, isNarrowLayout = false, currentUserId, embe
                     )}
                   >
                     <AdminKeyIcon />
+                  </button>
+                )}
+                {isRootAdmin && (
+                  <button
+                    type="button"
+                    title={auditIds.has(String(u.id)) ? '감사 권한 해제' : '감사 권한 부여'}
+                    aria-label={`${u.name} ${auditIds.has(String(u.id)) ? '감사 권한 해제' : '감사 권한 부여'}`}
+                    disabled={busy}
+                    onClick={() => { void toggleAudit(u); }}
+                    className={cn(
+                      'shrink-0 rounded border-none bg-transparent px-1.5 py-0.5 text-[11px] font-semibold cursor-pointer disabled:opacity-40',
+                      auditIds.has(String(u.id))
+                        ? 'text-indigo-500'
+                        : isDark ? 'text-slate-300 hover:bg-slate-700' : 'text-slate-500 hover:bg-slate-200',
+                    )}
+                  >
+                    {auditIds.has(String(u.id)) ? '감사 해제' : '감사 부여'}
                   </button>
                 )}
                 <button

@@ -73,6 +73,8 @@ model User {
   statusMessage   String?       // 프레즌스 상태(온라인/자리비움 등)
   // 최초 관리자(ADMIN_EMAIL)가 관리자 권한을 부여한 계정. ADMIN_EMAIL 목록은 그대로 최초 관리자다.
   adminGranted    Boolean       @default(false)
+  // 최초 관리자가 부여한 감사 권한. 대화·첨부 원본을 조회·내보내기 할 수 있는 건 이 권한이 있는 계정뿐이다(관리자 권한과 별개).
+  auditGranted    Boolean       @default(false)
   // 관리자가 사용을 중지한 계정(퇴사·휴면 등). true면 로그인이 막히고 기존 세션도 끊긴다.
   disabled        Boolean       @default(false)
   statusNote      String?       // 자유 상태 메시지
@@ -499,6 +501,46 @@ model FileTransferAudit {
   allowed   Boolean
   reason    String?  // 차단 사유 코드(FILE_TYPE_BLOCKED 등)
   createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
+}
+
+/// 사용자가 삭제했거나 만료되어 화면에서 사라진 대화·파일의 서버 보존 원본.
+/// 메시지가 지워져도(방 삭제 포함) 남도록 Message와 외래키로 묶지 않는다.
+model MessageArchive {
+  id               String   @id @default(cuid())
+  messageId        String   @unique
+  roomId           String
+  senderId         String
+  /// 보낸 사람이 나중에 삭제돼도 누구의 대화인지 알 수 있도록 남기는 이름·이메일
+  senderName       String?
+  senderEmail      String?
+  content          String
+  messageCreatedAt DateTime
+  fileUrl          String?
+  fileName         String?
+  fileSize         BigInt?
+  fileMimeType     String?
+  /// DELETED(사용자 삭제) | EXPIRED(파일 보관 기간 만료) | USER_REMOVED(보낸 계정 삭제로 함께 지워짐)
+  reason           String
+  archivedAt       DateTime @default(now())
+
+  @@index([roomId, messageCreatedAt])
+  @@index([senderId, messageCreatedAt])
+  @@index([messageCreatedAt])
+}
+
+/// 감사 권한자의 조회·내보내기·파일 내려받기 이력(누가 언제 어떤 조건으로 무엇을 봤는지)
+model AuditAccessLog {
+  id          String   @id @default(cuid())
+  userId      String
+  /// SEARCH | EXPORT | FILE_DOWNLOAD
+  action      String
+  /// 조회 조건(JSON 문자열)
+  params      String
+  resultCount Int      @default(0)
+  createdAt   DateTime @default(now())
 
   @@index([createdAt])
   @@index([userId, createdAt])

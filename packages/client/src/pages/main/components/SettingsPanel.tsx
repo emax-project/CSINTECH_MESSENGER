@@ -11,6 +11,7 @@ import { ORG_THEMES, type OrgThemeId } from '../../../utils/orgTheme';
 import UIModal from '../../../components/ui/UIModal';
 import { useAccentStyles } from '../../../hooks/useAccentStyles';
 import AdminSection from './AdminSection';
+import AuditSection from './AuditSection';
 import PasswordChangeModal from './PasswordChangeModal';
 import MfaSettingsModal from './MfaSettingsModal';
 
@@ -175,7 +176,7 @@ type SettingsPanelProps = {
   panelWrapStyle: (maxWidth: number) => { className: string; style: React.CSSProperties };
   isDark: boolean;
   isNarrowLayout: boolean;
-  user: { id: string; name?: string | null; email?: string | null; avatarUrl?: string | null; isAdmin?: boolean; phone?: string | null; jobTitle?: string | null } | null | undefined;
+  user: { id: string; name?: string | null; email?: string | null; avatarUrl?: string | null; isAdmin?: boolean; isAuditor?: boolean; phone?: string | null; jobTitle?: string | null } | null | undefined;
   notificationsSnoozedUntil: number;
   notificationSoundEnabled: boolean;
   notificationPopupEnabled: boolean;
@@ -425,6 +426,7 @@ function SettingsPanel({
         </div>
 
         {user?.isAdmin && <AdminSection isDark={isDark} isNarrowLayout={isNarrowLayout} currentUserId={user?.id} />}
+        {user?.isAuditor && <AuditSection isDark={isDark} />}
 
         {notificationsSnoozedUntil > Date.now() && <div style={{ padding: '6px 10px', borderRadius: 999, background: isDark ? '#171717' : accent.custom ? accent.theme.accent : '#0f172a', color: '#fff', fontSize: 11, fontWeight: 700, alignSelf: 'flex-start' }}>알림 일시 중지 중</div>}
         <div style={{ padding: '12px 14px', borderRadius: 10, background: isDark ? '#334155' : '#f8fafc', display: 'flex', flexDirection: 'column' as const, gap: 8 }}>

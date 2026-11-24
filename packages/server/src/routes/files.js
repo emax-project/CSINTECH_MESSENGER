@@ -6,6 +6,8 @@ import { authMiddleware } from '../auth.js';
 import { policyUpload, recordFileAudit, UPLOAD_DIR } from '../upload.js';
 import { fileUploadLimiter } from '../lib/authRateLimit.js';
 import { getSecurityPolicy } from '../lib/securityPolicy.js';
+import { encryptFileInPlace } from '../lib/dataCrypto.js';
+import { sendStoredFile } from '../lib/storedFile.js';
 
 export const filesRouter = Router();
 
@@ -44,6 +46,9 @@ filesRouter.post('/upload', fileUploadLimiter, (req, res, next) => {
       fs.unlinkSync(req.file.path);
       return res.status(403).json({ error: 'Not a member of this room' });
     }
+
+    // 암호화 키가 있으면 디스크에는 암호문으로 남긴다(키가 없으면 아무것도 하지 않는다)
+    await encryptFileInPlace(req.file.path);
 
     const fileUrl = `/uploads/${req.file.filename}`;
     const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf-8');
@@ -158,9 +163,11 @@ filesRouter.get('/download/:messageId', async (req, res) => {
     // (Content-Disposition: attachment와 함께 저장형 XSS 경로를 이중으로 차단)
     res.setHeader('X-Content-Type-Options', 'nosniff');
 
-    return res.sendFile(filePath);
+    await sendStoredFile(res, filePath);
+    return;
   } catch (err) {
     console.error(err);
+    if (res.headersSent) return res.destroy(err);
     return res.status(500).json({ error: 'Download failed' });
   }
 });

@@ -45,6 +45,8 @@ import { orgGroupsRouter } from './routes/orgGroups.js';
 import { settingsRouter } from './routes/settings.js';
 import { ssoRouter } from './routes/sso.js';
 import { internalRouter } from './routes/internal.js';
+import { auditRouter } from './routes/audit.js';
+import { getKey as getDataEncryptionKey } from './lib/dataCrypto.js';
 import { registerIo } from './lib/revokeSessions.js';
 import { prisma } from './db.js';
 import { authMiddleware, verifySessionToken } from './auth.js';
@@ -90,6 +92,14 @@ app.get('/users/:id/avatar', async (req, res) => {
   }
 });
 // /api 접두사 지원 (모바일·배포 시 baseUrl에 /api 포함 시)
+// 암호화 키 형식이 틀리면 조용히 평문 저장하지 않도록 시작할 때 바로 멈춘다
+try {
+  console.log(getDataEncryptionKey() ? '[crypto] 저장 암호화: 사용 중' : '[crypto] 저장 암호화: 꺼짐 (DATA_ENCRYPTION_KEY 없음)');
+} catch (err) {
+  console.error('[crypto] 서버를 시작할 수 없습니다:', err.message);
+  process.exit(1);
+}
+
 app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/rooms', roomsRouter);
@@ -108,6 +118,7 @@ app.use('/api/org-groups', orgGroupsRouter);
 app.use('/api/settings', settingsRouter);
 app.use('/api/sso', ssoRouter);
 app.use('/api/internal', internalRouter);
+app.use('/api/audit', auditRouter);
 // 기존 경로도 유지 (하위 호환)
 app.use('/auth', authRouter);
 app.use('/users', usersRouter);
@@ -127,6 +138,7 @@ app.use('/org-groups', orgGroupsRouter);
 app.use('/settings', settingsRouter);
 app.use('/sso', ssoRouter);
 app.use('/internal', internalRouter);
+app.use('/audit', auditRouter);
 // Disable public uploads to enforce auth/expiry checks via /files/download
 // app.use('/uploads', express.static(UPLOAD_DIR));
 

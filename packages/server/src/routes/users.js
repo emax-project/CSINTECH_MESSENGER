@@ -1,3 +1,4 @@
+import { archiveMessagesBySender } from '../lib/messageArchive.js';
 import { revokeUserSessions } from '../lib/revokeSessions.js';
 import path from 'path';
 import { Router } from 'express';
@@ -233,6 +234,7 @@ usersRouter.get('/admins', async (req, res) => {
         : Promise.resolve([]),
       prisma.user.findMany({ where: { adminGranted: true }, select: { id: true } }),
     ]);
+    const auditors = await prisma.user.findMany({ where: { auditGranted: true }, select: { id: true } });
     const disabled = await prisma.user.findMany({ where: { disabled: true }, select: { id: true } });
     // 연속 실패로 잠긴 계정(서버 메모리 기준)도 함께 알려 준다 — 강제 해제 버튼 표시용
     const lockCandidates = await prisma.user.findMany({ select: { id: true } });
@@ -242,6 +244,7 @@ usersRouter.get('/admins', async (req, res) => {
     return res.json({
       rootIds: roots.map((u) => u.id),
       grantedIds: granted.map((u) => u.id),
+      auditIds: auditors.map((u) => u.id),
       disabledIds: disabled.map((u) => u.id),
       lockedIds,
     });
@@ -621,7 +624,11 @@ usersRouter.delete('/:id', async (req, res) => {
       return res.status(409).json({ error: 'MESSAGE_COUNT_MISMATCH', messageCount });
     }
 
-    await prisma.user.delete({ where: { id: target.id } });
+    // 보낸 메시지가 함께 지워지므로 서버에는 원본을 먼저 남긴다(감사 보존)
+    await prisma.$transaction(async (tx) => {
+      await archiveMessagesBySender(target.id, tx);
+      await tx.user.delete({ where: { id: target.id } });
+    });
     return res.json({ deleted: true, name: target.name, messageCount });
   } catch (err) {
     console.error(err);
@@ -698,6 +705,32 @@ usersRouter.put('/:id/admin', async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Failed to update admin' });
+  }
+});
+
+/**
+ * PUT /users/:id/audit - 최초 관리자(ADMIN_EMAIL)가 감사 권한을 주거나 회수한다.
+ * body: { audit: boolean }
+ * 감사 권한은 관리자 권한과 별개다. 대화·첨부 원본 조회·내보내기는 이 권한이 있는 계정만 할 수 있다.
+ */
+usersRouter.put('/:id/audit', async (req, res) => {
+  try {
+    const me = await assertRootAdmin(req, res);
+    if (!me) return;
+    if (typeof req.body?.audit !== 'boolean') return res.status(400).json({ error: 'INVALID_AUDIT_FLAG' });
+
+    const target = await prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, name: true, email: true },
+    });
+    if (!target) return res.status(404).json({ error: 'USER_NOT_FOUND' });
+
+    await prisma.user.update({ where: { id: target.id }, data: { auditGranted: req.body.audit } });
+    console.log(`[admin] 감사 권한 ${req.body.audit ? '부여' : '해제'}: ${target.email} (by ${me.email})`);
+    return res.json({ ok: true, id: target.id, name: target.name, email: target.email, audit: req.body.audit });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to update audit permission' });
   }
 });
 

@@ -5,7 +5,8 @@ import fs from 'fs';
 import { prisma } from './db.js';
 import { evaluateFile, getSecurityPolicy } from './lib/securityPolicy.js';
 
-export const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads');
+import { UPLOAD_DIR } from './lib/uploadDir.js';
+export { UPLOAD_DIR };
 
 if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });

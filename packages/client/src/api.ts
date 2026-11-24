@@ -185,7 +185,7 @@ export type LoginResponse =
   | { mfaSetupRequired: true; mfaRequired?: undefined; mfaToken: string };
 export type MfaStatus = { enabled: boolean; required: boolean; recoveryCodesLeft: number };
 
-export type User = { id: string; email: string; name: string; phone?: string | null; extension?: string | null; deskPhone?: string | null; jobTitle?: string | null; createdAt?: string; isAdmin?: boolean; isRootAdmin?: boolean; statusMessage?: string | null; statusNote?: string | null; notepad?: string | null; avatarUrl?: string; mustChangePassword?: boolean };
+export type User = { id: string; email: string; name: string; phone?: string | null; extension?: string | null; deskPhone?: string | null; jobTitle?: string | null; createdAt?: string; isAdmin?: boolean; isRootAdmin?: boolean; isAuditor?: boolean; statusMessage?: string | null; statusNote?: string | null; notepad?: string | null; avatarUrl?: string; mustChangePassword?: boolean };
 
 export type UserAffiliation = {
   departmentId: string;
@@ -473,6 +473,8 @@ export const usersApi = {
   adminList: () => api.get('/users/admins') as Promise<{
     rootIds: string[];
     grantedIds: string[];
+    /** 감사 권한을 부여받은 계정 */
+    auditIds?: string[];
     /** 사용이 중지된 계정 */
     disabledIds?: string[];
     /** 로그인 연속 실패 등으로 잠긴 계정 */
@@ -487,6 +489,9 @@ export const usersApi = {
   /** 관리자 권한 부여·해제 (최초 관리자 전용) */
   setAdmin: (id: string, admin: boolean) =>
     api.put(`/users/${id}/admin`, { admin }) as Promise<{ ok: boolean; id: string; name: string; email: string; admin: boolean }>,
+  /** 감사 권한 부여·해제 (최초 관리자 전용). 관리자 권한과 별개다. */
+  setAudit: (id: string, audit: boolean) =>
+    api.put(`/users/${id}/audit`, { audit }) as Promise<{ ok: boolean; id: string; name: string; email: string; audit: boolean }>,
   /** 삭제 시 함께 사라지는 데이터 (관리자 전용) */
   deleteImpact: (id: string) => api.get(`/users/${id}/impact`) as Promise<UserDeleteImpact>,
   /**
@@ -684,19 +689,30 @@ export type FileTransferPolicy = {
   blockedExtensions: string[];
   allowedExtensions: string[];
 };
+/** 보관 기간(일). 0이면 영구 보관 */
+export type RetentionPolicy = {
+  messageDays: number;
+  fileAuditDays: number;
+  auditAccessDays: number;
+};
+
 export type SecurityPolicy = {
   /** 입력이 없으면 화면을 잠그는 시간(분). 0이면 사용 안 함 */
   screenLockMinutes: number;
   twoFactor: 'optional' | 'required';
   /** 동시에 열 수 있는 대화창 수. 0이면 제한 없음 */
   maxChatWindows: number;
+  retention: RetentionPolicy;
   fileTransfer: FileTransferPolicy;
   alwaysBlockedExtensions: string[];
+  /** 서버에 저장 시 암호화 키가 설정되어 대화·첨부 파일이 암호화되는지 */
+  encryptionEnabled?: boolean;
 };
 export type SecurityPolicyPatch = {
   screenLockMinutes?: number;
   twoFactor?: 'optional' | 'required';
   maxChatWindows?: number;
+  retention?: Partial<RetentionPolicy>;
   fileTransfer?: Partial<FileTransferPolicy>;
 };
 export type FileAuditEntry = {
@@ -1104,3 +1120,66 @@ export function getSocketUrl(): string {
   if (base === '') return typeof window !== 'undefined' ? window.location.origin : '';
   return base;
 }
+
+
+// ───── 감사 조회 (감사 권한자 전용) ─────
+
+export type AuditStatus = 'NORMAL' | 'DELETED' | 'EXPIRED' | 'ORPHAN';
+export type AuditRow = {
+  id: string;
+  createdAt: string;
+  roomId: string;
+  roomName: string;
+  senderId: string;
+  senderName: string;
+  senderEmail: string;
+  content: string;
+  status: AuditStatus;
+  /** 삭제·만료로 화면에서 사라진 대화의 서버 보존 원본 */
+  originalContent: string | null;
+  fileName: string | null;
+  fileSize: number | null;
+  hasFile: boolean;
+};
+export type AuditQuery = { userId?: string; roomId?: string; from: string; to: string; q?: string };
+export type AuditLogEntry = {
+  id: string;
+  action: 'SEARCH' | 'EXPORT' | 'FILE_DOWNLOAD';
+  params: string;
+  resultCount: number;
+  createdAt: string;
+  userName: string;
+  userEmail: string;
+};
+
+function auditQueryString(query: AuditQuery, extra: Record<string, string | undefined> = {}): string {
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries({ ...query, ...extra })) {
+    if (v) params.set(k, v);
+  }
+  return params.toString();
+}
+
+/** 인증 헤더를 붙여 파일(blob)을 받는다. 실패하면 서버가 준 오류 코드를 메시지로 던진다. */
+async function fetchAuthBlob(path: string): Promise<{ blob: Blob; headers: Headers }> {
+  const res = await fetch(`${getBaseUrl()}${path}`, { headers: authHeaders() });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({})) as { error?: string; message?: string };
+    handleForcedLogout(path, res.status, data.error);
+    throw new Error(data.message || data.error || res.statusText);
+  }
+  return { blob: await res.blob(), headers: res.headers };
+}
+
+export const auditApi = {
+  searchUsers: (q: string) =>
+    api.get(`/audit/users?q=${encodeURIComponent(q)}`) as Promise<{ users: Array<{ id: string; name: string; email: string }> }>,
+  searchRooms: (q: string) =>
+    api.get(`/audit/rooms?q=${encodeURIComponent(q)}`) as Promise<{ rooms: Array<{ id: string; name: string; isGroup: boolean; memberNames: string[] }> }>,
+  messages: (query: AuditQuery, before?: string) =>
+    api.get(`/audit/messages?${auditQueryString(query, { before })}`) as Promise<{ rows: AuditRow[]; nextBefore: string | null }>,
+  /** 내보내기·파일 내려받기는 Authorization 헤더가 필요해 blob으로 받는다 */
+  exportCsv: (query: AuditQuery) => fetchAuthBlob(`/audit/export?${auditQueryString(query)}`),
+  downloadFile: (messageId: string) => fetchAuthBlob(`/audit/files/${encodeURIComponent(messageId)}`),
+  logs: (limit = 50) => api.get(`/audit/logs?limit=${limit}`) as Promise<{ logs: AuditLogEntry[] }>,
+};
