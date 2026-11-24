@@ -1,3 +1,4 @@
+import { archiveMessage } from '../lib/messageArchive.js';
 import path from 'path';
 import { Router } from 'express';
 import { prisma } from '../db.js';
@@ -866,9 +867,13 @@ roomsRouter.delete('/:roomId/messages/:messageId', async (req, res) => {
       return res.status(400).json({ error: '5분이 지나 삭제할 수 없습니다' });
     }
 
-    await prisma.message.update({
-      where: { id: message.id },
-      data: { deletedAt: new Date(), content: '[삭제된 메시지]' },
+    // 화면에서는 지우되 서버에는 원본을 남긴다(감사 보존)
+    await prisma.$transaction(async (tx) => {
+      await archiveMessage(message, 'DELETED', tx);
+      await tx.message.update({
+        where: { id: message.id },
+        data: { deletedAt: new Date(), content: '[삭제된 메시지]' },
+      });
     });
 
     const io = req.app.get('io');

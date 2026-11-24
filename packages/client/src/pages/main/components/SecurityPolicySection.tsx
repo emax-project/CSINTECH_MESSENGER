@@ -38,6 +38,9 @@ export default function SecurityPolicySection({ isDark }: { isDark: boolean }) {
   const [dlEnabled, setDlEnabled] = useState(true);
   const [maxWindows, setMaxWindows] = useState('0');
   const [maxSizeMB, setMaxSizeMB] = useState('2048');
+  const [keepMessageDays, setKeepMessageDays] = useState('0');
+  const [keepFileAuditDays, setKeepFileAuditDays] = useState('180');
+  const [keepAuditAccessDays, setKeepAuditAccessDays] = useState('0');
   const [blocked, setBlocked] = useState('');
   const [allowed, setAllowed] = useState('');
   const [saving, setSaving] = useState(false);
@@ -52,6 +55,9 @@ export default function SecurityPolicySection({ isDark }: { isDark: boolean }) {
     setDlEnabled(data.fileTransfer.downloadEnabled);
     setMaxWindows(String(data.maxChatWindows));
     setMaxSizeMB(String(data.fileTransfer.maxSizeMB));
+    setKeepMessageDays(String(data.retention?.messageDays ?? 0));
+    setKeepFileAuditDays(String(data.retention?.fileAuditDays ?? 180));
+    setKeepAuditAccessDays(String(data.retention?.auditAccessDays ?? 0));
     setBlocked(data.fileTransfer.blockedExtensions.join(', '));
     setAllowed(data.fileTransfer.allowedExtensions.join(', '));
   }, [data]);
@@ -69,6 +75,11 @@ export default function SecurityPolicySection({ isDark }: { isDark: boolean }) {
         screenLockMinutes: Number(lockMinutes),
         twoFactor,
         maxChatWindows: Number(maxWindows),
+        retention: {
+          messageDays: Number(keepMessageDays),
+          fileAuditDays: Number(keepFileAuditDays),
+          auditAccessDays: Number(keepAuditAccessDays),
+        },
         fileTransfer: {
           enabled: ftEnabled,
           downloadEnabled: dlEnabled,
@@ -129,6 +140,26 @@ export default function SecurityPolicySection({ isDark }: { isDark: boolean }) {
         <input type="number" min={0} max={20} value={maxWindows} onChange={(e) => setMaxWindows(e.target.value)} style={{ ...field, width: 120 }} />
         <span className={cn('text-xs', muted)}>창이 많을수록 메모리·CPU를 더 씁니다. 0이면 제한하지 않습니다.</span>
       </label>
+
+      <div className="flex flex-col gap-2">
+        <span className={cn('text-xs font-semibold', title)}>보관 기간 (일, 0 = 영구)</span>
+        <label className="flex items-center gap-2">
+          <span className={cn('w-44 text-xs', title)}>대화·첨부 파일</span>
+          <input type="number" min={0} max={36500} value={keepMessageDays} onChange={(e) => setKeepMessageDays(e.target.value)} style={{ ...field, width: 100 }} />
+        </label>
+        <label className="flex items-center gap-2">
+          <span className={cn('w-44 text-xs', title)}>파일 전송 감사 로그</span>
+          <input type="number" min={0} max={36500} value={keepFileAuditDays} onChange={(e) => setKeepFileAuditDays(e.target.value)} style={{ ...field, width: 100 }} />
+        </label>
+        <label className="flex items-center gap-2">
+          <span className={cn('w-44 text-xs', title)}>감사 조회·내보내기 이력</span>
+          <input type="number" min={0} max={36500} value={keepAuditAccessDays} onChange={(e) => setKeepAuditAccessDays(e.target.value)} style={{ ...field, width: 100 }} />
+        </label>
+        <span className={cn('text-xs', muted)}>
+          사용자가 삭제하거나 보관 기간이 지나 화면에서 사라진 대화·파일도 서버에는 원본이 남습니다. 대화·첨부 파일 기간을 정하면
+          그 기간이 지난 대화와 원본, 파일이 서버에서도 완전히 삭제되며 되돌릴 수 없습니다.
+        </span>
+      </div>
 
       <div className="flex flex-col gap-2">
         <span className={cn('text-xs font-semibold', title)}>파일 전송 통제</span>

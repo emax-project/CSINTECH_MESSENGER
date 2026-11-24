@@ -503,3 +503,25 @@ model FileTransferAudit {
   @@index([createdAt])
   @@index([userId, createdAt])
 }
+
+/// 사용자가 삭제했거나 만료되어 화면에서 사라진 대화·파일의 서버 보존 원본.
+/// 메시지가 지워져도(방 삭제 포함) 남도록 Message와 외래키로 묶지 않는다.
+model MessageArchive {
+  id               String   @id @default(cuid())
+  messageId        String   @unique
+  roomId           String
+  senderId         String
+  content          String
+  messageCreatedAt DateTime
+  fileUrl          String?
+  fileName         String?
+  fileSize         BigInt?
+  fileMimeType     String?
+  /// DELETED(사용자 삭제) | EXPIRED(파일 보관 기간 만료)
+  reason           String
+  archivedAt       DateTime @default(now())
+
+  @@index([roomId, messageCreatedAt])
+  @@index([senderId, messageCreatedAt])
+  @@index([messageCreatedAt])
+}

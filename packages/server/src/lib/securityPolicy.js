@@ -21,6 +21,12 @@ export const DEFAULT_POLICY = Object.freeze({
   twoFactor: 'optional',
   // 동시에 열 수 있는 대화창(별도 창) 수. 0이면 제한 없음. 창이 많을수록 메모리·CPU를 더 쓴다.
   maxChatWindows: 0,
+  // 보관 기간(일). 0이면 영구 보관. 기간이 지난 대화·첨부 파일(삭제·만료로 숨겨진 원본 포함)과 감사 기록은 서버에서도 지운다.
+  retention: {
+    messageDays: 0,
+    fileAuditDays: 180,
+    auditAccessDays: 0,
+  },
   fileTransfer: {
     enabled: true,
     // 파일 내려받기 허용 여부(업로드와 별개)
@@ -38,6 +44,7 @@ export const LIMITS = Object.freeze({
   fileMaxSizeMB: 2048,
   maxExtensions: 200,
   maxChatWindowsMax: 20,
+  retentionMaxDays: 36500,
 });
 
 export function normalizeExtension(raw) {
@@ -67,6 +74,7 @@ export function mergePolicy(base, patch) {
     screenLockMinutes: base.screenLockMinutes,
     twoFactor: base.twoFactor,
     maxChatWindows: base.maxChatWindows,
+    retention: { ...DEFAULT_POLICY.retention, ...(base.retention || {}) },
     fileTransfer: { ...base.fileTransfer },
   };
   if (!patch || typeof patch !== 'object') return next;
@@ -90,6 +98,19 @@ export function mergePolicy(base, patch) {
       return { error: `동시에 열 수 있는 대화창 수는 0~${LIMITS.maxChatWindowsMax}개 사이여야 합니다 (0 = 제한 없음)` };
     }
     next.maxChatWindows = n;
+  }
+  const rt = patch.retention;
+  if (rt !== undefined) {
+    if (!rt || typeof rt !== 'object') return { error: '보관 기간 정책 값이 올바르지 않습니다' };
+    const labels = { messageDays: '대화·파일 보관 기간', fileAuditDays: '파일 전송 감사 로그 보관 기간', auditAccessDays: '감사 조회 이력 보관 기간' };
+    for (const key of Object.keys(labels)) {
+      if (rt[key] === undefined) continue;
+      const n = Number(rt[key]);
+      if (!Number.isInteger(n) || n < 0 || n > LIMITS.retentionMaxDays) {
+        return { error: `${labels[key]}은(는) 0~${LIMITS.retentionMaxDays}일 사이여야 합니다 (0 = 영구)` };
+      }
+      next.retention[key] = n;
+    }
   }
   const ft = patch.fileTransfer;
   if (ft !== undefined) {

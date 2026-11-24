@@ -684,12 +684,20 @@ export type FileTransferPolicy = {
   blockedExtensions: string[];
   allowedExtensions: string[];
 };
+/** 보관 기간(일). 0이면 영구 보관 */
+export type RetentionPolicy = {
+  messageDays: number;
+  fileAuditDays: number;
+  auditAccessDays: number;
+};
+
 export type SecurityPolicy = {
   /** 입력이 없으면 화면을 잠그는 시간(분). 0이면 사용 안 함 */
   screenLockMinutes: number;
   twoFactor: 'optional' | 'required';
   /** 동시에 열 수 있는 대화창 수. 0이면 제한 없음 */
   maxChatWindows: number;
+  retention: RetentionPolicy;
   fileTransfer: FileTransferPolicy;
   alwaysBlockedExtensions: string[];
 };
@@ -697,6 +705,7 @@ export type SecurityPolicyPatch = {
   screenLockMinutes?: number;
   twoFactor?: 'optional' | 'required';
   maxChatWindows?: number;
+  retention?: Partial<RetentionPolicy>;
   fileTransfer?: Partial<FileTransferPolicy>;
 };
 export type FileAuditEntry = {
