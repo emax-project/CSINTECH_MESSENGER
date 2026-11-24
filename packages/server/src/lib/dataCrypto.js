@@ -98,35 +98,35 @@ export function decryptDeep(value) {
 
 // ───── 파일 ─────
 
-/** 업로드 폴더 밖의 경로는 거부한다. 파일 이름이 어디서 오든 이 폴더 밖은 읽거나 쓰지 않는다. */
-function resolveWithin(root, filePath) {
-  const base = path.resolve(root);
-  const resolved = path.resolve(filePath);
-  if (resolved !== base && !resolved.startsWith(base + path.sep)) throw new Error('INVALID_FILE_PATH');
-  return resolved;
+// 아래 파일 함수들은 호출한 쪽이 무엇을 넘기든 업로드 폴더(root) 안의 파일만 다룬다.
+// 경로를 절대 경로로 바꾼 뒤 root로 시작하는지 바로 확인하고, 확인한 값만 파일 접근에 쓴다.
+
+async function readBytes(fh, length, position) {
+  const buf = Buffer.alloc(length);
+  const { bytesRead } = await fh.read(buf, 0, length, position);
+  return buf.subarray(0, bytesRead);
 }
 
-async function readHead(filePath, length) {
+export async function isEncryptedFile(rawPath, root = UPLOAD_DIR) {
+  const rootDir = path.resolve(root) + path.sep;
+  const filePath = path.resolve(rawPath);
+  if (!filePath.startsWith(rootDir)) throw new Error('INVALID_FILE_PATH');
   const fh = await fs.promises.open(filePath, 'r');
   try {
-    const buf = Buffer.alloc(length);
-    const { bytesRead } = await fh.read(buf, 0, length, 0);
-    return buf.subarray(0, bytesRead);
+    const head = await readBytes(fh, FILE_MAGIC.length, 0);
+    return head.length === FILE_MAGIC.length && head.equals(FILE_MAGIC);
   } finally {
     await fh.close();
   }
-}
-
-export async function isEncryptedFile(filePath, root = UPLOAD_DIR) {
-  const head = await readHead(resolveWithin(root, filePath), FILE_MAGIC.length);
-  return head.length === FILE_MAGIC.length && head.equals(FILE_MAGIC);
 }
 
 /** 평문 파일을 암호화해 같은 경로에 덮어쓴다. 키가 없거나 이미 암호화된 파일이면 아무것도 하지 않고 false. */
 export async function encryptFileInPlace(rawPath, root = UPLOAD_DIR) {
   const key = getKey();
   if (!key) return false;
-  const filePath = resolveWithin(root, rawPath);
+  const rootDir = path.resolve(root) + path.sep;
+  const filePath = path.resolve(rawPath);
+  if (!filePath.startsWith(rootDir)) throw new Error('INVALID_FILE_PATH');
   if (await isEncryptedFile(filePath, root)) return false;
   const iv = crypto.randomBytes(IV_LEN);
   const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
@@ -152,26 +152,31 @@ export async function encryptFileInPlace(rawPath, root = UPLOAD_DIR) {
  * 반환: { size(내려줄 바이트 수), stream }
  */
 export async function openStoredFile(rawPath, root = UPLOAD_DIR) {
-  const filePath = resolveWithin(root, rawPath);
-  const stat = await fs.promises.stat(filePath);
-  if (!(await isEncryptedFile(filePath, root))) {
-    return { size: stat.size, stream: fs.createReadStream(filePath) };
-  }
-  const key = getKey();
-  if (!key) throw new Error('ENCRYPTION_KEY_MISSING');
-  const head = await readHead(filePath, FILE_HEADER_LEN);
-  const iv = head.subarray(FILE_MAGIC.length);
-  const tagBuf = Buffer.alloc(TAG_LEN);
+  const rootDir = path.resolve(root) + path.sep;
+  const filePath = path.resolve(rawPath);
+  if (!filePath.startsWith(rootDir)) throw new Error('INVALID_FILE_PATH');
   const fh = await fs.promises.open(filePath, 'r');
+  let size;
+  let head;
+  let tagBuf;
   try {
-    await fh.read(tagBuf, 0, TAG_LEN, stat.size - TAG_LEN);
+    size = (await fh.stat()).size;
+    head = await readBytes(fh, FILE_HEADER_LEN, 0);
+    tagBuf = size >= FILE_HEADER_LEN + TAG_LEN ? await readBytes(fh, TAG_LEN, size - TAG_LEN) : null;
   } finally {
     await fh.close();
   }
+  const encrypted = head.length >= FILE_MAGIC.length && head.subarray(0, FILE_MAGIC.length).equals(FILE_MAGIC);
+  if (!encrypted) {
+    return { size, stream: fs.createReadStream(filePath) };
+  }
+  const key = getKey();
+  if (!key) throw new Error('ENCRYPTION_KEY_MISSING');
+  const iv = head.subarray(FILE_MAGIC.length);
   const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
   decipher.setAuthTag(tagBuf);
-  const source = fs.createReadStream(filePath, { start: FILE_HEADER_LEN, end: stat.size - TAG_LEN - 1 });
+  const source = fs.createReadStream(filePath, { start: FILE_HEADER_LEN, end: size - TAG_LEN - 1 });
   const stream = source.pipe(decipher);
   source.on('error', (err) => stream.destroy(err));
-  return { size: stat.size - FILE_HEADER_LEN - TAG_LEN, stream };
+  return { size: size - FILE_HEADER_LEN - TAG_LEN, stream };
 }
