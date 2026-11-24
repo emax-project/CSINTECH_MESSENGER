@@ -204,6 +204,7 @@ authRouter.get('/me', authMiddleware, async (req, res) => {
         avatarUrl: user.avatarUrl ? `/users/${user.id}/avatar${avatarVer}` : null,
         isAdmin: isAdminUser(user),
         isRootAdmin: isAdminEmail(user.email),
+        isAuditor: user.auditGranted === true,
       },
     });
   } catch (err) {
