@@ -10,8 +10,10 @@
  */
 import crypto from 'node:crypto';
 import fs from 'node:fs';
+import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { Transform } from 'node:stream';
+import { UPLOAD_DIR } from './uploadDir.js';
 
 const TEXT_PREFIX = 'enc:v1:';
 const FILE_MAGIC = Buffer.from('CSEF1\0', 'latin1');
@@ -96,6 +98,14 @@ export function decryptDeep(value) {
 
 // ───── 파일 ─────
 
+/** 업로드 폴더 밖의 경로는 거부한다. 파일 이름이 어디서 오든 이 폴더 밖은 읽거나 쓰지 않는다. */
+function resolveWithin(root, filePath) {
+  const base = path.resolve(root);
+  const resolved = path.resolve(filePath);
+  if (resolved !== base && !resolved.startsWith(base + path.sep)) throw new Error('INVALID_FILE_PATH');
+  return resolved;
+}
+
 async function readHead(filePath, length) {
   const fh = await fs.promises.open(filePath, 'r');
   try {
@@ -107,16 +117,17 @@ async function readHead(filePath, length) {
   }
 }
 
-export async function isEncryptedFile(filePath) {
-  const head = await readHead(filePath, FILE_MAGIC.length);
+export async function isEncryptedFile(filePath, root = UPLOAD_DIR) {
+  const head = await readHead(resolveWithin(root, filePath), FILE_MAGIC.length);
   return head.length === FILE_MAGIC.length && head.equals(FILE_MAGIC);
 }
 
 /** 평문 파일을 암호화해 같은 경로에 덮어쓴다. 키가 없거나 이미 암호화된 파일이면 아무것도 하지 않고 false. */
-export async function encryptFileInPlace(filePath) {
+export async function encryptFileInPlace(rawPath, root = UPLOAD_DIR) {
   const key = getKey();
   if (!key) return false;
-  if (await isEncryptedFile(filePath)) return false;
+  const filePath = resolveWithin(root, rawPath);
+  if (await isEncryptedFile(filePath, root)) return false;
   const iv = crypto.randomBytes(IV_LEN);
   const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
   const tmp = `${filePath}.enc-tmp`;
@@ -140,9 +151,10 @@ export async function encryptFileInPlace(filePath) {
  * 저장된 파일을 읽는 스트림을 연다. 암호화된 파일이면 복호화해서, 평문이면 그대로 내보낸다.
  * 반환: { size(내려줄 바이트 수), stream }
  */
-export async function openStoredFile(filePath) {
+export async function openStoredFile(rawPath, root = UPLOAD_DIR) {
+  const filePath = resolveWithin(root, rawPath);
   const stat = await fs.promises.stat(filePath);
-  if (!(await isEncryptedFile(filePath))) {
+  if (!(await isEncryptedFile(filePath, root))) {
     return { size: stat.size, stream: fs.createReadStream(filePath) };
   }
   const key = getKey();

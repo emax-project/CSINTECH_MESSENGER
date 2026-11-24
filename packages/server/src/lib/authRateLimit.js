@@ -62,3 +62,5 @@ export const ssoTokenLimiter = limiter({ windowMs: MINUTE, limit: 30, message: T
 export const internalSyncLimiter = limiter({ windowMs: MINUTE, limit: 600, message: TOO_MANY, keyGenerator: (req) => `internal-sync:${req.ip}` });
 /** 그룹웨어 SSO 토큰 검증 — 그룹웨어 서버가 부르는 경로라 IP(프록시 뒤면 한 묶음) 기준으로 넉넉히(분당 300회) */
 export const ssoVerifyLimiter = limiter({ windowMs: MINUTE, limit: 300, message: TOO_MANY, keyGenerator: (req) => `sso-verify:${req.ip}` });
+/** 감사 조회·내보내기·파일 내려받기 — 사용자당 분당 60회(자원 소모 방어) */
+export const auditLimiter = limiter({ windowMs: MINUTE, limit: 60, message: TOO_MANY });

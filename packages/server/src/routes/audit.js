@@ -8,6 +8,7 @@ import fs from 'fs';
 import { prisma } from '../db.js';
 import { authMiddleware } from '../auth.js';
 import { assertAuditor } from '../lib/admin.js';
+import { auditLimiter } from '../lib/authRateLimit.js';
 import { UPLOAD_DIR } from '../upload.js';
 import { sendStoredFile } from '../lib/storedFile.js';
 import { isEncryptionEnabled } from '../lib/dataCrypto.js';
@@ -21,6 +22,7 @@ import {
 } from '../lib/auditQuery.js';
 
 export const auditRouter = Router();
+auditRouter.use(auditLimiter);
 auditRouter.use(authMiddleware);
 
 const STATUS_LABEL = { NORMAL: '정상', DELETED: '삭제됨', EXPIRED: '파일 만료', ORPHAN: '계정·대화방 삭제 등' };
@@ -315,7 +317,8 @@ auditRouter.get('/files/:messageId', async (req, res) => {
     await logAccess(me.id, 'FILE_DOWNLOAD', JSON.stringify({ messageId, roomId: message?.roomId || archive?.roomId, fileName: downloadName }), 1);
 
     const asciiFallback = /^[\x20-\x7e]*$/.test(downloadName) ? downloadName : 'download';
-    res.setHeader('Content-Disposition', `attachment; filename="${asciiFallback.replace(/"/g, '\\"')}"; filename*=UTF-8''${encodeURIComponent(downloadName)}`);
+    const escapedFallback = asciiFallback.replace(/([\\"])/g, '\\$1');
+    res.setHeader('Content-Disposition', `attachment; filename="${escapedFallback}"; filename*=UTF-8''${encodeURIComponent(downloadName)}`);
     if (mime) res.setHeader('Content-Type', mime);
     res.setHeader('X-Content-Type-Options', 'nosniff');
     await sendStoredFile(res, filePath);

@@ -76,12 +76,12 @@ test('파일 암호화: 디스크에는 암호문, 내려받을 때는 원본, �
   const original = crypto.randomBytes(300_000);
   fs.writeFileSync(file, original);
 
-  assert.equal(await encryptFileInPlace(file), true);
-  assert.equal(await isEncryptedFile(file), true);
+  assert.equal(await encryptFileInPlace(file, dir), true);
+  assert.equal(await isEncryptedFile(file, dir), true);
   assert.ok(!fs.readFileSync(file).includes(original.subarray(1000, 1064)));
-  assert.equal(await encryptFileInPlace(file), false);
+  assert.equal(await encryptFileInPlace(file, dir), false);
 
-  const { size, stream } = await openStoredFile(file);
+  const { size, stream } = await openStoredFile(file, dir);
   const back = await readAll(stream);
   assert.equal(size, original.length);
   assert.ok(back.equals(original));
@@ -93,7 +93,7 @@ test('평문(기존) 파일은 그대로 내려준다', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'enc-test-'));
   const file = path.join(dir, 'plain.txt');
   fs.writeFileSync(file, 'hello');
-  const { size, stream } = await openStoredFile(file);
+  const { size, stream } = await openStoredFile(file, dir);
   assert.equal(size, 5);
   assert.equal((await readAll(stream)).toString(), 'hello');
   fs.rmSync(dir, { recursive: true, force: true });
@@ -104,11 +104,23 @@ test('변조된 파일은 끝까지 읽는 도중 오류가 난다', async () =>
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'enc-test-'));
   const file = path.join(dir, 'b.bin');
   fs.writeFileSync(file, crypto.randomBytes(5000));
-  await encryptFileInPlace(file);
+  await encryptFileInPlace(file, dir);
   const data = fs.readFileSync(file);
   data[200] ^= 0xff;
   fs.writeFileSync(file, data);
-  const { stream } = await openStoredFile(file);
+  const { stream } = await openStoredFile(file, dir);
   await assert.rejects(() => readAll(stream));
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('업로드 폴더 밖의 경로는 읽지도 쓰지도 않는다', async () => {
+  useKey(KEY_A);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'enc-test-'));
+  const outside = path.join(os.tmpdir(), 'enc-outside.txt');
+  fs.writeFileSync(outside, 'secret');
+  await assert.rejects(() => encryptFileInPlace(outside, dir), /INVALID_FILE_PATH/);
+  await assert.rejects(() => openStoredFile(path.join(dir, '..', 'enc-outside.txt'), dir), /INVALID_FILE_PATH/);
+  assert.equal(fs.readFileSync(outside, 'utf8'), 'secret');
+  fs.rmSync(dir, { recursive: true, force: true });
+  fs.rmSync(outside, { force: true });
 });
