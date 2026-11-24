@@ -1,4 +1,5 @@
 import { archiveMessage } from '../lib/messageArchive.js';
+import { isEncryptionEnabled } from '../lib/dataCrypto.js';
 import path from 'path';
 import { Router } from 'express';
 import { prisma } from '../db.js';
@@ -781,18 +782,42 @@ roomsRouter.get('/:id/messages/search', async (req, res) => {
     });
     if (!member) return res.status(404).json({ error: 'Room not found' });
 
-    const messages = await prisma.message.findMany({
-      where: {
-        roomId: req.params.id,
-        content: { contains: q, mode: 'insensitive' },
-        deletedAt: null,
-      },
-      take: 50,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        sender: { select: { id: true, name: true, email: true } },
-      },
-    });
+    const include = { sender: { select: { id: true, name: true, email: true } } };
+    let messages;
+    if (isEncryptionEnabled()) {
+      // 내용이 암호화되어 DB에서 직접 찾을 수 없으므로, 최근 메시지부터 풀어서 찾는다(최대 1만 건까지 살핀다)
+      const needle = q.toLowerCase();
+      messages = [];
+      let cursor = null;
+      for (let scanned = 0; scanned < 10000 && messages.length < 50;) {
+        const batch = await prisma.message.findMany({
+          where: { roomId: req.params.id, deletedAt: null, ...(cursor ? { createdAt: { lt: cursor } } : {}) },
+          take: 500,
+          orderBy: { createdAt: 'desc' },
+          include,
+        });
+        if (batch.length === 0) break;
+        scanned += batch.length;
+        cursor = batch[batch.length - 1].createdAt;
+        for (const m of batch) {
+          if (m.content.toLowerCase().includes(needle)) {
+            messages.push(m);
+            if (messages.length >= 50) break;
+          }
+        }
+      }
+    } else {
+      messages = await prisma.message.findMany({
+        where: {
+          roomId: req.params.id,
+          content: { contains: q, mode: 'insensitive' },
+          deletedAt: null,
+        },
+        take: 50,
+        orderBy: { createdAt: 'desc' },
+        include,
+      });
+    }
 
     return res.json({ messages });
   } catch (err) {

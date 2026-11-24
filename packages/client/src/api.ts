@@ -705,6 +705,8 @@ export type SecurityPolicy = {
   retention: RetentionPolicy;
   fileTransfer: FileTransferPolicy;
   alwaysBlockedExtensions: string[];
+  /** 서버에 저장 시 암호화 키가 설정되어 대화·첨부 파일이 암호화되는지 */
+  encryptionEnabled?: boolean;
 };
 export type SecurityPolicyPatch = {
   screenLockMinutes?: number;

@@ -141,6 +141,13 @@ export default function SecurityPolicySection({ isDark }: { isDark: boolean }) {
         <span className={cn('text-xs', muted)}>창이 많을수록 메모리·CPU를 더 씁니다. 0이면 제한하지 않습니다.</span>
       </label>
 
+      <div className="flex flex-col gap-1">
+        <span className={cn('text-xs font-semibold', title)}>저장 암호화</span>
+        <span className={cn('text-xs', data?.encryptionEnabled ? 'text-emerald-500' : 'text-amber-500')}>
+          {data?.encryptionEnabled ? '사용 중 — 대화 내용과 첨부 파일이 서버에 암호화되어 저장됩니다.' : '꺼져 있음 — 서버 설정(DATA_ENCRYPTION_KEY)에 키가 없어 평문으로 저장됩니다.'}
+        </span>
+      </div>
+
       <div className="flex flex-col gap-2">
         <span className={cn('text-xs font-semibold', title)}>보관 기간 (일, 0 = 영구)</span>
         <label className="flex items-center gap-2">

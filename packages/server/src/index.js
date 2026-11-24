@@ -46,6 +46,7 @@ import { settingsRouter } from './routes/settings.js';
 import { ssoRouter } from './routes/sso.js';
 import { internalRouter } from './routes/internal.js';
 import { auditRouter } from './routes/audit.js';
+import { getKey as getDataEncryptionKey } from './lib/dataCrypto.js';
 import { prisma } from './db.js';
 import { authMiddleware, verifySessionToken } from './auth.js';
 import { registerSocketHandlers } from './socket.js';
@@ -90,6 +91,14 @@ app.get('/users/:id/avatar', async (req, res) => {
   }
 });
 // /api 접두사 지원 (모바일·배포 시 baseUrl에 /api 포함 시)
+// 암호화 키 형식이 틀리면 조용히 평문 저장하지 않도록 시작할 때 바로 멈춘다
+try {
+  console.log(getDataEncryptionKey() ? '[crypto] 저장 암호화: 사용 중' : '[crypto] 저장 암호화: 꺼짐 (DATA_ENCRYPTION_KEY 없음)');
+} catch (err) {
+  console.error('[crypto] 서버를 시작할 수 없습니다:', err.message);
+  process.exit(1);
+}
+
 app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/rooms', roomsRouter);

@@ -5,6 +5,7 @@ import { assertAdmin } from '../lib/admin.js';
 import { isBlockedHostname } from '../lib/ssrfGuard.js';
 import { SSO_DEFAULT_PATH, normalizeSsoPath } from '../lib/ssoToken.js';
 import { ALWAYS_BLOCKED_EXTENSIONS, getSecurityPolicy, saveSecurityPolicy } from '../lib/securityPolicy.js';
+import { isEncryptionEnabled } from '../lib/dataCrypto.js';
 
 export const settingsRouter = Router();
 
@@ -220,7 +221,7 @@ settingsRouter.put('/branding', async (req, res) => {
 settingsRouter.get('/security', async (_req, res) => {
   try {
     const policy = await getSecurityPolicy();
-    return res.json({ ...policy, alwaysBlockedExtensions: ALWAYS_BLOCKED_EXTENSIONS });
+    return res.json({ ...policy, alwaysBlockedExtensions: ALWAYS_BLOCKED_EXTENSIONS, encryptionEnabled: isEncryptionEnabled() });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: '보안 설정을 불러오지 못했습니다' });
@@ -234,7 +235,7 @@ settingsRouter.put('/security', async (req, res) => {
     const saved = await saveSecurityPolicy(req.body);
     if (saved.error) return res.status(400).json({ error: saved.error });
     console.log(`[admin] 보안 정책 변경: lock=${saved.screenLockMinutes}분, 2FA=${saved.twoFactor}, 파일전송=${saved.fileTransfer.enabled ? `허용(${saved.fileTransfer.maxSizeMB}MB)` : '차단'}`);
-    return res.json({ ...saved, alwaysBlockedExtensions: ALWAYS_BLOCKED_EXTENSIONS });
+    return res.json({ ...saved, alwaysBlockedExtensions: ALWAYS_BLOCKED_EXTENSIONS, encryptionEnabled: isEncryptionEnabled() });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: '보안 설정을 저장하지 못했습니다' });

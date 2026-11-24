@@ -9,6 +9,8 @@ import { prisma } from '../db.js';
 import { authMiddleware } from '../auth.js';
 import { assertAuditor } from '../lib/admin.js';
 import { UPLOAD_DIR } from '../upload.js';
+import { sendStoredFile } from '../lib/storedFile.js';
+import { isEncryptionEnabled } from '../lib/dataCrypto.js';
 import {
   AUDIT_CSV_HEADER,
   AUDIT_EXPORT_MAX,
@@ -39,8 +41,35 @@ function archiveWhere(filter, before) {
   return where;
 }
 
-/** 조건에 맞는 대화(현재 메시지 + 서버 보존 원본)를 최근순으로 limit개까지 모은다. */
+/**
+ * 조건에 맞는 대화(현재 메시지 + 서버 보존 원본)를 최근순으로 limit개까지 모은다.
+ * 내용이 암호화되어 있으면 DB에서 직접 찾을 수 없으므로 풀어서 비교한다(최대 5만 건까지 살핀다).
+ */
 async function queryAuditRows(filter, limit, before) {
+  if (!filter.q || !isEncryptionEnabled()) return queryAuditRowsDb(filter, limit, before);
+  const needle = filter.q.toLowerCase();
+  const found = [];
+  let cursor = before;
+  let scanned = 0;
+  let more = false;
+  while (found.length <= limit && scanned < 50000) {
+    const { rows, nextBefore } = await queryAuditRowsDb({ ...filter, q: '' }, 1000, cursor);
+    scanned += rows.length;
+    for (const row of rows) {
+      if (`${row.content}\n${row.originalContent ?? ''}`.toLowerCase().includes(needle)) found.push(row);
+    }
+    if (!nextBefore) { more = false; break; }
+    cursor = nextBefore;
+    more = true;
+  }
+  const page = found.slice(0, limit);
+  const overflow = found.length > limit;
+  // 더 찾을 게 있으면 다음 조회가 이어서 살피도록 위치를 알려 준다(넘친 경우엔 보여 준 마지막 대화 다음부터)
+  const nextBefore = overflow ? page[page.length - 1].createdAt : more ? cursor : null;
+  return { rows: page, nextBefore };
+}
+
+async function queryAuditRowsDb(filter, limit, before) {
   const liveWhere = { createdAt: { gte: filter.from, lte: filter.to } };
   if (before) liveWhere.createdAt = { ...liveWhere.createdAt, lt: before };
   if (filter.roomId) liveWhere.roomId = filter.roomId;
@@ -289,9 +318,11 @@ auditRouter.get('/files/:messageId', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${asciiFallback.replace(/"/g, '\\"')}"; filename*=UTF-8''${encodeURIComponent(downloadName)}`);
     if (mime) res.setHeader('Content-Type', mime);
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    return res.sendFile(filePath);
+    await sendStoredFile(res, filePath);
+    return;
   } catch (err) {
     console.error(err);
+    if (res.headersSent) return res.destroy(err);
     return res.status(500).json({ error: 'AUDIT_FILE_FAILED' });
   }
 });
