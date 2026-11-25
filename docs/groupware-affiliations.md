@@ -22,7 +22,7 @@ CS 요청: 겸직으로 같은 부서에 근무하는 타 법인 사용자도 �
       "email": "gildong@csin.kr",
       "affiliations": [
         { "companyName": "씨에스인", "departmentName": "경영지원부" },
-        { "companyName": "티피에이코리아", "departmentName": "영업본부 > 영업1팀" }
+        { "companyName": "예시컴퍼니", "departmentName": "영업본부 > 영업1팀" }
       ]
     }
   ],
@@ -56,7 +56,7 @@ CS 요청: 겸직으로 같은 부서에 근무하는 타 법인 사용자도 �
   "removed": 2,
   "notFound": ["nobody@csin.kr"],
   "unresolved": [
-    { "email": "gildong@csin.kr", "companyName": "티피에이코리아", "departmentName": "영업본부 > 영업1팀", "reason": "DEPARTMENT_NOT_FOUND" }
+    { "email": "gildong@csin.kr", "companyName": "예시컴퍼니", "departmentName": "영업본부 > 영업1팀", "reason": "DEPARTMENT_NOT_FOUND" }
   ],
   "invalid": [{ "index": 3, "reason": "INVALID_EMAIL" }]
 }
