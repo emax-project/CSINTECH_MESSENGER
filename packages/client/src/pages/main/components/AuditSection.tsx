@@ -218,7 +218,7 @@ export default function AuditSection({ isDark }: { isDark: boolean }) {
       <div>
         <div className={cn('text-[13px] font-semibold', title)}>감사 조회</div>
         <p className={cn('mt-1 mb-0 text-xs leading-relaxed', muted)}>
-          사용자 또는 대화방과 기간을 지정해 대화·첨부 파일을 조회합니다. 사용자가 삭제하거나 만료되어 사라진 대화도 원본이 표시되며,
+          사용자(보낸 사람 기준) 또는 대화방과 기간을 지정해 대화·첨부 파일을 조회합니다. 사용자가 삭제하거나 만료되어 사라진 대화도 원본이 표시되며,
           조회·내보내기·파일 내려받기는 모두 이력에 기록됩니다.
         </p>
       </div>

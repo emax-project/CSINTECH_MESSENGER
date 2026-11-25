@@ -1,4 +1,4 @@
-import { memo, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import UserAvatar from '../../../components/UserAvatar';
@@ -278,6 +278,16 @@ function SettingsPanel({
   onQuit,
 }: SettingsPanelProps) {
   const wrap = panelWrapStyle(760);
+  // 관리자가 감사·관리자 권한을 부여/해제해도 재로그인 없이 반영되도록, 설정을 열 때 내 정보를 다시 읽는다.
+  useEffect(() => {
+    let alive = true;
+    authApi.me()
+      .then(({ user: u }) => {
+        if (alive && u) useAuthStore.getState().setAuth(u, useAuthStore.getState().token);
+      })
+      .catch(() => { /* 네트워크 오류는 무시하고 기존 정보를 유지 */ });
+    return () => { alive = false; };
+  }, []);
   const accent = useAccentStyles(isDark, accentTheme);
   const toggleColor = accent.custom ? accent.theme.accent : '#171717';
   return (
