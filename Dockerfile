@@ -1,6 +1,6 @@
 # 서버 + 웹 클라이언트 배포용 (runner에 Node 불필요, Docker만 있으면 됨)
 # Stage 1: 웹 클라이언트 빌드
-FROM node:20-bookworm-slim AS client-builder
+FROM node:22-bookworm-slim AS client-builder
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY packages/client packages/client
@@ -12,7 +12,7 @@ ENV VITE_BASE_URL=/
 RUN npm run build --workspace=csin-tech
 
 # Stage 2: API 서버 + 클라이언트 정적 파일
-FROM node:20-bookworm-slim
+FROM node:22-bookworm-slim
 RUN apt-get update -y && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV CLIENT_DIST=/app/client-dist
