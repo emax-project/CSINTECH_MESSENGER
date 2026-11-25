@@ -33,7 +33,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       # postinstall에서 prisma generate가 실행된다(서버 테스트에 필요). electron 바이너리는 필요 없다.
