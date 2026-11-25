@@ -7,7 +7,7 @@ test('정상 요청은 이메일을 소문자로, 중복 겸직은 하나로 정
     users: [{ email: ' A@Csin.KR ', affiliations: [
       { companyName: '씨에스인', departmentName: '경영지원부' },
       { companyName: '씨에스인 ', departmentName: '경영지원부' },
-      { companyName: '티피에이', departmentName: '영업팀' },
+      { companyName: '예시컴퍼니', departmentName: '영업팀' },
     ] }],
   });
   assert.equal(r.errors.length, 0);
