@@ -236,6 +236,20 @@ export function useMainSocket({
         new Notification(title, { body });
       }
     });
+    // 새 메일 팝업 — 서버가 메일 서버 받은편지함을 감시해 수신자에게만 보낸다(docs/mail-notify.md).
+    // 제목은 서버 설정(MAIL_WATCH_SHOW_SUBJECT)에 따라 비어 있을 수 있다.
+    s.on('mail', (payload: { mailId?: string; from?: string; subject?: string }) => {
+      if (notificationsSnoozedUntilRef.current > Date.now()) return;
+      const title = payload.from ? `새 메일: ${payload.from}` : '새 메일';
+      const body = payload.subject || '새 메일이 도착하였습니다.';
+      playNotificationSound();
+      const electronAPI = window.electronAPI;
+      if (isNotificationPopupEnabled() && electronAPI?.showNotification) {
+        electronAPI.showNotification(title, body);
+      } else if (isNotificationPopupEnabled() && typeof Notification !== 'undefined' && Notification.permission === 'granted' && document.hidden) {
+        new Notification(title, { body });
+      }
+    });
     s.on('connect', () => {
       s.emit('get_online_list');
     });
