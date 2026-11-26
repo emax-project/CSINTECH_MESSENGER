@@ -82,6 +82,15 @@ services:
       LDAP_LOCAL_EXCEPTIONS: ${LDAP_LOCAL_EXCEPTIONS:-}
       # 그룹웨어 SSO: 그룹웨어 서버가 토큰 검증 API(/sso/verify)를 부를 때 보내는 공유 키. 비어 있으면 검증 API가 꺼진다(503).
       SSO_SHARED_KEY: ${SSO_SHARED_KEY:-}
+      # 새 메일 팝업 알림 (docs/mail-notify.md) — MAIL_WATCH_ENABLED=true 일 때만 동작
+      MAIL_WATCH_ENABLED: ${MAIL_WATCH_ENABLED:-false}
+      MAIL_MSSQL_SERVER: ${MAIL_MSSQL_SERVER:-}
+      MAIL_MSSQL_PORT: ${MAIL_MSSQL_PORT:-}
+      MAIL_MSSQL_DATABASE: ${MAIL_MSSQL_DATABASE:-MC7}
+      MAIL_MSSQL_USER: ${MAIL_MSSQL_USER:-}
+      MAIL_MSSQL_PASSWORD: ${MAIL_MSSQL_PASSWORD:-}
+      MAIL_WATCH_SHOW_SUBJECT: ${MAIL_WATCH_SHOW_SUBJECT:-true}
+      MAIL_WATCH_DB_TIME: ${MAIL_WATCH_DB_TIME:-utc}
       # 그룹웨어 서버가 /internal/* 를 부를 때 x-internal-secret 헤더로 보내는 공유 비밀번호. 비어 있으면 내부 API가 꺼진다(503).
       INTEGRATION_SHARED_SECRET: ${INTEGRATION_SHARED_SECRET:-}
       # 대화 내용·첨부 파일 저장 시 암호화 키(hex 64자 또는 base64 32바이트). 비어 있으면 암호화하지 않는다.
